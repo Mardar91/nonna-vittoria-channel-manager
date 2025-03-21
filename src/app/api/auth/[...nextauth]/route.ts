@@ -1,5 +1,11 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import type { User } from 'next-auth';
+
+// Estendi il tipo User per includere il campo role
+interface CustomUser extends User {
+  role?: string;
+}
 
 const handler = NextAuth({
   providers: [
@@ -25,7 +31,7 @@ const handler = NextAuth({
             name: 'Admin',
             email: credentials.email,
             role: 'admin',
-          };
+          } as CustomUser;
         }
 
         return null;
@@ -41,13 +47,13 @@ const handler = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role;
+        token.role = (user as CustomUser).role;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).role = token.role;
+        session.user.role = token.role;
       }
       return session;
     },
