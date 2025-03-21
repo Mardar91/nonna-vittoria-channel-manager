@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -58,8 +58,14 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   const [isNewBookingModalOpen, setIsNewBookingModalOpen] = useState(false);
   const [newBookingStartDate, setNewBookingStartDate] = useState<Date>(new Date());
   
-  // Riferimento alla griglia del calendario per calcolare le posizioni
-  const [calendarRef, setCalendarRef] = useState<HTMLDivElement | null>(null);
+  // Riferimento alla griglia del calendario
+  const calendarGridRef = useRef<HTMLDivElement>(null);
+  const [bookingStrips, setBookingStrips] = useState<Array<{
+    booking: Booking;
+    startPos: number;
+    endPos: number;
+    row: number;
+  }>>([]);
   
   // Formattazione date
   const dateToString = (date: Date): string => {
@@ -75,6 +81,13 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     generateCalendarDays(currentYear, currentMonth);
     loadDailyRates();
   }, [currentYear, currentMonth]);
+  
+  // Calcola le posizioni delle prenotazioni dopo che il calendario è stato renderizzato
+  useEffect(() => {
+    if (calendarGridRef.current && calendarDays.length > 0) {
+      calculateBookingPositions();
+    }
+  }, [calendarDays, bookings]);
   
   // Funzione per generare i giorni del calendario
   const generateCalendarDays = (year: number, month: number) => {
@@ -108,6 +121,85 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     }
     
     setCalendarDays(days);
+  };
+  
+  // Calcola le posizioni delle prenotazioni nella griglia
+  const calculateBookingPositions = () => {
+    if (!calendarGridRef.current || calendarDays.length === 0) return;
+    
+    const newBookingStrips: Array<{
+      booking: Booking;
+      startPos: number;
+      endPos: number;
+      row: number;
+    }> = [];
+    
+    // Identifica prenotazioni uniche per periodo
+    const uniqueBookingPeriods = new Map<string, Booking>();
+    
+    bookings.forEach(booking => {
+      const checkIn = new Date(booking.checkIn);
+      const checkOut = new Date(booking.checkOut);
+      
+      // Crea una chiave unica per questo periodo di prenotazione
+      const periodKey = `${dateToString(checkIn)}-${dateToString(checkOut)}`;
+      
+      // Memorizza solo la prima prenotazione per ogni periodo unico
+      if (!uniqueBookingPeriods.has(periodKey)) {
+        uniqueBookingPeriods.set(periodKey, booking);
+      }
+    });
+    
+    // Elabora solo le prenotazioni uniche
+    uniqueBookingPeriods.forEach(booking => {
+      const checkIn = new Date(booking.checkIn);
+      const checkOut = new Date(booking.checkOut);
+      
+      // Trova gli indici delle celle di check-in e check-out
+      const startIdx = calendarDays.findIndex(
+        day => day !== null && dateToString(day) === dateToString(checkIn)
+      );
+      
+      // Per il check-out, cerchiamo il giorno prima (poiché il check-out non è incluso nella prenotazione)
+      const endDate = new Date(checkOut);
+      endDate.setDate(endDate.getDate() - 1);
+      
+      const endIdx = calendarDays.findIndex(
+        day => day !== null && dateToString(day) === dateToString(endDate)
+      );
+      
+      // Controlla se la prenotazione è visibile nel calendario corrente
+      if (startIdx !== -1 || endIdx !== -1) {
+        // Calcola la riga di inizio
+        const startRow = startIdx !== -1 ? Math.floor(startIdx / 7) : Math.floor(endIdx / 7);
+        
+        // Posizione di inizio effettiva (o 0 se il check-in è prima del mese corrente)
+        const effectiveStartIdx = startIdx !== -1 ? startIdx : startRow * 7;
+        
+        // Posizione di fine effettiva (o fine della riga se il check-out è dopo il mese corrente)
+        const effectiveEndIdx = endIdx !== -1 ? endIdx : Math.min((startRow + 1) * 7 - 1, calendarDays.length - 1);
+        
+        // Aggiungi una striscia di prenotazione per ogni riga attraversata
+        let currentRowStart = effectiveStartIdx;
+        const lastRow = Math.floor(effectiveEndIdx / 7);
+        
+        for (let row = startRow; row <= lastRow; row++) {
+          const rowEndIdx = Math.min(effectiveEndIdx, (row + 1) * 7 - 1);
+          
+          newBookingStrips.push({
+            booking,
+            startPos: currentRowStart % 7,
+            endPos: rowEndIdx % 7,
+            row,
+          });
+          
+          // La prossima riga inizia all'inizio
+          currentRowStart = row * 7 + 7;
+        }
+      }
+    });
+    
+    setBookingStrips(newBookingStrips);
   };
   
   // Funzione per caricare le tariffe giornaliere
@@ -431,75 +523,6 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     return dateToString(date) === dateToString(today);
   };
   
-  // Ottieni le prenotazioni per l'intero calendario corrente
-  const getBookingsForView = () => {
-    if (!calendarDays.length) return [];
-    
-    // Filtra solo le prenotazioni visibili nel calendario corrente
-    const visibleBookings = bookings.filter(booking => {
-      const checkInDate = new Date(booking.checkIn);
-      const checkOutDate = new Date(booking.checkOut);
-      
-      // Considera solo le prenotazioni che hanno almeno un giorno nel calendario corrente
-      const firstCalendarDay = calendarDays[0];
-      const lastCalendarDay = calendarDays[calendarDays.length - 1];
-      
-      if (!firstCalendarDay || !lastCalendarDay) return false;
-      
-      return (
-        (checkInDate <= lastCalendarDay && checkOutDate >= firstCalendarDay)
-      );
-    });
-    
-    return visibleBookings;
-  };
-  
-  // Calcola la posizione delle prenotazioni nella griglia del calendario
-  const getBookingPositionStyle = (booking: Booking) => {
-    if (!calendarRef) return {};
-    
-    const checkIn = new Date(booking.checkIn);
-    const checkOut = new Date(booking.checkOut);
-    
-    // Trova la posizione della cella di check-in
-    const checkInIndex = calendarDays.findIndex(
-      day => day !== null && dateToString(day) === dateToString(checkIn)
-    );
-    
-    // Trova la posizione della cella di check-out
-    const checkOutIndex = calendarDays.findIndex(
-      day => day !== null && dateToString(day) === dateToString(checkOut)
-    );
-    
-    // Se non troviamo le celle, non possiamo posizionare la prenotazione
-    if (checkInIndex === -1) return {};
-    
-    // Calcola la durata in giorni (incluso il check-in, escluso il check-out)
-    const durationDays = checkOutIndex === -1 
-      ? calendarDays.length - checkInIndex 
-      : checkOutIndex - checkInIndex;
-    
-    // Calcola la riga e colonna per la cella di check-in
-    const row = Math.floor(checkInIndex / 7);
-    const col = checkInIndex % 7;
-    
-    // Ottieni le dimensioni della cella
-    const cells = calendarRef.querySelectorAll('.grid-cols-7 > div');
-    if (!cells.length || checkInIndex >= cells.length) return {};
-    
-    const cell = cells[checkInIndex] as HTMLElement;
-    const cellWidth = cell.offsetWidth;
-    const cellHeight = cell.offsetHeight;
-    
-    // Imposta posizione e dimensioni
-    return {
-      left: `${col * cellWidth}px`,
-      top: `${row * cellHeight + 20}px`, // Aggiungi spazio per il numero del giorno
-      width: `${durationDays * cellWidth - 4}px`, // Sottrai i bordi
-      height: `${cellHeight - 30}px`, // Lascia spazio per data e prezzo
-    };
-  };
-  
   // Gestisci il click sulla striscia della prenotazione
   const handleBookingStripClick = (bookingId: string) => {
     router.push(`/bookings/${bookingId}`);
@@ -598,12 +621,12 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         </div>
       </div>
       
-      <div 
-        className="relative" 
-        ref={(ref) => setCalendarRef(ref)}
-      >
+      <div className="relative">
         {/* Griglia del calendario */}
-        <div className="grid grid-cols-7 gap-1">
+        <div 
+          className="grid grid-cols-7 gap-1"
+          ref={calendarGridRef}
+        >
           {/* Intestazione giorni della settimana */}
           {weekdayNames.map((day, index) => (
             <div key={index} className="h-10 flex items-center justify-center font-medium">
@@ -624,13 +647,17 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
             const price = getPriceForDate(day);
             const isSelected = isSelectionMode && isDateSelected(day);
             
+            // Non mostrare le informazioni di prenotazione nella cella
+            // quando questa è mostrata come una striscia
+            const showBookingInCell = false;
+            
             return (
-              <div key={index} className="relative">
+              <div key={index} className="relative h-28">
                 <DayCell
                   date={day}
                   isCurrentMonth={isCurrentMonth}
                   isToday={isTodayCell}
-                  booking={bookingPosition === 'middle' || bookingPosition === 'end' ? null : booking}
+                  booking={showBookingInCell ? booking : null}
                   bookingPosition={bookingPosition}
                   isBlocked={isBlocked}
                   hasCustomPrice={hasCustomPrice}
@@ -645,14 +672,50 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         </div>
         
         {/* Strisce delle prenotazioni */}
-        {getBookingsForView().map(booking => (
-          <BookingStrip
-            key={booking.id}
-            booking={booking}
-            style={getBookingPositionStyle(booking)}
-            onClick={() => handleBookingStripClick(booking.id)}
-          />
-        ))}
+        {bookingStrips.map((stripInfo, index) => {
+          const { booking, startPos, endPos, row } = stripInfo;
+          
+          if (!calendarGridRef.current) return null;
+          
+          // Calcola la larghezza della cella (assumiamo che tutte le celle abbiano la stessa larghezza)
+          const cellWidth = calendarGridRef.current.clientWidth / 7;
+          const cellHeight = 112; // Altezza standard delle celle (h-28 = 7rem = 112px)
+          
+          // Calcola posizione e dimensioni
+          const stripWidth = (endPos - startPos + 1) * cellWidth - 2; // -2 per i bordi
+          
+          // Posizione assoluta nella griglia
+          const left = startPos * cellWidth + 1; // +1 per il bordo
+          const top = row * cellHeight + 20; // +20 per il numero del giorno e altri elementi
+          
+          const isBlocked = booking.status === 'blocked';
+          
+          return (
+            <div
+              key={`${booking.id}-${index}`}
+              className={`absolute pointer-events-auto px-2 py-1 rounded-md z-10 overflow-hidden ${
+                isBlocked ? 'bg-red-100 border border-red-500 text-red-800' : 'bg-green-100 border border-green-500 text-green-800'
+              }`}
+              style={{
+                left: `${left}px`,
+                top: `${top}px`,
+                width: `${stripWidth}px`,
+                height: '70px', // Altezza fissa per la striscia
+              }}
+              onClick={() => handleBookingStripClick(booking.id)}
+            >
+              <div className="text-xs font-semibold truncate">
+                {isBlocked ? 'CLOSED - Not available' : booking.guestName}
+              </div>
+              <div className="text-xs">
+                {booking.numberOfGuests} ospiti
+              </div>
+              <div className="text-xs font-medium">
+                {new Date(booking.checkIn).toLocaleDateString('it-IT', {day: '2-digit', month: '2-digit'})} - {new Date(booking.checkOut).toLocaleDateString('it-IT', {day: '2-digit', month: '2-digit'})}
+              </div>
+            </div>
+          );
+        })}
       </div>
       
       {/* Azioni rapide */}
