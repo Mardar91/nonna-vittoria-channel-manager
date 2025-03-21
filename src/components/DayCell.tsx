@@ -45,9 +45,6 @@ export default function DayCell({
     cellClassName += "border-blue-500 border-2 ";
   } else if (isSelected) {
     cellClassName += "border-purple-500 border-2 ";
-  } else if (booking) {
-    // Bordi specifici per le prenotazioni (ma non mostriamo più il contenuto nella cella)
-    cellClassName += "border-gray-200 ";
   } else {
     cellClassName += "border-gray-200 ";
   }
