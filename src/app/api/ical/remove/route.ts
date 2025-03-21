@@ -1,4 +1,3 @@
-// src/app/api/ical/remove/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
@@ -48,8 +47,6 @@ export async function POST(req: NextRequest) {
       externalId: { $exists: true } // Assicurati di eliminare solo prenotazioni importate
     });
     
-    console.log(`Found ${importedBookings.length} imported bookings to delete`);
-    
     // Elimina le prenotazioni importate
     if (importedBookings.length > 0) {
       await BookingModel.deleteMany({
@@ -65,7 +62,6 @@ export async function POST(req: NextRequest) {
       message: `Successfully removed iCal feed from ${source} and deleted ${importedBookings.length} imported bookings`,
     });
   } catch (error) {
-    console.error('Error removing iCal feed:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }
