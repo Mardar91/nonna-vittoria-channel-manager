@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import DayCell from '@/components/DayCell';
 import RateModal from '@/components/RateModal';
 import BulkEditModal from '@/components/BulkEditModal';
+import BookingFormModal from '@/components/BookingFormModal';
 
 interface Booking {
   id: string;
@@ -33,6 +35,7 @@ interface ApartmentCalendarProps {
 }
 
 export default function ApartmentCalendar({ apartmentId, apartmentData, bookings }: ApartmentCalendarProps) {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(currentDate.getMonth());
   const [currentYear, setCurrentYear] = useState(currentDate.getFullYear());
@@ -46,6 +49,9 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
+  
+  // Modal per nuova prenotazione
+  const [isNewBookingModalOpen, setIsNewBookingModalOpen] = useState(false);
   
   // Formattazione date
   const dateToString = (date: Date): string => {
@@ -168,9 +174,17 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         setSelectedDates([...selectedDates, date]);
       }
     } else {
-      // Altrimenti, apri il modal per una singola data
-      setSelectedDate(date);
-      setIsRateModalOpen(true);
+      // Verifica se esiste una prenotazione per questa data
+      const booking = getBookingForDate(date);
+      
+      if (booking) {
+        // Se c'è una prenotazione, reindirizza alla pagina di modifica
+        router.push(`/bookings/${booking.id}`);
+      } else {
+        // Altrimenti, apri il modal per la tariffa giornaliera
+        setSelectedDate(date);
+        setIsRateModalOpen(true);
+      }
     }
   };
   
@@ -192,6 +206,34 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     
     // Conferma all'utente
     toast.success(`Selezionate ${dates.length} date`);
+  };
+  
+  // Funzione per creare una nuova prenotazione dalle date selezionate
+  const handleCreateBooking = () => {
+    if (selectedDates.length === 0) {
+      toast.error('Seleziona almeno una data per creare una prenotazione');
+      return;
+    }
+    
+    // Ordina le date
+    const sortedDates = [...selectedDates].sort((a, b) => a.getTime() - b.getTime());
+    
+    // Verifico che non ci siano prenotazioni esistenti in queste date
+    for (const date of sortedDates) {
+      if (getBookingForDate(date)) {
+        toast.error('Ci sono già prenotazioni esistenti nelle date selezionate');
+        return;
+      }
+    }
+    
+    // Imposta la data di check-in alla prima data selezionata
+    // e la data di check-out al giorno successivo all'ultima data selezionata
+    const checkIn = new Date(sortedDates[0]);
+    const checkOut = new Date(sortedDates[sortedDates.length - 1]);
+    checkOut.setDate(checkOut.getDate() + 1); // Aggiunge un giorno per il check-out
+    
+    // Apri il modal per la creazione della prenotazione
+    setIsNewBookingModalOpen(true);
   };
   
   // Funzione per salvare le modifiche alla tariffa
@@ -314,6 +356,27 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     }) || null;
   };
   
+  // Ottieni la posizione di una data all'interno di una prenotazione (inizio, mezzo, fine)
+  const getBookingPosition = (date: Date, booking: Booking): 'start' | 'middle' | 'end' | 'single' => {
+    const dateStr = dateToString(date);
+    const checkInStr = dateToString(new Date(booking.checkIn));
+    const checkOutStr = dateToString(new Date(new Date(booking.checkOut).setDate(new Date(booking.checkOut).getDate() - 1)));
+    
+    if (checkInStr === checkOutStr) {
+      return 'single';
+    }
+    
+    if (dateStr === checkInStr) {
+      return 'start';
+    }
+    
+    if (dateStr === checkOutStr) {
+      return 'end';
+    }
+    
+    return 'middle';
+  };
+  
   // Verifica se una data ha una tariffa personalizzata
   const hasCustomRate = (date: Date): boolean => {
     const dateStr = dateToString(date);
@@ -394,12 +457,20 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
           </button>
           
           {isSelectionMode && selectedDates.length > 0 && (
-            <button
-              onClick={() => setIsBulkEditModalOpen(true)}
-              className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
-            >
-              Modifica {selectedDates.length} Date
-            </button>
+            <>
+              <button
+                onClick={() => setIsBulkEditModalOpen(true)}
+                className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
+              >
+                Modifica {selectedDates.length} Date
+              </button>
+              <button
+                onClick={handleCreateBooking}
+                className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+              >
+                Nuova Prenotazione
+              </button>
+            </>
           )}
         </div>
         
@@ -442,6 +513,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
           const isCurrentMonth = day.getMonth() === currentMonth;
           const isToday = dateToString(day) === dateToString(new Date());
           const booking = getBookingForDate(day);
+          const bookingPosition = booking ? getBookingPosition(day, booking) : undefined;
           const isBlocked = isDateBlocked(day);
           const hasCustomPrice = hasCustomRate(day) && dailyRates[dateToString(day)].price !== undefined;
           const price = getPriceForDate(day);
@@ -454,6 +526,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
               isCurrentMonth={isCurrentMonth}
               isToday={isToday}
               booking={booking}
+              bookingPosition={bookingPosition}
               isBlocked={isBlocked}
               hasCustomPrice={hasCustomPrice}
               price={price}
@@ -518,6 +591,18 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
           dates={selectedDates}
           apartmentData={apartmentData}
           onSave={handleBulkEdit}
+        />
+      )}
+      
+      {/* Modal per nuova prenotazione */}
+      {selectedDates.length > 0 && (
+        <BookingFormModal
+          isOpen={isNewBookingModalOpen}
+          onClose={() => setIsNewBookingModalOpen(false)}
+          startDate={[...selectedDates].sort((a, b) => a.getTime() - b.getTime())[0]}
+          endDate={new Date([...selectedDates].sort((a, b) => a.getTime() - b.getTime())[selectedDates.length - 1].getTime() + 86400000)}
+          apartmentId={apartmentId}
+          apartmentData={apartmentData}
         />
       )}
     </div>
