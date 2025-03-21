@@ -1,4 +1,3 @@
-// src/app/(dashboard)/apartments/[id]/page.tsx
 import { getServerSession } from 'next-auth/next';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -96,7 +95,7 @@ export default async function ApartmentDetailPage({ params }: { params: { id: st
           <div className="mt-6">
             <p className="text-sm font-medium text-gray-500">Servizi</p>
             <div className="mt-1 flex flex-wrap gap-2">
-              {apartment.amenities.map((amenity) => (
+              {(apartment.amenities || []).map((amenity: string) => (
                 <span 
                   key={amenity}
                   className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
@@ -130,11 +129,11 @@ export default async function ApartmentDetailPage({ params }: { params: { id: st
           
           <div>
             <h3 className="text-lg font-medium mb-2">Feed iCal Importati</h3>
-            {apartment.icalUrls.length === 0 ? (
+            {(apartment.icalUrls || []).length === 0 ? (
               <p className="text-sm text-gray-500">Nessun feed importato. Aggiungi un feed iCal sotto.</p>
             ) : (
               <ul className="space-y-2">
-                {apartment.icalUrls.map((ical, index) => (
+                {(apartment.icalUrls || []).map((ical: { source: string; url: string }, index: number) => (
                   <li key={index} className="flex justify-between items-center bg-gray-50 p-3 rounded-md">
                     <div>
                       <p className="font-medium">{ical.source}</p>
