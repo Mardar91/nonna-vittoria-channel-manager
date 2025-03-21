@@ -4,11 +4,20 @@ import ICalGenerator from 'ical-generator';
 import { IBooking } from '@/models/Booking';
 import { IApartment } from '@/models/Apartment';
 
+// Definizione dell'interfaccia per gli eventi iCal
+interface ICalEvent {
+  start: Date;
+  end: Date;
+  summary: string;
+  uid: string;
+  source?: string;
+}
+
 // Funzione per importare eventi da un feed iCal
-export async function importICalEvents(url: string): Promise<Array<{ start: Date; end: Date; summary: string; uid: string }>> {
+export async function importICalEvents(url: string): Promise<ICalEvent[]> {
   try {
     const events = await ical.fromURL(url);
-    const bookings = [];
+    const bookings: ICalEvent[] = [];
 
     for (const event of Object.values(events)) {
       if (event.type !== 'VEVENT') continue;
@@ -49,9 +58,9 @@ export function generateICalFeed(apartment: IApartment, bookings: IBooking[]): s
 }
 
 // Funzione per sincronizzare prenotazioni da più sorgenti
-export async function syncCalendarsForApartment(apartment: IApartment): Promise<Array<{ start: Date; end: Date; summary: string; uid: string }>> {
+export async function syncCalendarsForApartment(apartment: IApartment): Promise<ICalEvent[]> {
   try {
-    let allEvents = [];
+    let allEvents: ICalEvent[] = [];
 
     // Importa eventi da tutte le sorgenti configurate
     for (const icalSource of apartment.icalUrls) {
