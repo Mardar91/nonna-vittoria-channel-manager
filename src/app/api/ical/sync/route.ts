@@ -1,9 +1,10 @@
+// src/app/api/ical/sync/route.ts (versione migliorata)
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import ApartmentModel, { IApartment } from '@/models/Apartment';
 import BookingModel from '@/models/Booking';
-import { importICalEvents, syncCalendarsForApartment } from '@/lib/ical';
+import { importICalEvents, syncCalendarsForApartment, extractGuestInfoFromEvent } from '@/lib/ical';
 import { v4 as uuidv4 } from 'uuid';
 
 // Definizione del tipo per gli elementi dell'array icalUrls
@@ -71,11 +72,15 @@ export async function POST(req: NextRequest) {
       });
       
       if (!existingBooking) {
+        // Estrai informazioni dell'ospite dall'evento
+        const guestInfo = extractGuestInfoFromEvent(event);
+        
         // Crea una nuova prenotazione
         const booking = await BookingModel.create({
           apartmentId,
-          guestName: event.summary || 'External Booking',
-          guestEmail: `${source.toLowerCase()}_${uuidv4().slice(0, 8)}@example.com`,
+          guestName: guestInfo.name,
+          guestEmail: guestInfo.email,
+          guestPhone: guestInfo.phone || undefined,
           checkIn: event.start,
           checkOut: event.end,
           totalPrice: 0, // Prezzo non disponibile da feed esterni
@@ -84,7 +89,7 @@ export async function POST(req: NextRequest) {
           paymentStatus: 'paid',
           source,
           externalId: event.uid,
-          notes: `Imported from ${source} iCal feed`,
+          notes: guestInfo.notes || `Importato da ${source} iCal feed`,
         });
         
         importedBookings.push(booking);
