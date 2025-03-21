@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
-import ApartmentModel from '@/models/Apartment';
+import ApartmentModel, { IApartment } from '@/models/Apartment';
 import BookingModel from '@/models/Booking';
 import { importICalEvents, syncCalendarsForApartment } from '@/lib/ical';
 import { v4 as uuidv4 } from 'uuid';
+
+// Definizione del tipo per gli elementi dell'array icalUrls
+interface ICalSource {
+  source: string;
+  url: string;
+}
 
 // POST: Sincronizzare le prenotazioni da un feed iCal esterno
 export async function POST(req: NextRequest) {
@@ -38,7 +44,7 @@ export async function POST(req: NextRequest) {
     
     // Aggiungi l'URL iCal all'appartamento se non esiste già
     const existingUrlIndex = apartment.icalUrls.findIndex(
-      item => item.source === source
+      (item: ICalSource) => item.source === source
     );
     
     if (existingUrlIndex >= 0) {
