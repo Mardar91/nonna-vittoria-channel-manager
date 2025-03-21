@@ -15,6 +15,8 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [importDetails, setImportDetails] = useState<any>(null);
 
   const validateUrl = (url: string): boolean => {
     // Verifica che sia un URL valido
@@ -31,6 +33,8 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setImportDetails(null);
+    setShowDetails(false);
     
     if (!source) {
       setError('Seleziona una sorgente');
@@ -68,6 +72,9 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
         throw new Error(data.error || 'Si è verificato un errore');
       }
       
+      // Salva i dettagli dell'importazione
+      setImportDetails(data);
+      
       // Controlla se ci sono stati errori durante l'importazione
       if (data.errors && data.errors.length > 0) {
         toast(`Feed aggiunto, ma con ${data.errors.length} errori durante l'importazione`, {
@@ -78,6 +85,7 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
             color: '#856404',
           },
         });
+        setShowDetails(true);
       } else {
         toast.success(`Feed iCal aggiunto con successo! Importate ${data.importedCount} prenotazioni.`);
       }
@@ -110,11 +118,53 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
     { label: 'Altro', value: 'Other' },
   ];
 
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
         <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md">
           {error}
+        </div>
+      )}
+      
+      {showDetails && importDetails && (
+        <div className="p-3 bg-yellow-50 text-yellow-800 text-sm rounded-md">
+          <div className="flex justify-between items-center">
+            <p className="font-medium">Dettagli importazione:</p>
+            <button 
+              type="button" 
+              onClick={() => setShowDetails(false)}
+              className="text-yellow-600 hover:text-yellow-800"
+            >
+              Chiudi
+            </button>
+          </div>
+          <p>Prenotazioni importate: {importDetails.importedCount}</p>
+          <p>Errori: {importDetails.errors?.length || 0}</p>
+          
+          {importDetails.errors && importDetails.errors.length > 0 && (
+            <div className="mt-2">
+              <p className="font-medium">Errori:</p>
+              <ul className="mt-1 space-y-1 list-disc list-inside">
+                {importDetails.errors.slice(0, 5).map((err: any, idx: number) => (
+                  <li key={idx} className="text-xs">
+                    {err.summary || 'Evento'} ({formatDate(err.start)} - {formatDate(err.end)}): {err.error}
+                  </li>
+                ))}
+                {importDetails.errors.length > 5 && (
+                  <li className="text-xs">... e altri {importDetails.errors.length - 5} errori</li>
+                )}
+              </ul>
+            </div>
+          )}
         </div>
       )}
       
