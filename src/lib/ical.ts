@@ -1,4 +1,3 @@
-// src/lib/ical.ts (versione migliorata)
 import ical from 'node-ical';
 import { v4 as uuidv4 } from 'uuid';
 import ICalGenerator from 'ical-generator';
@@ -21,11 +20,20 @@ interface ICalEvent {
 // Funzione per importare eventi da un feed iCal
 export async function importICalEvents(url: string): Promise<ICalEvent[]> {
   try {
+    console.log(`Fetching iCal feed from: ${url}`);
     const events = await ical.fromURL(url);
     const bookings: ICalEvent[] = [];
 
+    console.log(`Found ${Object.keys(events).length} events in the feed`);
+
     for (const event of Object.values(events)) {
       if (event.type !== 'VEVENT') continue;
+      
+      // Ignora eventi che non hanno date di inizio o fine
+      if (!event.start || !event.end) {
+        console.log('Skipping event without start or end date');
+        continue;
+      }
 
       // Estrai più informazioni possibili dall'evento
       const summary = event.summary || 'Prenotazione esterna';
@@ -52,6 +60,8 @@ export async function importICalEvents(url: string): Promise<ICalEvent[]> {
         }
       }
 
+      console.log(`Adding event: ${summary} from ${event.start} to ${event.end}`);
+
       bookings.push({
         start: event.start,
         end: event.end,
@@ -64,10 +74,11 @@ export async function importICalEvents(url: string): Promise<ICalEvent[]> {
       });
     }
 
+    console.log(`Successfully processed ${bookings.length} bookings from feed`);
     return bookings;
   } catch (error) {
     console.error('Error importing iCal events:', error);
-    throw new Error('Failed to import iCal events');
+    throw new Error(`Failed to import iCal events: ${(error as Error).message}`);
   }
 }
 
@@ -164,7 +175,7 @@ export function extractGuestInfoFromEvent(event: ICalEvent): {
   if (event.summary) {
     // Rimuovi prefissi comuni come "Prenotazione:", "Booking:", ecc.
     const cleanSummary = event.summary
-      .replace(/^(prenotazione:|booking:|reservation:|booked:|reserved:)/i, '')
+      .replace(/^(prenotazione:|booking:|reservation:|booked:|reserved:|blocked:|unavailable:)/i, '')
       .trim();
     
     if (cleanSummary) {
@@ -186,9 +197,24 @@ export function extractGuestInfoFromEvent(event: ICalEvent): {
     }
   }
   
-  // Aggiungi note dalla descrizione
+  // Verifica anche nella descrizione
   if (event.description) {
     notes = event.description;
+    
+    // Se non abbiamo trovato email o telefono nel contatto, cercali nella descrizione
+    if (!email) {
+      const emailMatch = event.description.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi);
+      if (emailMatch) {
+        email = emailMatch[0];
+      }
+    }
+    
+    if (!phone) {
+      const phoneMatch = event.description.match(/(\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})/g);
+      if (phoneMatch) {
+        phone = phoneMatch[0];
+      }
+    }
   }
   
   // Se l'email non è disponibile, genera un'email fittizia usando il nome dell'ospite
