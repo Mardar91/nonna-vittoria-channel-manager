@@ -15,6 +15,7 @@ interface DayCellProps {
   isCurrentMonth: boolean;
   isToday: boolean;
   booking: Booking | null;
+  bookingPosition?: 'start' | 'middle' | 'end' | 'single';
   isBlocked: boolean;
   hasCustomPrice: boolean;
   price: number;
@@ -28,6 +29,7 @@ export default function DayCell({
   isCurrentMonth,
   isToday,
   booking,
+  bookingPosition = 'single',
   isBlocked,
   hasCustomPrice,
   price,
@@ -59,9 +61,22 @@ export default function DayCell({
     cellClassName += "bg-blue-50 ";
   }
   
-  // Aggiunge cursor-pointer quando siamo in modalità selezione
-  if (isSelectionMode) {
+  // Aggiunge cursor-pointer quando siamo in modalità selezione o c'è una prenotazione
+  if (isSelectionMode || booking) {
     cellClassName += "cursor-pointer ";
+  }
+  
+  // Stili specifici per i bordi delle prenotazioni continue
+  if (booking) {
+    if (bookingPosition === 'start') {
+      cellClassName += "rounded-l-lg border-l-2 border-t-2 border-b-2 border-green-500 ";
+    } else if (bookingPosition === 'middle') {
+      cellClassName += "border-t-2 border-b-2 border-green-500 border-l-0 border-r-0 ";
+    } else if (bookingPosition === 'end') {
+      cellClassName += "rounded-r-lg border-r-2 border-t-2 border-b-2 border-green-500 ";
+    } else if (bookingPosition === 'single') {
+      cellClassName += "rounded-lg border-2 border-green-500 ";
+    }
   }
   
   return (
@@ -76,15 +91,33 @@ export default function DayCell({
         
         <div className="flex-grow">
           {booking && (
-            <div className="mt-1 text-xs bg-green-100 p-1 rounded">
+            <div className={`mt-1 text-xs p-1 rounded ${
+              bookingPosition === 'start' ? 'rounded-l-lg bg-green-100' :
+              bookingPosition === 'middle' ? 'rounded-none bg-green-100' :
+              bookingPosition === 'end' ? 'rounded-r-lg bg-green-100' :
+              'rounded-lg bg-green-100'
+            }`}>
               <div className="font-medium truncate">{booking.guestName}</div>
               <div>{booking.numberOfGuests} ospiti</div>
+              
+              {/* Mostra solo nelle date iniziali o singole */}
+              {(bookingPosition === 'start' || bookingPosition === 'single') && (
+                <div className="text-xs mt-1 font-medium text-green-800">
+                  {new Date(booking.checkIn).toLocaleDateString('it-IT', {
+                    day: '2-digit',
+                    month: '2-digit'
+                  })} - {new Date(booking.checkOut).toLocaleDateString('it-IT', {
+                    day: '2-digit',
+                    month: '2-digit'
+                  })}
+                </div>
+              )}
             </div>
           )}
           
           {isBlocked && !booking && (
             <div className="mt-1 text-xs bg-red-100 p-1 rounded">
-              Bloccato
+              CLOSED - Not available
             </div>
           )}
           
