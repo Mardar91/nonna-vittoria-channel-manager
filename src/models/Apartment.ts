@@ -1,3 +1,4 @@
+// src/models/Apartment.ts
 import mongoose, { Schema } from 'mongoose';
 
 export interface IApartment {
@@ -13,6 +14,12 @@ export interface IApartment {
   amenities: string[];
   icalUrls: { source: string; url: string }[];
   icalFeed?: string;
+  seasonalPrices?: {
+    name: string;
+    startDate: Date;
+    endDate: Date;
+    price: number;
+  }[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -35,6 +42,14 @@ const ApartmentSchema = new Schema<IApartment>(
       },
     ],
     icalFeed: { type: String },
+    seasonalPrices: [
+      {
+        name: { type: String, required: true },
+        startDate: { type: Date, required: true },
+        endDate: { type: Date, required: true },
+        price: { type: Number, required: true },
+      },
+    ],
   },
   { timestamps: true }
 );
