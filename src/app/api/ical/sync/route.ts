@@ -1,4 +1,3 @@
-// src/app/api/ical/sync/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
@@ -42,9 +41,7 @@ export async function POST(req: NextRequest) {
     try {
       // Tenta di importare eventi dal feed per verificare che l'URL sia valido
       events = await importICalEvents(url);
-      console.log(`Successfully imported ${events.length} events from iCal feed`);
     } catch (error) {
-      console.error('Error validating iCal URL:', error);
       return NextResponse.json(
         { error: 'Invalid iCal URL or the feed is not accessible' },
         { status: 400 }
@@ -83,7 +80,6 @@ export async function POST(req: NextRequest) {
         });
         
         if (existingBooking) {
-          console.log(`Booking already exists for event ${event.uid}`);
           continue; // Salta questo evento se la prenotazione esiste già
         }
         
@@ -93,8 +89,6 @@ export async function POST(req: NextRequest) {
         // Calcola un prezzo approssimativo basato sul prezzo dell'appartamento e la durata
         const nights = Math.max(1, Math.round((event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60 * 24)));
         const totalPrice = apartment.price * nights;
-        
-        console.log(`Creating booking for ${guestInfo.name} from ${event.start.toISOString()} to ${event.end.toISOString()}`);
         
         // Crea una nuova prenotazione
         const booking = await BookingModel.create({
@@ -113,10 +107,8 @@ export async function POST(req: NextRequest) {
           notes: guestInfo.notes || `Importato da ${source} iCal feed`,
         });
         
-        console.log(`Successfully created booking with ID: ${booking._id}`);
         importedBookings.push(booking);
       } catch (error) {
-        console.error(`Error importing event ${event.uid}:`, error);
         errors.push({ 
           uid: event.uid,
           error: (error as Error).message,
@@ -127,8 +119,6 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    console.log(`Import completed: ${importedBookings.length} bookings created, ${errors.length} errors`);
-    
     return NextResponse.json({
       success: true,
       importedCount: importedBookings.length,
@@ -136,7 +126,6 @@ export async function POST(req: NextRequest) {
       message: `Successfully imported ${importedBookings.length} bookings from ${source}`,
     });
   } catch (error) {
-    console.error('Error syncing iCal feed:', error);
     return NextResponse.json(
       { error: (error as Error).message || 'Internal Server Error' },
       { status: 500 }
@@ -191,14 +180,12 @@ export async function GET(req: NextRequest) {
         message: `Successfully retrieved ${events.length} events from iCal feed`
       });
     } catch (error) {
-      console.error('Error importing events:', error);
       return NextResponse.json({
         error: `Failed to import events: ${(error as Error).message}`,
         message: "There was an error retrieving events from the iCal feed"
       }, { status: 500 });
     }
   } catch (error) {
-    console.error('Error fetching iCal events:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }
