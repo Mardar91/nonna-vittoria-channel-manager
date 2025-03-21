@@ -1,4 +1,3 @@
-// src/app/(dashboard)/bookings/page.tsx
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import BookingModel, { IBooking } from '@/models/Booking';
@@ -19,15 +18,11 @@ export default async function BookingsPage() {
     // Ottieni tutte le prenotazioni
     const bookings = await BookingModel.find({}).sort({ createdAt: -1 });
     
-    console.log(`Found ${bookings.length} total bookings`);
-    
     // Aggiungi le informazioni degli appartamenti
     const bookingsWithApartmentInfo: (IBooking & { apartmentName: string })[] = await Promise.all(
       bookings.map(async (booking) => {
         const bookingObj = booking.toObject() as IBooking;
         const apartment = await ApartmentModel.findById(bookingObj.apartmentId);
-        
-        console.log(`Booking from ${bookingObj.source} for dates ${new Date(bookingObj.checkIn).toISOString()} to ${new Date(bookingObj.checkOut).toISOString()}`);
         
         return {
           ...bookingObj,
@@ -63,8 +58,6 @@ export default async function BookingsPage() {
       </div>
     );
   } catch (error) {
-    console.error('Error fetching bookings:', error);
-    
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
