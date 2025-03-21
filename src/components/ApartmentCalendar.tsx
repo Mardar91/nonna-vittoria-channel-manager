@@ -427,40 +427,12 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     return dateToString(date) === dateToString(today);
   };
   
-  // Ottieni tutte le prenotazioni raggruppate per periodo
-  const getGroupedBookings = () => {
-    // Filtra le prenotazioni visibili nel mese corrente
-    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
-    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
-    
-    // Aggiungiamo 7 giorni a inizio e fine mese per includere prenotazioni che si estendono da/verso altri mesi
-    const startDate = new Date(firstDayOfMonth);
-    startDate.setDate(startDate.getDate() - 7);
-    
-    const endDate = new Date(lastDayOfMonth);
-    endDate.setDate(endDate.getDate() + 7);
-    
-    const startDateStr = dateToString(startDate);
-    const endDateStr = dateToString(endDate);
-    
-    return bookings.filter(booking => {
-      const checkInStr = dateToString(new Date(booking.checkIn));
-      const checkOutStr = dateToString(new Date(booking.checkOut));
-      
-      // La prenotazione si sovrappone con il mese visualizzato
-      return (checkInStr <= endDateStr && checkOutStr >= startDateStr);
-    });
-  };
-  
   const monthNames = [
     'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
     'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
   ];
   
   const weekdayNames = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
-  
-  // Prenotazioni visibili
-  const visibleBookings = getGroupedBookings();
   
   return (
     <div className="space-y-4">
@@ -583,25 +555,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
                 isSelected={isSelected}
                 isSelectionMode={isSelectionMode}
                 onClick={() => handleDayClick(day)}
-                hideBookingDetails={booking !== null} // Nascondi i dettagli della prenotazione nella cella
               />
-              
-              {/* Visualizza la prenotazione direttamente nella cella */}
-              {booking && bookingPosition === 'start' && (
-                <div className={`absolute top-8 left-1 right-0 z-10 p-1 rounded-l-lg text-xs ${
-                  isBlocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                }`}>
-                  <div className="font-medium truncate">
-                    {isBlocked ? 'CLOSED - Not available' : booking.guestName}
-                  </div>
-                  <div>
-                    {booking.numberOfGuests} ospiti
-                  </div>
-                  <div className="font-medium">
-                    {new Date(booking.checkIn).toLocaleDateString('it-IT', {day: '2-digit', month: '2-digit'})} - {new Date(booking.checkOut).toLocaleDateString('it-IT', {day: '2-digit', month: '2-digit'})}
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}
