@@ -1,3 +1,4 @@
+// src/lib/ical.ts (versione migliorata)
 import ical from 'node-ical';
 import { v4 as uuidv4 } from 'uuid';
 import ICalGenerator from 'ical-generator';
@@ -9,8 +10,12 @@ interface ICalEvent {
   start: Date;
   end: Date;
   summary: string;
+  description?: string;
   uid: string;
   source?: string;
+  location?: string;
+  organizer?: string;
+  contact?: string;
 }
 
 // Funzione per importare eventi da un feed iCal
@@ -22,11 +27,40 @@ export async function importICalEvents(url: string): Promise<ICalEvent[]> {
     for (const event of Object.values(events)) {
       if (event.type !== 'VEVENT') continue;
 
+      // Estrai più informazioni possibili dall'evento
+      const summary = event.summary || 'Prenotazione esterna';
+      let description = event.description || '';
+      let contact = '';
+      let organizer = '';
+      
+      // Estrai informazioni di contatto dalla descrizione o da altri campi
+      if (event.description) {
+        // Cerca informazioni come email o telefono nella descrizione
+        const emailMatch = event.description.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi);
+        const phoneMatch = event.description.match(/(\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})/g);
+        
+        if (emailMatch) contact = emailMatch[0];
+        if (phoneMatch) contact = contact ? `${contact}, ${phoneMatch[0]}` : phoneMatch[0];
+      }
+
+      // Estrai l'organizzatore se disponibile
+      if (event.organizer) {
+        if (typeof event.organizer === 'string') {
+          organizer = event.organizer;
+        } else if (event.organizer.params && event.organizer.params.CN) {
+          organizer = event.organizer.params.CN;
+        }
+      }
+
       bookings.push({
         start: event.start,
         end: event.end,
-        summary: event.summary || 'Booking',
+        summary,
+        description,
         uid: event.uid || uuidv4(),
+        location: event.location || '',
+        organizer,
+        contact
       });
     }
 
@@ -40,17 +74,33 @@ export async function importICalEvents(url: string): Promise<ICalEvent[]> {
 // Funzione per generare un feed iCal dalle prenotazioni
 export function generateICalFeed(apartment: IApartment, bookings: IBooking[]): string {
   const calendar = ICalGenerator({
-    name: `${apartment.name} - Availability`,
+    name: `${apartment.name} - Disponibilità`,
     prodId: { company: 'Nonna Vittoria Apartments', product: 'Channel Manager' },
+    timezone: 'Europe/Rome',
   });
 
   bookings.forEach((booking) => {
+    // Crea un nome evento significativo
+    const summary = `Prenotato: ${booking.guestName}`;
+    
+    // Crea una descrizione dettagliata con informazioni sulla prenotazione
+    const description = [
+      `Prenotazione da ${booking.source}`,
+      `Ospiti: ${booking.numberOfGuests}`,
+      booking.notes ? `Note: ${booking.notes}` : '',
+    ].filter(Boolean).join('\n');
+
     calendar.createEvent({
       start: booking.checkIn,
       end: booking.checkOut,
-      summary: `Booked: ${booking.guestName}`,
-      description: `Booking from ${booking.source}. Guests: ${booking.numberOfGuests}`,
-      id: booking._id || uuidv4(),
+      summary,
+      description,
+      id: booking._id?.toString() || uuidv4(),
+      location: apartment.address,
+      organizer: {
+        name: 'Nonna Vittoria Apartments',
+        email: process.env.ADMIN_EMAIL || 'info@example.com'
+      },
     });
   });
 
@@ -64,8 +114,13 @@ export async function syncCalendarsForApartment(apartment: IApartment): Promise<
 
     // Importa eventi da tutte le sorgenti configurate
     for (const icalSource of apartment.icalUrls) {
-      const events = await importICalEvents(icalSource.url);
-      allEvents = [...allEvents, ...events.map(event => ({ ...event, source: icalSource.source }))];
+      try {
+        const events = await importICalEvents(icalSource.url);
+        allEvents = [...allEvents, ...events.map(event => ({ ...event, source: icalSource.source }))];
+      } catch (error) {
+        console.error(`Error importing events from ${icalSource.source}:`, error);
+        // Continua con le altre sorgenti anche se una fallisce
+      }
     }
 
     return allEvents;
@@ -91,4 +146,61 @@ export function checkAvailability(
   }
   
   return true; // Disponibile
+}
+
+// Funzione per estrarre informazioni dell'ospite dagli eventi iCal
+export function extractGuestInfoFromEvent(event: ICalEvent): {
+  name: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+} {
+  let name = 'Ospite';
+  let email = '';
+  let phone = '';
+  let notes = '';
+  
+  // Estrai nome dall'oggetto summary
+  if (event.summary) {
+    // Rimuovi prefissi comuni come "Prenotazione:", "Booking:", ecc.
+    const cleanSummary = event.summary
+      .replace(/^(prenotazione:|booking:|reservation:|booked:|reserved:)/i, '')
+      .trim();
+    
+    if (cleanSummary) {
+      name = cleanSummary;
+    }
+  }
+  
+  // Estrai email dalla descrizione o dal contatto
+  if (event.contact) {
+    const emailMatch = event.contact.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi);
+    if (emailMatch) {
+      email = emailMatch[0];
+    }
+    
+    // Estrai telefono
+    const phoneMatch = event.contact.match(/(\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})/g);
+    if (phoneMatch) {
+      phone = phoneMatch[0];
+    }
+  }
+  
+  // Aggiungi note dalla descrizione
+  if (event.description) {
+    notes = event.description;
+  }
+  
+  // Se l'email non è disponibile, genera un'email fittizia usando il nome dell'ospite
+  if (!email) {
+    const sanitizedName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    email = `${sanitizedName}_${uuidv4().slice(0, 8)}@guest.example.com`;
+  }
+  
+  return {
+    name,
+    email,
+    phone,
+    notes
+  };
 }
