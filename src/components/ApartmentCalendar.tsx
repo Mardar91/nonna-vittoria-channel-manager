@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -8,7 +8,6 @@ import DayCell from '@/components/DayCell';
 import RateModal from '@/components/RateModal';
 import BulkEditModal from '@/components/BulkEditModal';
 import BookingFormModal from '@/components/BookingFormModal';
-import BookingStrip from '@/components/BookingStrip';
 
 interface Booking {
   id: string;
@@ -37,7 +36,6 @@ interface ApartmentCalendarProps {
 
 export default function ApartmentCalendar({ apartmentId, apartmentData, bookings }: ApartmentCalendarProps) {
   const router = useRouter();
-  const calendarGridRef = useRef<HTMLDivElement>(null);
   
   // Crea una data con il fuso orario italiano
   const currentDateItaly = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Rome'}));
@@ -49,7 +47,6 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isRateModalOpen, setIsRateModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [calendarPositions, setCalendarPositions] = useState<{[key: string]: DOMRect | null}>({});
   
   // Selezione multipla
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -74,28 +71,6 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     generateCalendarDays(currentYear, currentMonth);
     loadDailyRates();
   }, [currentYear, currentMonth]);
-  
-  // Memorizza le posizioni delle celle del calendario dopo il rendering
-  useEffect(() => {
-    if (calendarGridRef.current) {
-      const grid = calendarGridRef.current;
-      const dayCells = grid.querySelectorAll('.day-cell');
-      
-      const positions: {[key: string]: DOMRect | null} = {};
-      
-      dayCells.forEach((cell, index) => {
-        if (calendarDays[index]) {
-          const date = calendarDays[index];
-          if (date) {
-            const key = dateToString(date);
-            positions[key] = cell.getBoundingClientRect();
-          }
-        }
-      });
-      
-      setCalendarPositions(positions);
-    }
-  }, [calendarDays, calendarGridRef.current]);
   
   // Funzione per generare i giorni del calendario
   const generateCalendarDays = (year: number, month: number) => {
@@ -573,33 +548,30 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         </div>
       </div>
       
-      {/* Wrapper con posizionamento relativo per le prenotazioni */}
-      <div className="relative">
-        {/* Calendario */}
-        <div ref={calendarGridRef} className="grid grid-cols-7 gap-1">
-          {/* Intestazione giorni della settimana */}
-          {weekdayNames.map((day, index) => (
-            <div key={index} className="h-10 flex items-center justify-center font-medium">
-              {day}
-            </div>
-          ))}
+      <div className="grid grid-cols-7 gap-1">
+        {/* Intestazione giorni della settimana */}
+        {weekdayNames.map((day, index) => (
+          <div key={index} className="h-10 flex items-center justify-center font-medium">
+            {day}
+          </div>
+        ))}
+        
+        {/* Celle del calendario */}
+        {calendarDays.map((day, index) => {
+          if (!day) return <div key={index} className="h-24 border border-gray-200"></div>;
           
-          {/* Celle del calendario */}
-          {calendarDays.map((day, index) => {
-            if (!day) return <div key={index} className="h-24 border border-gray-200"></div>;
-            
-            const isCurrentMonth = day.getMonth() === currentMonth;
-            const isTodayCell = isToday(day);
-            const booking = getBookingForDate(day);
-            const bookingPosition = booking ? getBookingPosition(day, booking) : undefined;
-            const isBlocked = isDateBlocked(day);
-            const hasCustomPrice = hasCustomRate(day) && dailyRates[dateToString(day)].price !== undefined;
-            const price = getPriceForDate(day);
-            const isSelected = isSelectionMode && isDateSelected(day);
-            
-            return (
+          const isCurrentMonth = day.getMonth() === currentMonth;
+          const isTodayCell = isToday(day);
+          const booking = getBookingForDate(day);
+          const bookingPosition = booking ? getBookingPosition(day, booking) : undefined;
+          const isBlocked = isDateBlocked(day);
+          const hasCustomPrice = hasCustomRate(day) && dailyRates[dateToString(day)].price !== undefined;
+          const price = getPriceForDate(day);
+          const isSelected = isSelectionMode && isDateSelected(day);
+          
+          return (
+            <div key={index} className="relative">
               <DayCell
-                key={index}
                 date={day}
                 isCurrentMonth={isCurrentMonth}
                 isToday={isTodayCell}
@@ -611,57 +583,28 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
                 isSelected={isSelected}
                 isSelectionMode={isSelectionMode}
                 onClick={() => handleDayClick(day)}
-                hideBookingDetails={true} // Nasconde i dettagli della prenotazione nella cella
-                className="day-cell" // Classe per identificare le celle
+                hideBookingDetails={booking !== null} // Nascondi i dettagli della prenotazione nella cella
               />
-            );
-          })}
-        </div>
-        
-        {/* Prenotazioni sopra il calendario */}
-        <div className="absolute top-10 left-0 right-0 pointer-events-none">
-          {visibleBookings.map((booking) => {
-            // Ottieni le date di inizio e fine nel formato corretto
-            const checkIn = new Date(booking.checkIn);
-            const checkOut = new Date(booking.checkOut);
-            
-            // Trova le posizioni delle celle di inizio e fine
-            const checkInPos = calendarPositions[dateToString(checkIn)];
-            
-            // Il giorno prima del checkout
-            const lastDayDate = new Date(checkOut);
-            lastDayDate.setDate(lastDayDate.getDate() - 1);
-            const lastDayPos = calendarPositions[dateToString(lastDayDate)];
-            
-            // Se non abbiamo posizioni per queste date, non mostrare la prenotazione
-            if (!checkInPos || !lastDayPos) return null;
-            
-            // Calcola la durata in giorni
-            const durationMs = checkOut.getTime() - checkIn.getTime();
-            const durationDays = Math.round(durationMs / (1000 * 60 * 60 * 24));
-            
-            // Calcola larghezza e posizione
-            const left = checkInPos.left;
-            const width = (lastDayPos.right - checkInPos.left) + 1; // +1 per il bordo
-            
-            return (
-              <BookingStrip
-                key={booking.id}
-                booking={booking}
-                style={{
-                  left: `${left}px`,
-                  width: `${width}px`,
-                  top: `${checkInPos.top + 22}px`, // Posiziona sotto il numero del giorno
-                }}
-                onClick={() => {
-                  // Trova la data di check-in e apri il modal per quella data
-                  setSelectedDate(checkIn);
-                  setIsRateModalOpen(true);
-                }}
-              />
-            );
-          })}
-        </div>
+              
+              {/* Visualizza la prenotazione direttamente nella cella */}
+              {booking && bookingPosition === 'start' && (
+                <div className={`absolute top-8 left-1 right-0 z-10 p-1 rounded-l-lg text-xs ${
+                  isBlocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                }`}>
+                  <div className="font-medium truncate">
+                    {isBlocked ? 'CLOSED - Not available' : booking.guestName}
+                  </div>
+                  <div>
+                    {booking.numberOfGuests} ospiti
+                  </div>
+                  <div className="font-medium">
+                    {new Date(booking.checkIn).toLocaleDateString('it-IT', {day: '2-digit', month: '2-digit'})} - {new Date(booking.checkOut).toLocaleDateString('it-IT', {day: '2-digit', month: '2-digit'})}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
       
       {/* Azioni rapide */}
