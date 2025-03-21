@@ -174,6 +174,26 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     }
   };
   
+  // Funzione per selezionare tutto il mese corrente
+  const selectAllMonth = () => {
+    // Attiva la modalità selezione
+    setIsSelectionMode(true);
+    
+    // Crea un array con tutte le date del mese corrente
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const dates: Date[] = [];
+    
+    for (let i = 1; i <= daysInMonth; i++) {
+      dates.push(new Date(currentYear, currentMonth, i));
+    }
+    
+    // Imposta le date selezionate
+    setSelectedDates(dates);
+    
+    // Conferma all'utente
+    toast.success(`Selezionate ${dates.length} date`);
+  };
+  
   // Funzione per salvare le modifiche alla tariffa
   const handleSaveRate = async (rateData: any) => {
     if (!selectedDate) return;
@@ -449,6 +469,12 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
         <h3 className="font-medium mb-2">Azioni Rapide</h3>
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={selectAllMonth}
+            className="px-3 py-1 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700"
+          >
+            Seleziona Tutto il Mese
+          </button>
           <button
             onClick={() => {
               const startDate = new Date(currentYear, currentMonth, 1);
