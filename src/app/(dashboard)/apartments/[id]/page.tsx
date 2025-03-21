@@ -1,3 +1,4 @@
+// src/app/(dashboard)/apartments/[id]/page.tsx
 import { getServerSession } from 'next-auth/next';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -6,6 +7,8 @@ import ApartmentModel from '@/models/Apartment';
 import BookingModel from '@/models/Booking';
 import ICalSyncForm from '@/components/ICalSyncForm';
 import RemoveICalButton from '@/components/RemoveICalButton';
+import CopyToClipboardButton from '@/components/CopyToClipboardButton';
+import DeleteApartmentButton from '@/components/DeleteApartmentButton';
 
 export default async function ApartmentDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession();
@@ -47,12 +50,7 @@ export default async function ApartmentDetailPage({ params }: { params: { id: st
           >
             Modifica
           </Link>
-          <button 
-            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-            // La funzione di eliminazione verrà implementata lato client
-          >
-            Elimina
-          </button>
+          <DeleteApartmentButton id={params.id} />
         </div>
       </div>
       
@@ -116,12 +114,7 @@ export default async function ApartmentDetailPage({ params }: { params: { id: st
             <h3 className="text-lg font-medium mb-2">Feed iCal da Esportare</h3>
             <div className="bg-gray-50 p-3 rounded-md">
               <p className="text-sm break-all">{apartment.icalFeed}</p>
-              <button
-                className="mt-2 text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                // Funzione per copiare negli appunti implementata lato client
-              >
-                Copia Link
-              </button>
+              <CopyToClipboardButton textToCopy={apartment.icalFeed} />
             </div>
             <p className="text-xs text-gray-500 mt-2">
               Usa questo link per sincronizzare le tue prenotazioni su altre piattaforme.
