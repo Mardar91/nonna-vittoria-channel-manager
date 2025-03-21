@@ -1,4 +1,3 @@
-// src/app/(dashboard)/apartments/page.tsx
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import ApartmentModel from '@/models/Apartment';
@@ -76,6 +75,9 @@ export default async function ApartmentsPage() {
                       </Link>
                       <Link href={`/apartments/${apt._id}/edit`} className="text-blue-600 hover:text-blue-900 mr-4">
                         Modifica
+                      </Link>
+                      <Link href={`/apartments/${apt._id}/calendar`} className="text-blue-600 hover:text-blue-900">
+                        Calendario
                       </Link>
                     </td>
                   </tr>
