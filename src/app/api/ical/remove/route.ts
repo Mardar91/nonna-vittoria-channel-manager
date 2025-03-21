@@ -41,16 +41,28 @@ export async function POST(req: NextRequest) {
     
     await apartment.save();
     
-    // Opzionalmente: Elimina anche le prenotazioni importate da questa fonte
-    await BookingModel.deleteMany({
+    // Cerca le prenotazioni importate da questa fonte
+    const importedBookings = await BookingModel.find({
       apartmentId,
-      source,
+      source: source.toLowerCase(), // Match case insensitive
       externalId: { $exists: true } // Assicurati di eliminare solo prenotazioni importate
     });
     
+    console.log(`Found ${importedBookings.length} imported bookings to delete`);
+    
+    // Elimina le prenotazioni importate
+    if (importedBookings.length > 0) {
+      await BookingModel.deleteMany({
+        apartmentId,
+        source: source.toLowerCase(),
+        externalId: { $exists: true }
+      });
+    }
+    
     return NextResponse.json({
       success: true,
-      message: `Successfully removed iCal feed from ${source}`,
+      deletedBookings: importedBookings.length,
+      message: `Successfully removed iCal feed from ${source} and deleted ${importedBookings.length} imported bookings`,
     });
   } catch (error) {
     console.error('Error removing iCal feed:', error);
