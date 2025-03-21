@@ -5,6 +5,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import DayCell from '@/components/DayCell';
 import RateModal from '@/components/RateModal';
+import BulkEditModal from '@/components/BulkEditModal';
 
 interface Booking {
   id: string;
@@ -40,6 +41,11 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isRateModalOpen, setIsRateModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Selezione multipla
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
   
   // Formattazione date
   const dateToString = (date: Date): string => {
@@ -147,8 +153,25 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   
   // Funzione per gestire il click su una cella del calendario
   const handleDayClick = (date: Date) => {
-    setSelectedDate(date);
-    setIsRateModalOpen(true);
+    if (isSelectionMode) {
+      // Se siamo in modalità selezione, aggiungi o rimuovi la data dalla selezione
+      const dateStr = dateToString(date);
+      const index = selectedDates.findIndex(d => dateToString(d) === dateStr);
+      
+      if (index >= 0) {
+        // Rimuovi la data se già selezionata
+        const newSelectedDates = [...selectedDates];
+        newSelectedDates.splice(index, 1);
+        setSelectedDates(newSelectedDates);
+      } else {
+        // Aggiungi la data alla selezione
+        setSelectedDates([...selectedDates, date]);
+      }
+    } else {
+      // Altrimenti, apri il modal per una singola data
+      setSelectedDate(date);
+      setIsRateModalOpen(true);
+    }
   };
   
   // Funzione per salvare le modifiche alla tariffa
@@ -188,6 +211,43 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     } catch (error) {
       console.error('Error saving rate:', error);
       toast.error('Errore nel salvataggio della tariffa');
+    }
+  };
+  
+  // Funzione per gestire la modifica in blocco
+  const handleBulkEdit = async (rateData: any) => {
+    if (selectedDates.length === 0) return;
+    
+    try {
+      // Ordina le date
+      const sortedDates = [...selectedDates].sort((a, b) => a.getTime() - b.getTime());
+      
+      const response = await fetch(`/api/apartments/${apartmentId}/bulk-rates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          startDate: sortedDates[0].toISOString(),
+          endDate: sortedDates[sortedDates.length - 1].toISOString(),
+          ...rateData
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Errore nella modifica in blocco');
+      }
+      
+      await loadDailyRates();
+      toast.success(`Modifiche applicate a ${selectedDates.length} date`);
+      
+      // Esci dalla modalità selezione
+      setIsBulkEditModalOpen(false);
+      setIsSelectionMode(false);
+      setSelectedDates([]);
+    } catch (error) {
+      console.error('Error bulk editing:', error);
+      toast.error('Errore nella modifica in blocco');
     }
   };
   
@@ -246,6 +306,12 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     return dateStr in dailyRates && dailyRates[dateStr].isBlocked;
   };
   
+  // Verifica se una data è selezionata
+  const isDateSelected = (date: Date): boolean => {
+    const dateStr = dateToString(date);
+    return selectedDates.some(d => dateToString(d) === dateStr);
+  };
+  
   // Ottieni il prezzo per una data specifica
   const getPriceForDate = (date: Date): number => {
     const dateStr = dateToString(date);
@@ -285,6 +351,38 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
           </div>
         </div>
         
+        {/* Modalità selezione */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => {
+              if (isSelectionMode) {
+                // Esci dalla modalità selezione
+                setIsSelectionMode(false);
+                setSelectedDates([]);
+              } else {
+                // Entra in modalità selezione
+                setIsSelectionMode(true);
+              }
+            }}
+            className={`px-3 py-1 text-sm rounded-md ${
+              isSelectionMode 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+            }`}
+          >
+            {isSelectionMode ? 'Annulla Selezione' : 'Seleziona Più Date'}
+          </button>
+          
+          {isSelectionMode && selectedDates.length > 0 && (
+            <button
+              onClick={() => setIsBulkEditModalOpen(true)}
+              className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
+            >
+              Modifica {selectedDates.length} Date
+            </button>
+          )}
+        </div>
+        
         {/* Leggenda */}
         <div className="flex items-center space-x-4 text-sm">
           <div className="flex items-center">
@@ -299,6 +397,12 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
             <div className="w-4 h-4 bg-blue-100 border border-blue-500 mr-1"></div>
             <span>Prezzo Personalizzato</span>
           </div>
+          {isSelectionMode && (
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-purple-100 border border-purple-500 mr-1"></div>
+              <span>Selezionato</span>
+            </div>
+          )}
         </div>
       </div>
       
@@ -321,6 +425,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
           const isBlocked = isDateBlocked(day);
           const hasCustomPrice = hasCustomRate(day) && dailyRates[dateToString(day)].price !== undefined;
           const price = getPriceForDate(day);
+          const isSelected = isSelectionMode && isDateSelected(day);
           
           return (
             <DayCell
@@ -332,6 +437,8 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
               isBlocked={isBlocked}
               hasCustomPrice={hasCustomPrice}
               price={price}
+              isSelected={isSelected}
+              isSelectionMode={isSelectionMode}
               onClick={() => handleDayClick(day)}
             />
           );
@@ -365,7 +472,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         </div>
       </div>
       
-      {/* Modal per modificare la tariffa */}
+      {/* Modal per modificare la tariffa singola */}
       {selectedDate && (
         <RateModal
           isOpen={isRateModalOpen}
@@ -374,6 +481,17 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
           apartmentData={apartmentData}
           rateData={selectedDate ? dailyRates[dateToString(selectedDate)] : undefined}
           onSave={handleSaveRate}
+        />
+      )}
+      
+      {/* Modal per modifiche in blocco */}
+      {selectedDates.length > 0 && (
+        <BulkEditModal
+          isOpen={isBulkEditModalOpen}
+          onClose={() => setIsBulkEditModalOpen(false)}
+          dates={selectedDates}
+          apartmentData={apartmentData}
+          onSave={handleBulkEdit}
         />
       )}
     </div>
