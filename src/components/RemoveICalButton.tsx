@@ -1,4 +1,3 @@
-// src/components/RemoveICalButton.tsx
 'use client';
 
 import { useState } from 'react';
@@ -38,7 +37,6 @@ export default function RemoveICalButton({ apartmentId, source }: RemoveICalButt
         toast.success(`Feed iCal da ${source} rimosso con successo!`);
         router.refresh();
       } catch (error) {
-        console.error('Error removing iCal feed:', error);
         toast.error((error as Error).message || 'Si è verificato un errore');
       } finally {
         setLoading(false);
