@@ -507,7 +507,9 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         if (startCellRef && endCellRef) {
           const startRect = startCellRef.getBoundingClientRect();
           const endRect = endCellRef.getBoundingClientRect();
-          const containerRect = calendarGridRef.current.getBoundingClientRect();
+          
+          // Rimuoviamo la riga che causa l'errore poiché non la utilizziamo
+          // const containerRect = calendarGridRef.current.getBoundingClientRect();
           
           // Calcola la posizione e le dimensioni della striscia
           const left = startCellRef.offsetLeft;
