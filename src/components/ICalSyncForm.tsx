@@ -1,4 +1,4 @@
-// src/components/ICalSyncForm.tsx
+// src/components/ICalSyncForm.tsx (versione migliorata)
 'use client';
 
 import { useState } from 'react';
@@ -14,17 +14,36 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
   const [source, setSource] = useState('');
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const validateUrl = (url: string): boolean => {
+    // Verifica che sia un URL valido
+    try {
+      new URL(url);
+      // Verifica che sia un feed iCal (termina con .ics o /ics o simili)
+      return url.toLowerCase().includes('.ics') || url.toLowerCase().includes('/ical') || 
+             url.toLowerCase().includes('/calendar') || url.toLowerCase().includes('/feed');
+    } catch (e) {
+      return false;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
-    if (!source || !url) {
-      toast.error('Compila tutti i campi');
+    if (!source) {
+      setError('Seleziona una sorgente');
       return;
     }
     
-    if (!url.startsWith('http')) {
-      toast.error('URL non valido');
+    if (!url) {
+      setError('Inserisci l\'URL del feed iCal');
+      return;
+    }
+    
+    if (!validateUrl(url)) {
+      setError('L\'URL inserito non sembra essere un feed iCal valido');
       return;
     }
     
@@ -43,13 +62,18 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
         }),
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Si è verificato un errore');
+        throw new Error(data.error || 'Si è verificato un errore');
       }
       
-      const data = await response.json();
-      toast.success(`Feed iCal aggiunto con successo! Importate ${data.importedCount} prenotazioni.`);
+      // Controlla se ci sono stati errori durante l'importazione
+      if (data.errors && data.errors.length > 0) {
+        toast.warning(`Feed aggiunto, ma con ${data.errors.length} errori durante l'importazione`);
+      } else {
+        toast.success(`Feed iCal aggiunto con successo! Importate ${data.importedCount} prenotazioni.`);
+      }
       
       // Resetta il form
       setSource('');
@@ -59,6 +83,7 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
       router.refresh();
     } catch (error) {
       console.error('Error syncing iCal:', error);
+      setError((error as Error).message || 'Si è verificato un errore');
       toast.error((error as Error).message || 'Si è verificato un errore');
     } finally {
       setLoading(false);
@@ -74,11 +99,18 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
     { label: 'VRBO/HomeAway', value: 'VRBO' },
     { label: 'TripAdvisor', value: 'TripAdvisor' },
     { label: 'Google Calendar', value: 'Google' },
+    { label: 'Houfy', value: 'Houfy' },
     { label: 'Altro', value: 'Other' },
   ];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md">
+          {error}
+        </div>
+      )}
+      
       <div>
         <label htmlFor="source" className="block text-sm font-medium text-gray-700">
           Sorgente
@@ -113,6 +145,9 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
           required
           className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
         />
+        <p className="mt-1 text-xs text-gray-500">
+          L'URL deve terminare con .ics o essere un feed iCal riconosciuto
+        </p>
       </div>
       
       <div>
