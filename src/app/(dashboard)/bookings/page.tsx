@@ -17,13 +17,18 @@ export default async function BookingsPage() {
   
   try {
     // Ottieni tutte le prenotazioni
-    const bookings = await BookingModel.find({}).sort({ checkIn: 1 });
+    const bookings = await BookingModel.find({}).sort({ createdAt: -1 });
+    
+    console.log(`Found ${bookings.length} total bookings`);
     
     // Aggiungi le informazioni degli appartamenti
     const bookingsWithApartmentInfo: (IBooking & { apartmentName: string })[] = await Promise.all(
       bookings.map(async (booking) => {
         const bookingObj = booking.toObject() as IBooking;
         const apartment = await ApartmentModel.findById(bookingObj.apartmentId);
+        
+        console.log(`Booking from ${bookingObj.source} for dates ${new Date(bookingObj.checkIn).toISOString()} to ${new Date(bookingObj.checkOut).toISOString()}`);
+        
         return {
           ...bookingObj,
           apartmentName: apartment ? apartment.name : 'Unknown',
@@ -45,9 +50,15 @@ export default async function BookingsPage() {
         
         <div className="bg-white rounded-lg shadow">
           <div className="p-4 border-b">
-            <h2 className="text-lg font-medium">Tutte le Prenotazioni</h2>
+            <h2 className="text-lg font-medium">Tutte le Prenotazioni ({bookingsWithApartmentInfo.length})</h2>
           </div>
-          <BookingList bookings={bookingsWithApartmentInfo} />
+          {bookingsWithApartmentInfo.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">
+              Nessuna prenotazione trovata. Crea la tua prima prenotazione!
+            </div>
+          ) : (
+            <BookingList bookings={bookingsWithApartmentInfo} />
+          )}
         </div>
       </div>
     );
