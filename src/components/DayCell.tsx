@@ -22,8 +22,6 @@ interface DayCellProps {
   isSelected?: boolean;
   isSelectionMode?: boolean;
   onClick: () => void;
-  hideBookingDetails?: boolean;
-  className?: string;
 }
 
 export default function DayCell({
@@ -37,18 +35,27 @@ export default function DayCell({
   price,
   isSelected = false,
   isSelectionMode = false,
-  onClick,
-  hideBookingDetails = false,
-  className = ''
+  onClick
 }: DayCellProps) {
   
   // Determinare lo stile del bordo e dello sfondo
-  let cellClassName = `h-28 p-1 border ${className} `;
+  let cellClassName = "h-28 p-1 border relative ";
   
   if (isToday) {
     cellClassName += "border-blue-500 border-2 ";
   } else if (isSelected) {
     cellClassName += "border-purple-500 border-2 ";
+  } else if (booking) {
+    // Bordi specifici per le prenotazioni
+    if (bookingPosition === 'start') {
+      cellClassName += "border-l-2 border-t-2 border-b-2 border-r-0 border-green-500 ";
+    } else if (bookingPosition === 'middle') {
+      cellClassName += "border-t-2 border-b-2 border-l-0 border-r-0 border-green-500 ";
+    } else if (bookingPosition === 'end') {
+      cellClassName += "border-r-2 border-t-2 border-b-2 border-l-0 border-green-500 ";
+    } else if (bookingPosition === 'single') {
+      cellClassName += "border-2 border-green-500 ";
+    }
   } else {
     cellClassName += "border-gray-200 ";
   }
@@ -74,40 +81,44 @@ export default function DayCell({
     cellClassName += "cursor-pointer ";
   }
   
-  // Stili specifici per i bordi delle prenotazioni continue
+  // Determine la classe CSS per il box della prenotazione
+  let bookingBoxClass = "mt-1 text-xs p-1 ";
+  
   if (booking) {
-    if (bookingPosition === 'start') {
-      cellClassName += "rounded-l-lg border-l-2 border-t-2 border-b-2 border-green-500 ";
-    } else if (bookingPosition === 'middle') {
-      cellClassName += "border-t-2 border-b-2 border-green-500 border-l-0 border-r-0 ";
-    } else if (bookingPosition === 'end') {
-      cellClassName += "rounded-r-lg border-r-2 border-t-2 border-b-2 border-green-500 ";
-    } else if (bookingPosition === 'single') {
-      cellClassName += "rounded-lg border-2 border-green-500 ";
+    if (booking.status === 'blocked' || isBlocked) {
+      bookingBoxClass += "bg-red-100 ";
+    } else {
+      bookingBoxClass += "bg-green-100 ";
     }
+    
+    // Aggiungi bordi arrotondati solo dove necessario
+    if (bookingPosition === 'start') {
+      bookingBoxClass += "rounded-l ";
+    } else if (bookingPosition === 'end') {
+      bookingBoxClass += "rounded-r ";
+    } else if (bookingPosition === 'single') {
+      bookingBoxClass += "rounded ";
+    }
+  } else if (isBlocked) {
+    bookingBoxClass += "bg-red-100 rounded ";
   }
   
   return (
-    <div
-      className={cellClassName}
-      onClick={onClick}
-    >
+    <div className={cellClassName} onClick={onClick}>
       <div className="flex flex-col h-full">
         <div className="text-right text-sm font-medium">
           {date.getDate()}
         </div>
         
         <div className="flex-grow">
-          {!hideBookingDetails && booking && (
-            <div className={`mt-1 text-xs p-1 rounded ${
-              isBlocked ? 'bg-red-100' :
-              bookingPosition === 'start' ? 'rounded-l-lg bg-green-100' :
-              bookingPosition === 'middle' ? 'rounded-none bg-green-100' :
-              bookingPosition === 'end' ? 'rounded-r-lg bg-green-100' :
-              'rounded-lg bg-green-100'
-            }`}>
-              <div className="font-medium truncate">{isBlocked ? 'CLOSED - Not available' : booking.guestName}</div>
-              {!isBlocked && <div>{booking.numberOfGuests} ospiti</div>}
+          {booking && (
+            <div className={bookingBoxClass}>
+              <div className="font-medium truncate">
+                {booking.status === 'blocked' || isBlocked ? 'CLOSED - Not available' : booking.guestName}
+              </div>
+              <div>
+                {booking.numberOfGuests} ospiti
+              </div>
               
               {/* Mostra solo nelle date iniziali o singole */}
               {(bookingPosition === 'start' || bookingPosition === 'single') && (
