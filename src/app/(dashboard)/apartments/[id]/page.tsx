@@ -5,6 +5,7 @@ import connectDB from '@/lib/db';
 import ApartmentModel from '@/models/Apartment';
 import BookingModel from '@/models/Booking';
 import ICalSyncForm from '@/components/ICalSyncForm';
+import RemoveICalButton from '@/components/RemoveICalButton';
 
 export default async function ApartmentDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession();
@@ -139,12 +140,10 @@ export default async function ApartmentDetailPage({ params }: { params: { id: st
                       <p className="font-medium">{ical.source}</p>
                       <p className="text-xs text-gray-500 truncate max-w-xs">{ical.url}</p>
                     </div>
-                    <button
-                      className="text-red-600 hover:text-red-800"
-                      // Funzione per rimuovere implementata lato client
-                    >
-                      Rimuovi
-                    </button>
+                    <RemoveICalButton 
+                      apartmentId={params.id} 
+                      source={ical.source} 
+                    />
                   </li>
                 ))}
               </ul>
