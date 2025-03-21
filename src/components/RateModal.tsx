@@ -3,6 +3,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
 
 interface RateModalProps {
   isOpen: boolean;
@@ -16,7 +17,16 @@ interface RateModalProps {
     minStay?: number;
     notes?: string;
   };
+  booking?: {
+    id: string;
+    guestName: string;
+    checkIn: Date;
+    checkOut: Date;
+    numberOfGuests: number;
+    status: string;
+  } | null;
   onSave: (data: any) => void;
+  onCreateBooking: (date: Date) => void;
 }
 
 export default function RateModal({
@@ -25,8 +35,11 @@ export default function RateModal({
   date,
   apartmentData,
   rateData,
-  onSave
+  booking,
+  onSave,
+  onCreateBooking
 }: RateModalProps) {
+  const router = useRouter();
   const [price, setPrice] = useState<number | undefined>(undefined);
   const [isBlocked, setIsBlocked] = useState(false);
   const [minStay, setMinStay] = useState<number | undefined>(undefined);
@@ -61,11 +74,13 @@ export default function RateModal({
   
   // Formatta la data per la visualizzazione
   const formatDate = (date: Date): string => {
+    // Usa il fuso orario italiano (CET/CEST)
     return date.toLocaleDateString('it-IT', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+      timeZone: 'Europe/Rome'
     });
   };
   
@@ -112,6 +127,34 @@ export default function RateModal({
                     <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900">
                       Gestione Data: {formatDate(date)}
                     </Dialog.Title>
+                    
+                    {/* Sezione prenotazione esistente */}
+                    {booking && (
+                      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                        <h4 className="font-medium text-green-800">Prenotazione esistente</h4>
+                        <p className="text-sm text-green-700 mt-1">
+                          <span className="font-medium">Ospite:</span> {booking.guestName}
+                        </p>
+                        <p className="text-sm text-green-700">
+                          <span className="font-medium">Check-in:</span> {new Date(booking.checkIn).toLocaleDateString('it-IT', {timeZone: 'Europe/Rome'})}
+                        </p>
+                        <p className="text-sm text-green-700">
+                          <span className="font-medium">Check-out:</span> {new Date(booking.checkOut).toLocaleDateString('it-IT', {timeZone: 'Europe/Rome'})}
+                        </p>
+                        <p className="text-sm text-green-700">
+                          <span className="font-medium">Ospiti:</span> {booking.numberOfGuests}
+                        </p>
+                        <div className="mt-2">
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/bookings/${booking.id}`)}
+                            className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
+                          >
+                            Vedi dettagli prenotazione
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     
                     <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                       <div>
@@ -182,16 +225,27 @@ export default function RateModal({
                         />
                       </div>
                       
-                      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-2">
                         <button
                           type="submit"
-                          className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto"
+                          className="inline-flex justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:w-auto"
                         >
                           Salva
                         </button>
+                        
+                        {!booking && (
+                          <button
+                            type="button"
+                            onClick={() => onCreateBooking(date)}
+                            className="inline-flex justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:w-auto"
+                          >
+                            Nuova Prenotazione
+                          </button>
+                        )}
+                        
                         <button
                           type="button"
-                          className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                          className="mt-3 inline-flex justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
                           onClick={onClose}
                         >
                           Annulla
