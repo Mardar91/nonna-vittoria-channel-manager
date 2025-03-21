@@ -58,7 +58,11 @@ export default function DayCell({
   } else if (isSelected) {
     cellClassName += "bg-purple-50 ";
   } else if (booking) {
-    cellClassName += "bg-green-50 ";
+    if (booking.status === 'blocked' || isBlocked) {
+      cellClassName += "bg-red-50 ";
+    } else {
+      cellClassName += "bg-green-50 ";
+    }
   } else if (isBlocked) {
     cellClassName += "bg-red-50 ";
   } else if (hasCustomPrice) {
@@ -71,7 +75,7 @@ export default function DayCell({
   }
   
   // Stili specifici per i bordi delle prenotazioni continue
-  if (booking && !hideBookingDetails) {
+  if (booking) {
     if (bookingPosition === 'start') {
       cellClassName += "rounded-l-lg border-l-2 border-t-2 border-b-2 border-green-500 ";
     } else if (bookingPosition === 'middle') {
@@ -96,13 +100,14 @@ export default function DayCell({
         <div className="flex-grow">
           {!hideBookingDetails && booking && (
             <div className={`mt-1 text-xs p-1 rounded ${
+              isBlocked ? 'bg-red-100' :
               bookingPosition === 'start' ? 'rounded-l-lg bg-green-100' :
               bookingPosition === 'middle' ? 'rounded-none bg-green-100' :
               bookingPosition === 'end' ? 'rounded-r-lg bg-green-100' :
               'rounded-lg bg-green-100'
             }`}>
-              <div className="font-medium truncate">{booking.guestName}</div>
-              <div>{booking.numberOfGuests} ospiti</div>
+              <div className="font-medium truncate">{isBlocked ? 'CLOSED - Not available' : booking.guestName}</div>
+              {!isBlocked && <div>{booking.numberOfGuests} ospiti</div>}
               
               {/* Mostra solo nelle date iniziali o singole */}
               {(bookingPosition === 'start' || bookingPosition === 'single') && (
