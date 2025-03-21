@@ -1,0 +1,46 @@
+{
+  "name": "nonna-vittoria-channel-manager",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Channel Manager per Nonna Vittoria Apartments",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@headlessui/react": "^1.7.18",
+    "@heroicons/react": "^2.1.1",
+    "dayjs": "^1.11.10",
+    "ical-generator": "^6.0.1",
+    "ical-parser": "^1.0.2",
+    "mongodb": "^6.4.0",
+    "mongoose": "^8.2.0",
+    "next": "14.1.0",
+    "next-auth": "^4.24.5",
+    "node-ical": "^0.17.0",
+    "react": "^18.2.0",
+    "react-datepicker": "^5.0.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
+    "stripe": "^14.17.0",
+    "typescript": "^5.3.3",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.20",
+    "@types/react": "^18.2.58",
+    "@types/react-datepicker": "^4.19.5",
+    "@types/react-dom": "^18.2.19",
+    "@types/uuid": "^9.0.8",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.1.0",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
