@@ -20,18 +20,14 @@ interface ICalEvent {
 // Funzione per importare eventi da un feed iCal
 export async function importICalEvents(url: string): Promise<ICalEvent[]> {
   try {
-    console.log(`Fetching iCal feed from: ${url}`);
     const events = await ical.fromURL(url);
     const bookings: ICalEvent[] = [];
-
-    console.log(`Found ${Object.keys(events).length} events in the feed`);
 
     for (const event of Object.values(events)) {
       if (event.type !== 'VEVENT') continue;
       
       // Ignora eventi che non hanno date di inizio o fine
       if (!event.start || !event.end) {
-        console.log('Skipping event without start or end date');
         continue;
       }
 
@@ -60,8 +56,6 @@ export async function importICalEvents(url: string): Promise<ICalEvent[]> {
         }
       }
 
-      console.log(`Adding event: ${summary} from ${event.start} to ${event.end}`);
-
       bookings.push({
         start: event.start,
         end: event.end,
@@ -74,10 +68,8 @@ export async function importICalEvents(url: string): Promise<ICalEvent[]> {
       });
     }
 
-    console.log(`Successfully processed ${bookings.length} bookings from feed`);
     return bookings;
   } catch (error) {
-    console.error('Error importing iCal events:', error);
     throw new Error(`Failed to import iCal events: ${(error as Error).message}`);
   }
 }
@@ -129,14 +121,12 @@ export async function syncCalendarsForApartment(apartment: IApartment): Promise<
         const events = await importICalEvents(icalSource.url);
         allEvents = [...allEvents, ...events.map(event => ({ ...event, source: icalSource.source }))];
       } catch (error) {
-        console.error(`Error importing events from ${icalSource.source}:`, error);
         // Continua con le altre sorgenti anche se una fallisce
       }
     }
 
     return allEvents;
   } catch (error) {
-    console.error('Error syncing calendars:', error);
     throw new Error('Failed to sync calendars');
   }
 }
