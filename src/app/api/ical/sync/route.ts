@@ -1,17 +1,10 @@
-// src/app/api/ical/sync/route.ts (versione migliorata)
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import ApartmentModel, { IApartment } from '@/models/Apartment';
 import BookingModel from '@/models/Booking';
-import { importICalEvents, syncCalendarsForApartment, extractGuestInfoFromEvent } from '@/lib/ical';
+import { importICalEvents, extractGuestInfoFromEvent } from '@/lib/ical';
 import { v4 as uuidv4 } from 'uuid';
-
-// Definizione del tipo per gli elementi dell'array icalUrls
-interface ICalSource {
-  source: string;
-  url: string;
-}
 
 // POST: Sincronizzare le prenotazioni da un feed iCal esterno
 export async function POST(req: NextRequest) {
@@ -43,9 +36,22 @@ export async function POST(req: NextRequest) {
       );
     }
     
+    // Verifica che l'URL sia valido
+    let events;
+    try {
+      // Tenta di importare eventi dal feed per verificare che l'URL sia valido
+      events = await importICalEvents(url);
+    } catch (error) {
+      console.error('Error validating iCal URL:', error);
+      return NextResponse.json(
+        { error: 'Invalid iCal URL or the feed is not accessible' },
+        { status: 400 }
+      );
+    }
+    
     // Aggiungi l'URL iCal all'appartamento se non esiste già
     const existingUrlIndex = apartment.icalUrls.findIndex(
-      (item: ICalSource) => item.source === source
+      (item: { source: string }) => item.source === source
     );
     
     if (existingUrlIndex >= 0) {
@@ -56,55 +62,73 @@ export async function POST(req: NextRequest) {
     
     await apartment.save();
     
-    // Importa gli eventi dal feed
-    const events = await importICalEvents(url);
-    
     // Crea prenotazioni per gli eventi importati
     const importedBookings = [];
+    const errors = [];
     
     for (const event of events) {
-      // Verifica se la prenotazione esiste già
-      const existingBooking = await BookingModel.findOne({
-        apartmentId,
-        source,
-        checkIn: event.start,
-        checkOut: event.end,
-      });
-      
-      if (!existingBooking) {
-        // Estrai informazioni dell'ospite dall'evento
-        const guestInfo = extractGuestInfoFromEvent(event);
-        
-        // Crea una nuova prenotazione
-        const booking = await BookingModel.create({
+      try {
+        // Verifica se la prenotazione esiste già
+        const existingBooking = await BookingModel.findOne({
           apartmentId,
-          guestName: guestInfo.name,
-          guestEmail: guestInfo.email,
-          guestPhone: guestInfo.phone || undefined,
-          checkIn: event.start,
-          checkOut: event.end,
-          totalPrice: 0, // Prezzo non disponibile da feed esterni
-          numberOfGuests: 1, // Ospiti non disponibili da feed esterni
-          status: 'confirmed',
-          paymentStatus: 'paid',
           source,
-          externalId: event.uid,
-          notes: guestInfo.notes || `Importato da ${source} iCal feed`,
+          $or: [
+            { externalId: event.uid },
+            {
+              checkIn: { $eq: event.start },
+              checkOut: { $eq: event.end }
+            }
+          ]
         });
         
-        importedBookings.push(booking);
+        if (!existingBooking) {
+          // Estrai informazioni dell'ospite dall'evento
+          const guestInfo = extractGuestInfoFromEvent(event);
+          
+          // Calcola un prezzo approssimativo basato sul prezzo dell'appartamento e la durata
+          const nights = Math.max(1, Math.round((event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60 * 24)));
+          const totalPrice = apartment.price * nights;
+          
+          // Crea una nuova prenotazione
+          const booking = await BookingModel.create({
+            apartmentId,
+            guestName: guestInfo.name || 'Guest',
+            guestEmail: guestInfo.email || `${source.toLowerCase()}_${uuidv4().slice(0, 8)}@example.com`,
+            guestPhone: guestInfo.phone || undefined,
+            checkIn: event.start,
+            checkOut: event.end,
+            totalPrice,
+            numberOfGuests: 1, // Default, non potendo sapere il numero esatto
+            status: 'confirmed',
+            paymentStatus: 'paid',
+            source,
+            externalId: event.uid,
+            notes: guestInfo.notes || `Importato da ${source} iCal feed`,
+          });
+          
+          importedBookings.push(booking);
+        }
+      } catch (error) {
+        console.error('Error importing event:', error);
+        errors.push({ 
+          uid: event.uid,
+          error: (error as Error).message,
+          start: event.start,
+          end: event.end
+        });
       }
     }
     
     return NextResponse.json({
       success: true,
       importedCount: importedBookings.length,
+      errors: errors.length > 0 ? errors : undefined,
       message: `Successfully imported ${importedBookings.length} bookings from ${source}`,
     });
   } catch (error) {
     console.error('Error syncing iCal feed:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { error: (error as Error).message || 'Internal Server Error' },
       { status: 500 }
     );
   }
@@ -142,7 +166,7 @@ export async function GET(req: NextRequest) {
     }
     
     // Sincronizza con tutti i feed iCal configurati
-    const events = await syncCalendarsForApartment(apartment);
+    const events = await importICalEvents(apartment.icalUrls[0].url);
     
     return NextResponse.json({
       events,
