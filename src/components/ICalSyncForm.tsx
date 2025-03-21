@@ -1,4 +1,3 @@
-// src/components/ICalSyncForm.tsx
 'use client';
 
 import { useState } from 'react';
@@ -97,7 +96,6 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
       // Aggiorna la pagina
       router.refresh();
     } catch (error) {
-      console.error('Error syncing iCal:', error);
       setError((error as Error).message || 'Si è verificato un errore');
       toast.error((error as Error).message || 'Si è verificato un errore');
     } finally {
