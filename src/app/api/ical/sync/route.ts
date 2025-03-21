@@ -6,6 +6,24 @@ import BookingModel from '@/models/Booking';
 import { importICalEvents, extractGuestInfoFromEvent } from '@/lib/ical';
 import { v4 as uuidv4 } from 'uuid';
 
+// Funzione di utility per mappare la fonte iCal a un valore valido per il modello
+const mapSourceToEnumValue = (source: string): string => {
+  // Rimuovi .com e normalizza
+  const normalizedSource = source.toLowerCase().replace(/\.com$/i, '');
+  
+  // Mappa le fonti alle opzioni valide dell'enum
+  switch (normalizedSource) {
+    case 'booking':
+      return 'booking';
+    case 'airbnb':
+      return 'airbnb';
+    case 'direct':
+      return 'direct';
+    default:
+      return 'other';
+  }
+};
+
 // POST: Sincronizzare le prenotazioni da un feed iCal esterno
 export async function POST(req: NextRequest) {
   try {
@@ -90,11 +108,14 @@ export async function POST(req: NextRequest) {
         const nights = Math.max(1, Math.round((event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60 * 24)));
         const totalPrice = apartment.price * nights;
         
+        // Mappa correttamente la fonte all'enum valido
+        const validSource = mapSourceToEnumValue(source);
+        
         // Crea una nuova prenotazione
         const booking = await BookingModel.create({
           apartmentId,
           guestName: guestInfo.name || 'Guest',
-          guestEmail: guestInfo.email || `${source.toLowerCase()}_${uuidv4().slice(0, 8)}@example.com`,
+          guestEmail: guestInfo.email || `${validSource}_${uuidv4().slice(0, 8)}@example.com`,
           guestPhone: guestInfo.phone || undefined,
           checkIn: event.start,
           checkOut: event.end,
@@ -102,7 +123,7 @@ export async function POST(req: NextRequest) {
           numberOfGuests: 1, // Default, non potendo sapere il numero esatto
           status: 'confirmed',
           paymentStatus: 'paid',
-          source: source.toLowerCase(), // Usa il nome in minuscolo per consistenza
+          source: validSource, // Usa il valore mappato
           externalId: event.uid,
           notes: guestInfo.notes || `Importato da ${source} iCal feed`,
         });
