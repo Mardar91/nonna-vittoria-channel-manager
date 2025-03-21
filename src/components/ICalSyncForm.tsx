@@ -1,4 +1,4 @@
-// src/components/ICalSyncForm.tsx (versione migliorata)
+// src/components/ICalSyncForm.tsx
 'use client';
 
 import { useState } from 'react';
@@ -70,7 +70,14 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
       
       // Controlla se ci sono stati errori durante l'importazione
       if (data.errors && data.errors.length > 0) {
-        toast.warning(`Feed aggiunto, ma con ${data.errors.length} errori durante l'importazione`);
+        toast(`Feed aggiunto, ma con ${data.errors.length} errori durante l'importazione`, {
+          icon: '⚠️', // Emoji warning
+          style: {
+            borderRadius: '10px',
+            background: '#FFF3CD',
+            color: '#856404',
+          },
+        });
       } else {
         toast.success(`Feed iCal aggiunto con successo! Importate ${data.importedCount} prenotazioni.`);
       }
