@@ -1,4 +1,3 @@
-// src/app/(dashboard)/apartments/[id]/page.tsx
 import { getServerSession } from 'next-auth/next';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -44,6 +43,12 @@ export default async function ApartmentDetailPage({ params }: { params: { id: st
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">{apartment.name}</h1>
         <div className="flex space-x-4">
+          <Link 
+            href={`/apartments/${params.id}/calendar`}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+          >
+            Calendario
+          </Link>
           <Link 
             href={`/apartments/${params.id}/edit`}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
