@@ -1,0 +1,34 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "main": false,
+      "master": false,
+      "production": false,
+      "development": false
+    }
+  },
+  "version": 2,
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
+  "regions": ["arn1"],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
+}
