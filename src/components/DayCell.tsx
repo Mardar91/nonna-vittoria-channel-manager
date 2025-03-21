@@ -22,6 +22,8 @@ interface DayCellProps {
   isSelected?: boolean;
   isSelectionMode?: boolean;
   onClick: () => void;
+  hideBookingDetails?: boolean;
+  className?: string;
 }
 
 export default function DayCell({
@@ -35,11 +37,13 @@ export default function DayCell({
   price,
   isSelected = false,
   isSelectionMode = false,
-  onClick
+  onClick,
+  hideBookingDetails = false,
+  className = ''
 }: DayCellProps) {
   
   // Determinare lo stile del bordo e dello sfondo
-  let cellClassName = "h-28 p-1 border ";
+  let cellClassName = `h-28 p-1 border ${className} `;
   
   if (isToday) {
     cellClassName += "border-blue-500 border-2 ";
@@ -67,7 +71,7 @@ export default function DayCell({
   }
   
   // Stili specifici per i bordi delle prenotazioni continue
-  if (booking) {
+  if (booking && !hideBookingDetails) {
     if (bookingPosition === 'start') {
       cellClassName += "rounded-l-lg border-l-2 border-t-2 border-b-2 border-green-500 ";
     } else if (bookingPosition === 'middle') {
@@ -90,7 +94,7 @@ export default function DayCell({
         </div>
         
         <div className="flex-grow">
-          {booking && (
+          {!hideBookingDetails && booking && (
             <div className={`mt-1 text-xs p-1 rounded ${
               bookingPosition === 'start' ? 'rounded-l-lg bg-green-100' :
               bookingPosition === 'middle' ? 'rounded-none bg-green-100' :
