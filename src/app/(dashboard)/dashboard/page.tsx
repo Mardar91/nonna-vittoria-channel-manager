@@ -1,4 +1,3 @@
-// src/app/(dashboard)/dashboard/page.tsx
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import ApartmentModel from '@/models/Apartment';
@@ -21,12 +20,10 @@ export default async function DashboardPage() {
   const pendingBookings = await BookingModel.countDocuments({ status: 'pending' });
   
   try {
-    // Ottieni le prenotazioni più recenti (senza usare lean())
+    // Ottieni le prenotazioni più recenti
     const recentBookings = await BookingModel.find()
       .sort({ createdAt: -1 })
-      .limit(10); // Aumentiamo il limite per vedere più prenotazioni
-    
-    console.log(`Found ${recentBookings.length} recent bookings`);
+      .limit(10);
     
     // Converti i documenti Mongoose in oggetti semplici con la tipizzazione corretta
     const bookingsWithApartmentInfo: (IBooking & { apartmentName: string })[] = await Promise.all(
@@ -39,17 +36,6 @@ export default async function DashboardPage() {
         };
       })
     );
-    
-    // Stampa il debug di ogni prenotazione
-    bookingsWithApartmentInfo.forEach((booking, index) => {
-      console.log(`Booking ${index + 1}:`);
-      console.log(`  ID: ${booking._id}`);
-      console.log(`  Guest: ${booking.guestName}`);
-      console.log(`  Source: ${booking.source}`);
-      console.log(`  Dates: ${new Date(booking.checkIn).toISOString()} to ${new Date(booking.checkOut).toISOString()}`);
-      console.log(`  Apartment: ${booking.apartmentName}`);
-      console.log(`  Status: ${booking.status}`);
-    });
     
     return (
       <div className="space-y-6">
@@ -70,8 +56,6 @@ export default async function DashboardPage() {
       </div>
     );
   } catch (error) {
-    console.error('Error fetching bookings:', error);
-    
     // Fallback in caso di errore
     return (
       <div className="space-y-6">
