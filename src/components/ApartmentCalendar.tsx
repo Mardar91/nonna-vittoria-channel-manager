@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import DayCell from '@/components/DayCell';
 import RateModal from '@/components/RateModal';
@@ -198,6 +198,14 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     } else {
       setCurrentMonth(currentMonth + 1);
     }
+  };
+  
+  // Funzione per tornare alla data corrente
+  const goToToday = () => {
+    const today = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Rome'}));
+    setCurrentMonth(today.getMonth());
+    setCurrentYear(today.getFullYear());
+    toast.success('Visualizzazione impostata alla data corrente');
   };
   
   // Funzione per gestire il click su una cella del calendario
@@ -583,25 +591,36 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     <div className="space-y-4">
       {/* Header del calendario con miglioramento della spaziatura */}
       <div className="flex flex-col mb-6 space-y-4">
-        {/* Prima riga: Nome del mese/anno e frecce di navigazione */}
-        <div className="flex items-center">
-          <h2 className="text-xl font-semibold mr-6">
-            {monthNames[currentMonth]} {currentYear}
-          </h2>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={goToPreviousMonth}
-              className="p-1 rounded-full hover:bg-gray-200"
-            >
-              <ChevronLeftIcon className="w-5 h-5" />
-            </button>
-            <button
-              onClick={goToNextMonth}
-              className="p-1 rounded-full hover:bg-gray-200"
-            >
-              <ChevronRightIcon className="w-5 h-5" />
-            </button>
+        {/* Prima riga: Nome del mese/anno, frecce di navigazione e tasto Oggi */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <h2 className="text-xl font-semibold mr-6">
+              {monthNames[currentMonth]} {currentYear}
+            </h2>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={goToPreviousMonth}
+                className="p-1 rounded-full hover:bg-gray-200"
+              >
+                <ChevronLeftIcon className="w-5 h-5" />
+              </button>
+              <button
+                onClick={goToNextMonth}
+                className="p-1 rounded-full hover:bg-gray-200"
+              >
+                <ChevronRightIcon className="w-5 h-5" />
+              </button>
+            </div>
           </div>
+          
+          {/* Tasto "Oggi" */}
+          <button
+            onClick={goToToday}
+            className="flex items-center px-3 py-1 text-sm font-medium rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200"
+          >
+            <CalendarIcon className="w-4 h-4 mr-1" />
+            Oggi
+          </button>
         </div>
         
         {/* Seconda riga: Pulsanti di selezione e azioni */}
@@ -782,12 +801,12 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         />
       )}
       
-      {/* Modal per nuova prenotazione - Ora passiamo la data di fine corretta */}
+      {/* Modal per nuova prenotazione */}
       <BookingFormModal
         isOpen={isNewBookingModalOpen}
         onClose={() => setIsNewBookingModalOpen(false)}
         startDate={newBookingStartDate}
-        endDate={newBookingEndDate} // Ora passiamo la data di fine prenotazione corretta
+        endDate={newBookingEndDate}
         apartmentId={apartmentId}
         apartmentData={apartmentData}
       />
