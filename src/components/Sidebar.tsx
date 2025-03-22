@@ -9,6 +9,7 @@ import {
   CreditCardIcon,
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
+  ViewColumnsIcon, // Nuova icona per Multi Calendar
 } from '@heroicons/react/24/outline';
 import { signOut } from 'next-auth/react';
 
@@ -25,6 +26,11 @@ const Sidebar = () => {
       name: 'Appartamenti',
       href: '/apartments',
       icon: BuildingOffice2Icon,
+    },
+    {
+      name: 'Multi Calendar',
+      href: '/multi-calendar',
+      icon: ViewColumnsIcon,
     },
     {
       name: 'Prenotazioni',
