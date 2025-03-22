@@ -86,6 +86,18 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     );
   };
   
+  // Nuova funzione: Verifica se una data è nel passato
+  const isPastDate = (date: Date): boolean => {
+    // Usa la data corrente del fuso orario italiano
+    const today = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Rome'}));
+    today.setHours(0, 0, 0, 0); // Imposta l'ora a mezzanotte per confrontare solo le date
+    
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    
+    return compareDate < today;
+  };
+  
   // Carica il calendario per il mese corrente
   useEffect(() => {
     generateCalendarDays(currentYear, currentMonth);
@@ -668,6 +680,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
             const hasCustomPrice = hasCustomRate(day) && dailyRates[dateToString(day)].price !== undefined;
             const price = getPriceForDate(day);
             const isSelected = isSelectionMode && isDateSelected(day);
+            const isPastDay = isPastDate(day); // Verifica se la data è passata
             
             // Non mostrare le informazioni di prenotazione nella cella
             // quando queste sono mostrate come strisce
@@ -690,6 +703,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
                   price={price}
                   isSelected={isSelected}
                   isSelectionMode={isSelectionMode}
+                  isPastDate={isPastDay} // Passa la nuova proprietà
                   onClick={() => handleDayClick(day)}
                 />
               </div>
