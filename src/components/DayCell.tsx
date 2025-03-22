@@ -21,6 +21,7 @@ interface DayCellProps {
   price: number;
   isSelected?: boolean;
   isSelectionMode?: boolean;
+  isPastDate?: boolean; // Nuova prop per identificare le date passate
   onClick: () => void;
 }
 
@@ -35,6 +36,7 @@ export default function DayCell({
   price,
   isSelected = false,
   isSelectionMode = false,
+  isPastDate = false, // Default a false
   onClick
 }: DayCellProps) {
   
@@ -49,7 +51,10 @@ export default function DayCell({
     cellClassName += "border-gray-200 ";
   }
   
-  if (!isCurrentMonth) {
+  if (isPastDate) {
+    // Stile per le date passate (grigio)
+    cellClassName += "bg-gray-200 text-gray-500 ";
+  } else if (!isCurrentMonth) {
     cellClassName += "bg-gray-50 text-gray-400 ";
   } else if (isSelected) {
     cellClassName += "bg-purple-50 ";
