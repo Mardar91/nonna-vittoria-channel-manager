@@ -5,6 +5,13 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 
+interface SeasonalPrice {
+  name: string;
+  startDate: Date;
+  endDate: Date;
+  price: number;
+}
+
 interface RateModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -17,6 +24,7 @@ interface RateModalProps {
     minStay?: number;
     notes?: string;
   };
+  seasonData?: SeasonalPrice | null;
   booking?: {
     id: string;
     guestName: string;
@@ -35,6 +43,7 @@ export default function RateModal({
   date,
   apartmentData,
   rateData,
+  seasonData,
   booking,
   onSave,
   onCreateBooking
@@ -54,12 +63,13 @@ export default function RateModal({
       setNotes(rateData.notes || '');
     } else {
       // Valori predefiniti
-      setPrice(apartmentData.price);
+      // Se esiste un prezzo stagionale, usa quello come valore predefinito
+      setPrice(seasonData ? seasonData.price : apartmentData.price);
       setIsBlocked(false);
-      setMinStay(1);
+      setMinStay(apartmentData.minStay || 1);
       setNotes('');
     }
-  }, [rateData, apartmentData, isOpen]);
+  }, [rateData, seasonData, apartmentData, isOpen]);
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,6 +137,27 @@ export default function RateModal({
                     <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900">
                       Gestione Data: {formatDate(date)}
                     </Dialog.Title>
+
+                    {/* Sezione stagione */}
+                    {seasonData && (
+                      <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-md">
+                        <h4 className="font-medium text-purple-800">Stagione: {seasonData.name}</h4>
+                        <p className="text-sm text-purple-700">
+                          Periodo: {formatDate(seasonData.startDate)} - {formatDate(seasonData.endDate)}
+                        </p>
+                        <p className="text-sm text-purple-700">
+                          Prezzo stagionale: €{seasonData.price.toFixed(2)}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Sezione soggiorno minimo */}
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <h4 className="font-medium text-yellow-800">Soggiorno Minimo</h4>
+                      <p className="text-sm text-yellow-700">
+                        L'appartamento richiede un soggiorno minimo di {apartmentData.minStay || 1} notti.
+                      </p>
+                    </div>
                     
                     {/* Sezione prenotazione esistente */}
                     {booking && (
@@ -174,11 +205,13 @@ export default function RateModal({
                             value={price === undefined ? '' : price}
                             onChange={(e) => setPrice(e.target.value ? parseFloat(e.target.value) : undefined)}
                             className="pl-7 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            placeholder={apartmentData.price.toFixed(2)}
+                            placeholder={seasonData ? seasonData.price.toFixed(2) : apartmentData.price.toFixed(2)}
                           />
                         </div>
                         <p className="mt-1 text-xs text-gray-500">
-                          Prezzo di default: €{apartmentData.price.toFixed(2)}
+                          {seasonData 
+                            ? `Prezzo stagionale: €${seasonData.price.toFixed(2)}`
+                            : `Prezzo di default: €${apartmentData.price.toFixed(2)}`}
                         </p>
                       </div>
                       
@@ -209,6 +242,9 @@ export default function RateModal({
                           onChange={(e) => setMinStay(e.target.value ? parseInt(e.target.value) : undefined)}
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                         />
+                        <p className="mt-1 text-xs text-gray-500">
+                          Soggiorno minimo dell'appartamento: {apartmentData.minStay || 1} notti
+                        </p>
                       </div>
                       
                       <div>
