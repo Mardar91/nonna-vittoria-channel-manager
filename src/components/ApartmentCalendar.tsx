@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -60,6 +60,13 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   // Riferimento alla griglia del calendario
   const calendarGridRef = useRef<HTMLDivElement>(null);
   const cellRefs = useRef<Array<HTMLDivElement | null>>([]);
+  
+  // Callback per impostare i riferimenti delle celle
+  const setCellRef = useCallback((el: HTMLDivElement | null, index: number) => {
+    if (cellRefs.current.length > index) {
+      cellRefs.current[index] = el;
+    }
+  }, []);
   
   // Formattazione date
   const dateToString = (date: Date): string => {
@@ -505,12 +512,6 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         const endCellRef = cellRefs.current[rowEndIndex];
         
         if (startCellRef && endCellRef) {
-          const startRect = startCellRef.getBoundingClientRect();
-          const endRect = endCellRef.getBoundingClientRect();
-          
-          // Rimuoviamo la riga che causa l'errore poiché non la utilizziamo
-          // const containerRect = calendarGridRef.current.getBoundingClientRect();
-          
           // Calcola la posizione e le dimensioni della striscia
           const left = startCellRef.offsetLeft;
           const top = startCellRef.offsetTop + 25; // Spazio per il numero del giorno
@@ -676,7 +677,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
               <div 
                 key={index} 
                 className="relative h-28"
-                ref={el => cellRefs.current[index] = el}
+                ref={(el) => setCellRef(el, index)}
               >
                 <DayCell
                   date={day}
