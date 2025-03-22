@@ -344,7 +344,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   // Funzione per creare una prenotazione da una singola data
   const handleCreateBookingFromDate = (date: Date) => {
     // Calcola la data di fine in base al soggiorno minimo
-    const minStay = apartmentData.minStay || 1;
+    const minStay = getMinStayForDate(date);
     const startDate = new Date(date);
     const endDate = new Date(date);
     endDate.setDate(endDate.getDate() + minStay); // Aggiunge il soggiorno minimo per il check-out
@@ -1056,6 +1056,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         endDate={newBookingEndDate}
         apartmentId={apartmentId}
         apartmentData={apartmentData}
+        customMinStay={getMinStayForDate(newBookingStartDate)}
       />
     </div>
   );
