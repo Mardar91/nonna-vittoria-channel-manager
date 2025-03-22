@@ -28,6 +28,13 @@ interface DailyRate {
   notes?: string;
 }
 
+interface SeasonalPrice {
+  name: string;
+  startDate: Date;
+  endDate: Date;
+  price: number;
+}
+
 interface ApartmentCalendarProps {
   apartmentId: string;
   apartmentData: any;
@@ -47,6 +54,9 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isRateModalOpen, setIsRateModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Stato per le stagioni
+  const [seasonalInfo, setSeasonalInfo] = useState<Record<string, SeasonalPrice>>({});
   
   // Selezione multipla
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -103,7 +113,39 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   useEffect(() => {
     generateCalendarDays(currentYear, currentMonth);
     loadDailyRates();
+    processSeasonalPrices();
   }, [currentYear, currentMonth]);
+
+  // Elabora le informazioni sui prezzi stagionali
+  const processSeasonalPrices = () => {
+    if (!apartmentData.seasonalPrices || !apartmentData.seasonalPrices.length) {
+      setSeasonalInfo({});
+      return;
+    }
+
+    const seasonMap: Record<string, SeasonalPrice> = {};
+    
+    apartmentData.seasonalPrices.forEach((season: SeasonalPrice) => {
+      const startDate = new Date(season.startDate);
+      const endDate = new Date(season.endDate);
+      
+      // Iteriamo attraverso tutte le date di questa stagione
+      let currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        const dateStr = dateToString(currentDate);
+        seasonMap[dateStr] = {
+          ...season,
+          startDate: new Date(season.startDate),
+          endDate: new Date(season.endDate)
+        };
+        
+        // Passa al giorno successivo
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    });
+    
+    setSeasonalInfo(seasonMap);
+  };
   
   // Funzione per generare i giorni del calendario
   const generateCalendarDays = (year: number, month: number) => {
@@ -268,6 +310,13 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         return;
       }
     }
+
+    // Verifica che la selezione rispetti il soggiorno minimo
+    const minStay = apartmentData.minStay || 1;
+    if (sortedDates.length < minStay) {
+      toast.error(`Il soggiorno minimo è di ${minStay} notti`);
+      return;
+    }
     
     // Imposta la data di check-in alla prima data selezionata
     // e la data di check-out al giorno successivo all'ultima data selezionata
@@ -285,10 +334,21 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   
   // Funzione per creare una prenotazione da una singola data
   const handleCreateBookingFromDate = (date: Date) => {
-    // Imposta le date per il form di prenotazione
+    // Calcola la data di fine in base al soggiorno minimo
+    const minStay = apartmentData.minStay || 1;
     const startDate = new Date(date);
     const endDate = new Date(date);
-    endDate.setDate(endDate.getDate() + 1); // Aggiunge un giorno per il check-out
+    endDate.setDate(endDate.getDate() + minStay); // Aggiunge il soggiorno minimo per il check-out
+    
+    // Verifica che non ci siano prenotazioni nel periodo
+    for (let i = 0; i < minStay; i++) {
+      const checkDate = new Date(startDate);
+      checkDate.setDate(checkDate.getDate() + i);
+      if (getBookingForDate(checkDate)) {
+        toast.error('Ci sono già prenotazioni esistenti nel periodo minimo di soggiorno');
+        return;
+      }
+    }
     
     setNewBookingStartDate(startDate);
     setNewBookingEndDate(endDate);
@@ -461,13 +521,42 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     return selectedDates.some(d => dateToString(d) === dateStr);
   };
   
+  // Verifica se una data appartiene a una stagione specifica
+  const getSeasonForDate = (date: Date): SeasonalPrice | null => {
+    const dateStr = dateToString(date);
+    return seasonalInfo[dateStr] || null;
+  };
+  
   // Ottieni il prezzo per una data specifica
   const getPriceForDate = (date: Date): number => {
     const dateStr = dateToString(date);
-    if (dateStr in dailyRates && dailyRates[dateStr].price) {
+    
+    // Prima controlla se c'è una tariffa personalizzata giornaliera
+    if (dateStr in dailyRates && dailyRates[dateStr].price !== undefined) {
       return dailyRates[dateStr].price!;
     }
+    
+    // Poi controlla se la data appartiene a una stagione
+    const season = getSeasonForDate(date);
+    if (season) {
+      return season.price;
+    }
+    
+    // Altrimenti usa il prezzo base dell'appartamento
     return apartmentData.price;
+  };
+  
+  // Ottieni il soggiorno minimo per una data specifica
+  const getMinStayForDate = (date: Date): number => {
+    const dateStr = dateToString(date);
+    
+    // Prima controlla se c'è un soggiorno minimo personalizzato giornaliero
+    if (dateStr in dailyRates && dailyRates[dateStr].minStay !== undefined) {
+      return dailyRates[dateStr].minStay!;
+    }
+    
+    // Altrimenti usa il soggiorno minimo dell'appartamento
+    return apartmentData.minStay || 1;
   };
   
   // Verifica se una data è oggi (considerando il fuso orario italiano)
@@ -664,7 +753,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         </div>
         
         {/* Terza riga: Legenda con maggiore separazione */}
-        <div className="flex items-center space-x-6 mt-4">
+        <div className="flex flex-wrap items-center gap-4 mt-4">
           <div className="flex items-center">
             <div className="w-4 h-4 bg-green-100 border border-green-500 mr-2"></div>
             <span>Prenotato</span>
@@ -677,10 +766,19 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
             <div className="w-4 h-4 bg-blue-100 border border-blue-500 mr-2"></div>
             <span>Prezzo Personalizzato</span>
           </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-purple-100 border border-purple-500 mr-2"></div>
+            <span>Prezzo Stagionale</span>
+          </div>
           {isSelectionMode && (
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-purple-100 border border-purple-500 mr-2"></div>
+              <div className="w-4 h-4 bg-indigo-100 border border-indigo-500 mr-2"></div>
               <span>Selezionato</span>
+            </div>
+          )}
+          {apartmentData.minStay > 1 && (
+            <div className="flex items-center ml-auto">
+              <span className="font-semibold">Soggiorno minimo: {apartmentData.minStay} notti</span>
             </div>
           )}
         </div>
@@ -706,7 +804,10 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
             const bookingPosition = booking ? getBookingPosition(day, booking) : undefined;
             const isBlocked = isDateBlocked(day);
             const hasCustomPrice = hasCustomRate(day) && dailyRates[dateToString(day)].price !== undefined;
+            const season = getSeasonForDate(day);
+            const hasSeasonalPrice = !!season;
             const price = getPriceForDate(day);
+            const minStay = getMinStayForDate(day);
             const isSelected = isSelectionMode && isDateSelected(day);
             const isPastDay = isPastDate(day); // Verifica se la data è passata
             
@@ -728,7 +829,10 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
                   bookingPosition={bookingPosition}
                   isBlocked={isBlocked}
                   hasCustomPrice={hasCustomPrice}
+                  hasSeasonalPrice={hasSeasonalPrice}
+                  seasonName={season?.name}
                   price={price}
+                  minStay={minStay > 1 ? minStay : undefined}
                   isSelected={isSelected}
                   isSelectionMode={isSelectionMode}
                   isPastDate={isPastDay}
@@ -742,6 +846,27 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         {/* Strisce delle prenotazioni */}
         {renderBookingStrips()}
       </div>
+      
+      {/* Stagioni attive */}
+      {Object.keys(seasonalInfo).length > 0 && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h3 className="font-medium mb-2">Stagioni Attive</h3>
+          <div className="flex flex-wrap gap-2">
+            {Object.values(seasonalInfo)
+              .filter((season, index, self) => 
+                self.findIndex(s => s.name === season.name) === index
+              )
+              .map((season) => (
+                <div key={season.name} className="bg-purple-100 text-purple-800 px-3 py-1 rounded-md">
+                  {season.name}: €{season.price.toFixed(2)} 
+                  <span className="text-xs ml-1">
+                    ({formatDate(season.startDate)} - {formatDate(season.endDate)})
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
       
       {/* Azioni rapide */}
       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
@@ -784,6 +909,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
           date={selectedDate}
           apartmentData={apartmentData}
           rateData={selectedDate ? dailyRates[dateToString(selectedDate)] : undefined}
+          seasonData={getSeasonForDate(selectedDate)}
           booking={getBookingForDate(selectedDate)}
           onSave={handleSaveRate}
           onCreateBooking={handleCreateBookingFromDate}
