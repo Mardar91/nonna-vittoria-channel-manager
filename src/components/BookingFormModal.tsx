@@ -42,6 +42,16 @@ export default function BookingFormModal({
     notes: '',
   });
 
+  // Aggiorna formData quando cambiano le date iniziali
+  useState(() => {
+    setFormData(prev => ({
+      ...prev,
+      checkIn: startDate,
+      checkOut: endDate,
+      totalPrice: calculateTotalPrice(startDate, endDate, apartmentData.price)
+    }));
+  });
+
   // Calcola il prezzo totale basato sulle date
   function calculateTotalPrice(checkIn: Date, checkOut: Date, pricePerNight: number): number {
     const days = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
