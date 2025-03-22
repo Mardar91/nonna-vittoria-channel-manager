@@ -1,14 +1,24 @@
-// src/components/ApartmentForm.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { IApartment } from '@/models/Apartment';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import { XCircleIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 
 interface ApartmentFormProps {
   apartment?: IApartment;
   isEdit?: boolean;
+}
+
+interface SeasonalPrice {
+  id: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+  price: number;
 }
 
 export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFormProps) {
@@ -22,9 +32,24 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
     bedrooms: 1,
     bathrooms: 1,
     maxGuests: 2,
+    minStay: 1,
     images: [],
     amenities: [],
     icalUrls: [],
+    seasonalPrices: [],
+  });
+
+  // Stato per gestire l'input del nuovo servizio personalizzato
+  const [newAmenity, setNewAmenity] = useState('');
+  
+  // Stato per gestire i prezzi stagionali
+  const [seasonalPrices, setSeasonalPrices] = useState<SeasonalPrice[]>([]);
+  const [newSeason, setNewSeason] = useState<SeasonalPrice>({
+    id: '',
+    name: '',
+    startDate: new Date(),
+    endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+    price: 0
   });
 
   // Popola il form se stiamo modificando un appartamento esistente
@@ -38,10 +63,24 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
         bedrooms: apartment.bedrooms,
         bathrooms: apartment.bathrooms,
         maxGuests: apartment.maxGuests,
+        minStay: apartment.minStay || 1,
         images: apartment.images || [],
         amenities: apartment.amenities || [],
         icalUrls: apartment.icalUrls || [],
+        seasonalPrices: apartment.seasonalPrices || [],
       });
+      
+      // Inizializza i prezzi stagionali se esistono
+      if (apartment.seasonalPrices && apartment.seasonalPrices.length > 0) {
+        const formattedSeasons = apartment.seasonalPrices.map((season, index) => ({
+          id: index.toString(),
+          name: season.name,
+          startDate: new Date(season.startDate),
+          endDate: new Date(season.endDate),
+          price: season.price
+        }));
+        setSeasonalPrices(formattedSeasons);
+      }
     }
   }, [apartment, isEdit]);
 
@@ -73,11 +112,120 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
     }
   };
 
+  // Funzione per gestire l'aggiunta di un servizio personalizzato
+  const handleAddCustomAmenity = () => {
+    if (newAmenity.trim()) {
+      setFormData({
+        ...formData,
+        amenities: [...(formData.amenities || []), newAmenity.trim()],
+      });
+      setNewAmenity('');
+      toast.success(`Servizio "${newAmenity}" aggiunto`);
+    }
+  };
+
+  // Funzione per gestire la rimozione di un servizio
+  const handleRemoveAmenity = (amenity: string) => {
+    setFormData({
+      ...formData,
+      amenities: (formData.amenities || []).filter(a => a !== amenity),
+    });
+    toast.success(`Servizio "${amenity}" rimosso`);
+  };
+
+  // Gestione dei campi della nuova stagione
+  const handleSeasonChange = (field: keyof SeasonalPrice, value: any) => {
+    setNewSeason({
+      ...newSeason,
+      [field]: value
+    });
+  };
+
+  // Aggiunta di una nuova stagione
+  const handleAddSeason = () => {
+    if (!newSeason.name) {
+      toast.error('Inserisci un nome per la stagione');
+      return;
+    }
+
+    if (newSeason.startDate >= newSeason.endDate) {
+      toast.error('La data di fine deve essere successiva alla data di inizio');
+      return;
+    }
+
+    if (newSeason.price <= 0) {
+      toast.error('Il prezzo deve essere maggiore di zero');
+      return;
+    }
+
+    const updatedSeasons = [
+      ...seasonalPrices,
+      {
+        ...newSeason,
+        id: Date.now().toString() // Genera un ID univoco
+      }
+    ];
+
+    setSeasonalPrices(updatedSeasons);
+    
+    // Aggiorna anche il formData con le nuove stagioni
+    setFormData({
+      ...formData,
+      seasonalPrices: updatedSeasons.map(season => ({
+        name: season.name,
+        startDate: season.startDate,
+        endDate: season.endDate,
+        price: season.price
+      }))
+    });
+
+    // Reset del form della nuova stagione
+    setNewSeason({
+      id: '',
+      name: '',
+      startDate: new Date(),
+      endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+      price: 0
+    });
+
+    toast.success('Stagione aggiunta con successo');
+  };
+
+  // Rimozione di una stagione
+  const handleRemoveSeason = (id: string) => {
+    const updatedSeasons = seasonalPrices.filter(season => season.id !== id);
+    setSeasonalPrices(updatedSeasons);
+    
+    // Aggiorna anche il formData
+    setFormData({
+      ...formData,
+      seasonalPrices: updatedSeasons.map(season => ({
+        name: season.name,
+        startDate: season.startDate,
+        endDate: season.endDate,
+        price: season.price
+      }))
+    });
+
+    toast.success('Stagione rimossa');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Assicurati che i prezzi stagionali siano formattati correttamente
+      const finalFormData = {
+        ...formData,
+        seasonalPrices: seasonalPrices.map(season => ({
+          name: season.name,
+          startDate: season.startDate,
+          endDate: season.endDate,
+          price: season.price
+        }))
+      };
+
       const url = isEdit ? `/api/apartments/${apartment?._id}` : '/api/apartments';
       const method = isEdit ? 'PUT' : 'POST';
       
@@ -86,7 +234,7 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(finalFormData),
       });
 
       if (!response.ok) {
@@ -105,6 +253,15 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
     } finally {
       setLoading(false);
     }
+  };
+
+  // Formatta una data per la visualizzazione
+  const formatDate = (date: Date): string => {
+    return date.toLocaleDateString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   };
 
   // Lista predefinita di amenità comuni
@@ -196,6 +353,22 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
               </div>
 
               <div className="col-span-6 sm:col-span-3">
+                <label htmlFor="minStay" className="block text-sm font-medium text-gray-700">
+                  Soggiorno Minimo (notti)
+                </label>
+                <input
+                  type="number"
+                  name="minStay"
+                  id="minStay"
+                  value={formData.minStay}
+                  onChange={handleChange}
+                  min="1"
+                  required
+                  className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                />
+              </div>
+
+              <div className="col-span-6 sm:col-span-3">
                 <label htmlFor="maxGuests" className="block text-sm font-medium text-gray-700">
                   Ospiti Massimi
                 </label>
@@ -278,6 +451,184 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Servizi personalizzati */}
+            <div className="mt-6">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Servizi Personalizzati</h4>
+              
+              {/* Lista dei servizi personalizzati */}
+              <div className="space-y-2 mb-4">
+                {(formData.amenities || [])
+                  .filter(amenity => !commonAmenities.includes(amenity))
+                  .map(amenity => (
+                    <div key={amenity} className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
+                      <span>{amenity}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveAmenity(amenity)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <XCircleIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
+              </div>
+
+              {/* Aggiungi nuovo servizio personalizzato */}
+              <div className="flex">
+                <input
+                  type="text"
+                  value={newAmenity}
+                  onChange={(e) => setNewAmenity(e.target.value)}
+                  placeholder="Nuovo servizio personalizzato"
+                  className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md rounded-r-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddCustomAmenity}
+                  className="mt-1 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-r-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <PlusCircleIcon className="h-5 w-5 mr-1" />
+                  Aggiungi
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Prezzi Stagionali */}
+      <div className="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
+        <div className="md:grid md:grid-cols-3 md:gap-6">
+          <div className="md:col-span-1">
+            <h3 className="text-lg font-medium leading-6 text-gray-900">Prezzi Stagionali</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Definisci prezzi diversi per periodi specifici.
+            </p>
+          </div>
+          <div className="mt-5 md:mt-0 md:col-span-2">
+            {/* Lista delle stagioni già definite */}
+            {seasonalPrices.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Stagioni Configurate</h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Periodo</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prezzo</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Azioni</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {seasonalPrices.map((season) => (
+                        <tr key={season.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{season.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {formatDate(season.startDate)} - {formatDate(season.endDate)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">€{season.price.toFixed(2)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSeason(season.id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Rimuovi
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Form per aggiungere una nuova stagione */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-gray-700">Aggiungi Nuova Stagione</h4>
+              
+              <div>
+                <label htmlFor="seasonName" className="block text-sm font-medium text-gray-700">
+                  Nome Stagione
+                </label>
+                <input
+                  type="text"
+                  id="seasonName"
+                  value={newSeason.name}
+                  onChange={(e) => handleSeasonChange('name', e.target.value)}
+                  placeholder="es. Estate, Natale, Alta Stagione"
+                  className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
+                    Data Inizio
+                  </label>
+                  <DatePicker
+                    selected={newSeason.startDate}
+                    onChange={(date) => handleSeasonChange('startDate', date)}
+                    selectsStart
+                    startDate={newSeason.startDate}
+                    endDate={newSeason.endDate}
+                    dateFormat="dd/MM/yyyy"
+                    className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
+                    Data Fine
+                  </label>
+                  <DatePicker
+                    selected={newSeason.endDate}
+                    onChange={(date) => handleSeasonChange('endDate', date)}
+                    selectsEnd
+                    startDate={newSeason.startDate}
+                    endDate={newSeason.endDate}
+                    minDate={newSeason.startDate}
+                    dateFormat="dd/MM/yyyy"
+                    className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label htmlFor="seasonPrice" className="block text-sm font-medium text-gray-700">
+                  Prezzo (€ per notte)
+                </label>
+                <div className="mt-1 relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 sm:text-sm">€</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="seasonPrice"
+                    value={newSeason.price || ''}
+                    onChange={(e) => handleSeasonChange('price', parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                    className="pl-7 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <button
+                  type="button"
+                  onClick={handleAddSeason}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <PlusCircleIcon className="h-5 w-5 mr-1" />
+                  Aggiungi Stagione
+                </button>
+              </div>
             </div>
           </div>
         </div>
