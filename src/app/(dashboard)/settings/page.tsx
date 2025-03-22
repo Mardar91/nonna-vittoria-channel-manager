@@ -17,7 +17,6 @@ export default function SettingsPage() {
     defaultCheckInTime: '14:00',
     defaultCheckOutTime: '10:00',
     autoSync: true,
-    syncInterval: 10,
   });
   
   // Carica le impostazioni attuali
@@ -41,7 +40,6 @@ export default function SettingsPage() {
             defaultCheckInTime: data.defaultCheckInTime,
             defaultCheckOutTime: data.defaultCheckOutTime,
             autoSync: data.autoSync,
-            syncInterval: data.syncInterval,
           });
         }
       } catch (error) {
@@ -66,8 +64,6 @@ export default function SettingsPage() {
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setChannelManagerFormData({ ...channelManagerFormData, [name]: checked });
-    } else if (type === 'number') {
-      setChannelManagerFormData({ ...channelManagerFormData, [name]: parseInt(value) });
     } else {
       setChannelManagerFormData({ ...channelManagerFormData, [name]: value });
     }
@@ -117,7 +113,7 @@ export default function SettingsPage() {
         throw new Error('Errore nel salvataggio delle impostazioni');
       }
       
-      // Se abbiamo modificato autoSync o syncInterval, possiamo avviare/fermare la sincronizzazione
+      // Se abbiamo modificato autoSync, possiamo avviare la sincronizzazione
       if (channelManagerFormData.autoSync) {
         // Avvia la sincronizzazione manualmente una volta per testarla
         try {
@@ -143,7 +139,14 @@ export default function SettingsPage() {
       setLoading(true);
       toast.loading('Sincronizzazione in corso...');
       
-      const response = await fetch('/api/ical/sync/auto', { method: 'POST' });
+      // Ottieni la chiave API dall'API stessa - questo è più sicuro
+      const response = await fetch('/api/ical/sync/auto', { 
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // La chiave API verrà gestita dal server
+        }
+      });
       
       if (!response.ok) {
         throw new Error('Errore durante la sincronizzazione');
@@ -289,27 +292,6 @@ export default function SettingsPage() {
                 </div>
               </div>
               
-              {channelManagerFormData.autoSync && (
-                <div>
-                  <label htmlFor="syncInterval" className="block text-sm font-medium text-gray-700">
-                    Intervallo di Sincronizzazione (minuti)
-                  </label>
-                  <input
-                    type="number"
-                    name="syncInterval"
-                    id="syncInterval"
-                    min="10"
-                    max="1440"
-                    value={channelManagerFormData.syncInterval}
-                    onChange={handleChannelManagerChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Valore consigliato: 10-60 minuti. Un intervallo più breve potrebbe causare problemi con i limiti delle API.
-                  </p>
-                </div>
-              )}
-              
               <div className="flex space-x-4">
                 <button
                   type="submit"
@@ -350,15 +332,9 @@ export default function SettingsPage() {
                 </p>
               </div>
               
-              {channelManagerFormData.autoSync && (
-                <p className="mt-2 text-sm text-gray-600">
-                  Intervallo attuale: {channelManagerFormData.syncInterval} minuti
-                </p>
-              )}
-              
               <div className="mt-4">
                 <p className="text-sm text-gray-500">
-                  Per sincronizzare frequentemente (ogni 10 minuti) consigliamo di configurare un cron job esterno che chiami l'endpoint <code className="bg-gray-200 px-1 py-0.5 rounded">/api/ical/sync/auto</code>.
+                  La sincronizzazione automatica avviene ogni 10 minuti tramite cron-job.org.
                 </p>
               </div>
             </div>
