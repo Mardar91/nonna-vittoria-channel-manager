@@ -6,15 +6,31 @@ import { syncCalendarsForApartment, importICalEvents, extractGuestInfoFromEvent 
 import SettingsModel from '@/models/Settings';
 import { v4 as uuidv4 } from 'uuid';
 
+// Supporta sia GET che POST per maggiore compatibilità con i servizi di cron
+export async function GET(req: NextRequest) {
+  return handleRequest(req);
+}
+
 export async function POST(req: NextRequest) {
+  return handleRequest(req);
+}
+
+async function handleRequest(req: NextRequest) {
   try {
-    // Verifica header di autorizzazione se siamo in produzione
+    // Verifica header di autorizzazione
     const authHeader = req.headers.get('x-api-key') || '';
+    const expectedApiKey = process.env.SYNC_API_KEY;
     
-    if (authHeader !== process.env.SYNC_API_KEY && process.env.NODE_ENV === 'production') {
-      // In produzione, richiedi una chiave API
+    // Log per debug (in sviluppo)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Auth header received:', authHeader ? 'Present (length: ' + authHeader.length + ')' : 'Missing');
+      console.log('Expected API key:', expectedApiKey ? 'Configured (length: ' + expectedApiKey.length + ')' : 'Not configured');
+    }
+    
+    // Verifica la chiave API - più semplice, senza condizioni aggiuntive
+    if (!expectedApiKey || authHeader !== expectedApiKey) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - Invalid API key' },
         { status: 401 }
       );
     }
