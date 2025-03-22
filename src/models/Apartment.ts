@@ -1,4 +1,3 @@
-// src/models/Apartment.ts
 import mongoose, { Schema } from 'mongoose';
 
 export interface IApartment {
@@ -10,6 +9,7 @@ export interface IApartment {
   bedrooms: number;
   bathrooms: number;
   maxGuests: number;
+  minStay: number;
   images: string[];
   amenities: string[];
   icalUrls: { source: string; url: string }[];
@@ -33,6 +33,7 @@ const ApartmentSchema = new Schema<IApartment>(
     bedrooms: { type: Number, required: true, default: 1 },
     bathrooms: { type: Number, required: true, default: 1 },
     maxGuests: { type: Number, required: true, default: 2 },
+    minStay: { type: Number, required: true, default: 1 },
     images: [{ type: String }],
     amenities: [{ type: String }],
     icalUrls: [
