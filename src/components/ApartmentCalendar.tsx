@@ -87,6 +87,15 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
+
+  // Funzione per formattare una data in formato leggibile
+  const formatDate = (date: Date): string => {
+    return date.toLocaleDateString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
   
   // Confronta solo la data (giorno, mese, anno) ignorando l'ora
   const isSameDay = (date1: Date, date2: Date): boolean => {
