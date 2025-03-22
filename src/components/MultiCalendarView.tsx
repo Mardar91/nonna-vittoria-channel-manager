@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -37,32 +37,13 @@ interface MultiCalendarViewProps {
 
 export default function MultiCalendarView({ apartments }: MultiCalendarViewProps) {
   const router = useRouter();
-  const dropdownRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
   
   // Crea una data con il fuso orario italiano
   const currentDateItaly = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Rome'}));
   const [currentMonth, setCurrentMonth] = useState(currentDateItaly.getMonth());
   const [currentYear, setCurrentYear] = useState(currentDateItaly.getFullYear());
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
-  const [selectedApartment, setSelectedApartment] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
-  
-  // Effetto per gestire i click fuori dai menu contestuali
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      Object.entries(dropdownRefs.current).forEach(([key, dropdown]) => {
-        if (dropdown && !dropdown.contains(event.target as Node)) {
-          dropdown.classList.add('hidden');
-        }
-      });
-    };
-    
-    document.addEventListener('click', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, []);
   
   // Funzione per generare i giorni del calendario
   useEffect(() => {
@@ -140,13 +121,17 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   };
   
   const handleDateClick = (apartmentId: string, date: Date) => {
-    if (isPastDate(date)) return; // Non fare nulla se la data è passata
     router.push(`/apartments/${apartmentId}/calendar?date=${date.toISOString().split('T')[0]}`);
   };
   
+  // Funzione per verificare se una data è nel passato
+  const isPastDate = (date: Date): boolean => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+  
   const handleQuickAction = async (apartmentId: string, date: Date, action: 'block' | 'unblock' | 'book') => {
-    if (isPastDate(date)) return; // Non fare nulla se la data è passata
-    
     setLoading(true);
     
     try {
@@ -183,47 +168,39 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     }
   };
   
-  const toggleDropdown = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    // Chiudi tutti gli altri dropdown
-    Object.entries(dropdownRefs.current).forEach(([key, dropdown]) => {
-      if (key !== id && dropdown) {
-        dropdown.classList.add('hidden');
-      }
-    });
-    
-    // Apri o chiudi questo dropdown
-    const dropdown = dropdownRefs.current[id];
-    if (dropdown) {
-      dropdown.classList.toggle('hidden');
-    }
-  };
-  
-  // Verifica se una data è nel passato
-  const isPastDate = (date: Date): boolean => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date < today;
-  };
-  
   const monthNames = [
     'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
     'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
   ];
   
+  // Questa è la parte critica che cambia: i giorni della settimana sono fissi
   const weekdayNames = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
   
-  // Raggruppa i giorni in settimane
-  const weeks: Date[][] = [];
-  for (let i = 0; i < calendarDays.length; i += 7) {
-    weeks.push(calendarDays.slice(i, i + 7));
+  // Ottieni i giorni del mese numerati dall'1 (1, 2, 3, ...)
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const daysNumbers = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  
+  // Ottieni il primo giorno della settimana del mese (0 = Lunedì)
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+  const firstWeekdayOfMonth = (firstDayOfMonth.getDay() + 6) % 7;
+  
+  // Prepara array dei giorni, posizionati correttamente nella settimana
+  let daysArray: (number | null)[] = Array(firstWeekdayOfMonth).fill(null);
+  daysArray = [...daysArray, ...daysNumbers];
+  
+  // Calcola le settimane da mostrare nel calendario
+  const weeks: (number | null)[][] = [];
+  for (let i = 0; i < daysArray.length; i += 7) {
+    weeks.push(daysArray.slice(i, i + 7));
   }
   
-  // Funzione per salvare il ref
-  const setDropdownRef = (el: HTMLDivElement | null, id: string) => {
-    dropdownRefs.current[id] = el;
-  };
+  // Completa l'ultima settimana con null se necessario
+  if (weeks.length > 0) {
+    const lastWeek = weeks[weeks.length - 1];
+    if (lastWeek.length < 7) {
+      weeks[weeks.length - 1] = [...lastWeek, ...Array(7 - lastWeek.length).fill(null)];
+    }
+  }
   
   return (
     <div className="space-y-4">
@@ -236,14 +213,14 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
           <div className="flex items-center space-x-4">
             <button
               onClick={goToPreviousMonth}
-              className="p-1 rounded-full hover:bg-gray-200"
+              className="p-1 rounded-full hover:bg-gray-200 transition-colors"
               disabled={loading}
             >
               <ChevronLeftIcon className="w-5 h-5" />
             </button>
             <button
               onClick={goToNextMonth}
-              className="p-1 rounded-full hover:bg-gray-200"
+              className="p-1 rounded-full hover:bg-gray-200 transition-colors"
               disabled={loading}
             >
               <ChevronRightIcon className="w-5 h-5" />
@@ -254,7 +231,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         {/* Tasto "Oggi" */}
         <button
           onClick={goToToday}
-          className="flex items-center px-3 py-1 text-sm font-medium rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200"
+          className="flex items-center px-3 py-1 text-sm font-medium rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors shadow-sm"
           disabled={loading}
         >
           <CalendarIcon className="w-4 h-4 mr-1" />
@@ -282,222 +259,249 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         </div>
         <div className="flex items-center">
           <div className="w-4 h-4 bg-gray-200 border border-gray-300 mr-2"></div>
-          <span>Data Passata</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-5 h-5 flex items-center justify-center rounded-full bg-blue-500 text-white text-xs font-bold mr-2">
-            1
-          </div>
-          <span>Oggi</span>
+          <span>Data passata</span>
         </div>
       </div>
       
-      {/* Tabella del calendario */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse border border-gray-200">
-          <thead>
-            <tr>
-              <th className="border border-gray-200 bg-gray-100 p-2 font-medium text-left min-w-[180px]">
-                Appartamento
-              </th>
-              {/* Intestazione con i giorni della settimana */}
-              {weeks.length > 0 && weeks[0].map((day, index) => (
-                <th key={`week-day-${index}`} className="border border-gray-200 bg-gray-100 p-2 font-medium text-center min-w-[40px]">
-                  {weekdayNames[index % 7]}
+      {/* Tabella del calendario con intestazioni fisse */}
+      <div className="overflow-x-auto relative">
+        <div className="min-w-max">
+          <table className="min-w-full border-collapse">
+            <thead className="bg-white">
+              <tr>
+                {/* Intestazione appartamenti */}
+                <th className="sticky left-0 z-30 border border-gray-200 bg-gray-100 p-3 font-medium text-left min-w-[180px] shadow-sm">
+                  Appartamento
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {/* Riga con i numeri dei giorni */}
-            <tr>
-              <td className="border border-gray-200 bg-gray-50 p-2 font-medium text-left">
-                {/* Prima cella vuota */}
-              </td>
-              {calendarDays.map((day, index) => {
-                const isToday = day.toDateString() === new Date().toDateString();
-                const isPast = isPastDate(day);
-                const isCurrentMonth = day.getMonth() === currentMonth;
-                
-                return (
-                  <td 
-                    key={`day-number-${index}`} 
-                    className={`
-                      border border-gray-200 p-2 text-center font-medium
-                      ${isCurrentMonth ? 'bg-gray-50' : 'bg-gray-100/50 text-gray-400'}
-                      ${isPast ? 'text-gray-400' : ''}
-                      ${isToday ? 'relative' : ''}
-                    `}
+                {/* Intestazione giorni della settimana */}
+                {weeks.map((week, weekIndex) => (
+                  week.map((_, dayIndex) => (
+                    <th key={`week${weekIndex}-day${dayIndex}`} className="border border-gray-200 bg-gray-100 p-3 font-medium text-center min-w-[50px]">
+                      {weekdayNames[dayIndex]}
+                    </th>
+                  ))
+                ))}
+              </tr>
+              <tr>
+                {/* Intestazione appartamenti (riga numeri) */}
+                <th className="sticky left-0 z-30 border border-gray-200 bg-gray-100 p-3 font-medium text-left shadow-sm">
+                  {/* Cella vuota sopra la colonna degli appartamenti */}
+                </th>
+                {/* Intestazione numeri dei giorni */}
+                {weeks.map((week, weekIndex) => (
+                  week.map((day, dayIndex) => (
+                    <th key={`date${weekIndex}-${dayIndex}`} className="border border-gray-200 bg-gray-100 p-3 font-medium text-center">
+                      {day !== null ? day : ''}
+                    </th>
+                  ))
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {/* Righe per ogni appartamento */}
+              {apartments.map((apartment) => (
+                <tr key={apartment.id}>
+                  <td
+                    className="sticky left-0 z-20 border border-gray-200 p-3 font-medium bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors shadow-sm"
+                    onClick={() => handleApartmentClick(apartment.id)}
                   >
-                    {isToday ? (
-                      <span className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-500 text-white mx-auto">
-                        {day.getDate()}
-                      </span>
-                    ) : (
-                      day.getDate()
-                    )}
+                    {apartment.data.name}
                   </td>
-                );
-              })}
-            </tr>
-            
-            {/* Righe per ogni appartamento */}
-            {apartments.map((apartment) => (
-              <tr key={apartment.id}>
-                <td
-                  className="border border-gray-200 p-2 font-medium bg-gray-50 cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleApartmentClick(apartment.id)}
-                >
-                  {apartment.data.name}
-                </td>
-                {/* Celle per ogni giorno */}
-                {calendarDays.map((date, index) => {
-                  // Funzione per determinare se c'è una prenotazione per questa data
-                  const hasBooking = apartment.bookings.some(booking => {
-                    const checkIn = new Date(booking.checkIn);
-                    const checkOut = new Date(booking.checkOut);
-                    const dateString = date.toISOString().split('T')[0];
-                    const checkInString = checkIn.toISOString().split('T')[0];
-                    const checkOutString = checkOut.toISOString().split('T')[0];
-                    return dateString >= checkInString && dateString < checkOutString;
-                  });
-                  
-                  // Funzione per determinare se c'è una tariffa personalizzata per questa data
-                  const hasPriceRate = apartment.rates.some(rate => {
-                    const rateDate = new Date(rate.date);
-                    const dateString = date.toISOString().split('T')[0];
-                    const rateDateString = rateDate.toISOString().split('T')[0];
-                    return dateString === rateDateString && rate.price !== undefined;
-                  });
-                  
-                  // Funzione per determinare se la data è bloccata
-                  const isBlocked = apartment.rates.some(rate => {
-                    const rateDate = new Date(rate.date);
-                    const dateString = date.toISOString().split('T')[0];
-                    const rateDateString = rateDate.toISOString().split('T')[0];
-                    return dateString === rateDateString && rate.isBlocked;
-                  });
-                  
-                  const isPast = isPastDate(date);
-                  const isCurrentMonth = date.getMonth() === currentMonth;
-                  const isToday = date.toDateString() === new Date().toDateString();
-                  
-                  // Determinare la classe della cella in base al suo stato
-                  let cellClass = "border border-gray-200 p-2 text-center relative cursor-pointer h-10";
-                  
-                  if (isPast) {
-                    cellClass += " bg-gray-200 text-gray-500 cursor-not-allowed";
-                  } else if (hasBooking) {
-                    cellClass += " bg-green-100";
-                  } else if (isBlocked) {
-                    cellClass += " bg-red-100";
-                  } else if (hasPriceRate) {
-                    cellClass += " bg-purple-100";
-                  } else {
-                    cellClass += " bg-blue-100";
-                  }
-                  
-                  if (!isCurrentMonth) {
-                    cellClass += " opacity-70";
-                  }
-                  
-                  if (isToday) {
-                    cellClass += " ring-2 ring-blue-500";
-                  }
-                  
-                  const dropdownId = `dropdown-${apartment.id}-${date.getTime()}`;
-                  
-                  return (
-                    <td
-                      key={`cell-${apartment.id}-${index}`}
-                      className={cellClass}
-                      onClick={(e) => {
-                        if (!isPast) {
-                          // Evita di navigare quando si clicca sul pulsante del menu
-                          if (!(e.target as HTMLElement).closest('.action-button')) {
-                            handleDateClick(apartment.id, date);
-                          }
-                        }
-                      }}
-                    >
-                      {!isPast && (
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-white bg-opacity-70">
-                          <button 
-                            className="action-button w-6 h-6 rounded-full bg-gray-800 text-white flex items-center justify-center shadow-lg hover:bg-gray-700 focus:outline-none"
-                            onClick={(e) => toggleDropdown(dropdownId, e)}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-                            </svg>
-                          </button>
-                          <div 
-                            id={dropdownId}
-                            ref={(el) => setDropdownRef(el, dropdownId)}
-                            className="hidden absolute z-50 mt-1 w-40 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 top-full"
-                            style={{ left: '50%', transform: 'translateX(-50%)' }}
-                          >
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDateClick(apartment.id, date);
-                              }}
-                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-100"
-                            >
-                              Vai al calendario
-                            </button>
-                            {!hasBooking && !isBlocked && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleQuickAction(apartment.id, date, 'block');
-                                  if (dropdownRefs.current[dropdownId]) {
-                                    dropdownRefs.current[dropdownId]!.classList.add('hidden');
-                                  }
-                                }}
-                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-100"
-                              >
-                                Blocca
-                              </button>
-                            )}
-                            {!hasBooking && isBlocked && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleQuickAction(apartment.id, date, 'unblock');
-                                  if (dropdownRefs.current[dropdownId]) {
-                                    dropdownRefs.current[dropdownId]!.classList.add('hidden');
-                                  }
-                                }}
-                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
-                              >
-                                Sblocca
-                              </button>
-                            )}
-                            {!hasBooking && !isBlocked && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleQuickAction(apartment.id, date, 'book');
-                                  if (dropdownRefs.current[dropdownId]) {
-                                    dropdownRefs.current[dropdownId]!.classList.add('hidden');
-                                  }
-                                }}
-                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
-                              >
-                                Prenota
-                              </button>
+                  {/* Celle per ogni giorno */}
+                  {weeks.map((week, weekIndex) => (
+                    week.map((day, dayIndex) => {
+                      if (day === null) {
+                        return <td key={`cell${weekIndex}-${dayIndex}`} className="border border-gray-200 p-3 bg-gray-50"></td>;
+                      }
+                      
+                      const date = new Date(currentYear, currentMonth, day);
+                      const isPast = isPastDate(date);
+                      
+                      // Funzione per determinare se c'è una prenotazione per questa data
+                      const hasBooking = apartment.bookings.some(booking => {
+                        const checkIn = new Date(booking.checkIn);
+                        const checkOut = new Date(booking.checkOut);
+                        const dateString = date.toISOString().split('T')[0];
+                        const checkInString = checkIn.toISOString().split('T')[0];
+                        const checkOutString = checkOut.toISOString().split('T')[0];
+                        return dateString >= checkInString && dateString < checkOutString;
+                      });
+                      
+                      // Funzione per determinare se c'è una tariffa personalizzata per questa data
+                      const hasPriceRate = apartment.rates.some(rate => {
+                        const rateDate = new Date(rate.date);
+                        const dateString = date.toISOString().split('T')[0];
+                        const rateDateString = rateDate.toISOString().split('T')[0];
+                        return dateString === rateDateString && rate.price !== undefined;
+                      });
+                      
+                      // Funzione per determinare se la data è bloccata
+                      const isBlocked = apartment.rates.some(rate => {
+                        const rateDate = new Date(rate.date);
+                        const dateString = date.toISOString().split('T')[0];
+                        const rateDateString = rateDate.toISOString().split('T')[0];
+                        return dateString === rateDateString && rate.isBlocked;
+                      });
+                      
+                      // Determinare la classe della cella in base al suo stato
+                      let cellClass = "border border-gray-200 p-3 text-center relative";
+                      
+                      // Se la data è passata, sfondo grigio chiaro
+                      if (isPast) {
+                        cellClass += " bg-gray-200 text-gray-500";
+                      } else if (hasBooking) {
+                        cellClass += " bg-green-100 hover:bg-green-200 cursor-pointer";
+                      } else if (isBlocked) {
+                        cellClass += " bg-red-100 hover:bg-red-200 cursor-pointer";
+                      } else if (hasPriceRate) {
+                        cellClass += " bg-purple-100 hover:bg-purple-200 cursor-pointer";
+                      } else {
+                        cellClass += " bg-blue-100 hover:bg-blue-200 cursor-pointer";
+                      }
+                      
+                      // Verifica se è oggi
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const isToday = date.getTime() === today.getTime();
+                      
+                      if (isToday) {
+                        cellClass += " ring-2 ring-blue-500 ring-offset-1";
+                      }
+                      
+                      return (
+                        <td
+                          key={`cell${weekIndex}-${dayIndex}`}
+                          className={cellClass}
+                          onClick={(e) => {
+                            // Evita di navigare quando si clicca sul pulsante del menu
+                            if (!isPast && !(e.target as HTMLElement).closest('button')) {
+                              handleDateClick(apartment.id, date);
+                            }
+                          }}
+                        >
+                          <div className="flex justify-center items-center">
+                            <span className={isToday ? "font-bold text-blue-800" : ""}>{day}</span>
+                            {isToday && (
+                              <span className="absolute top-0 right-0 transform translate-x-1/3 -translate-y-1/3">
+                                <span className="flex h-2 w-2 rounded-full bg-blue-500"></span>
+                              </span>
                             )}
                           </div>
-                        </div>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                          
+                          {/* Menu contestuale - visibile al passaggio del mouse */}
+                          {!isPast && (
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200">
+                              <div 
+                                className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white bg-opacity-90 shadow-md hover:bg-opacity-100 transition-all"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Apri menu contestuale qui
+                                    const dropdown = document.getElementById(`dropdown-${apartment.id}-${day}`);
+                                    if (dropdown) {
+                                      // Nascondi tutti gli altri dropdown prima
+                                      document.querySelectorAll('[id^="dropdown-"]').forEach(el => {
+                                        if (el.id !== `dropdown-${apartment.id}-${day}`) {
+                                          el.classList.add('hidden');
+                                        }
+                                      });
+                                      dropdown.classList.toggle('hidden');
+                                    }
+                                  }}
+                                  className="flex h-full w-full items-center justify-center rounded-full text-gray-700 hover:text-blue-600 transition-colors"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+                                  </svg>
+                                </button>
+                                
+                                <div 
+                                  id={`dropdown-${apartment.id}-${day}`}
+                                  className="hidden absolute z-40 top-0 left-full ml-2 w-40 bg-white rounded-lg shadow-lg py-2 border border-gray-200"
+                                >
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDateClick(apartment.id, date);
+                                    }}
+                                    className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                  >
+                                    <span className="mr-2">📅</span> Vai al calendario
+                                  </button>
+                                  
+                                  {!hasBooking && !isBlocked && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleQuickAction(apartment.id, date, 'block');
+                                        document.getElementById(`dropdown-${apartment.id}-${day}`)?.classList.add('hidden');
+                                      }}
+                                      className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                    >
+                                      <span className="mr-2">🔒</span> Blocca
+                                    </button>
+                                  )}
+                                  
+                                  {!hasBooking && isBlocked && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleQuickAction(apartment.id, date, 'unblock');
+                                        document.getElementById(`dropdown-${apartment.id}-${day}`)?.classList.add('hidden');
+                                      }}
+                                      className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+                                    >
+                                      <span className="mr-2">🔓</span> Sblocca
+                                    </button>
+                                  )}
+                                  
+                                  {!hasBooking && !isBlocked && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleQuickAction(apartment.id, date, 'book');
+                                        document.getElementById(`dropdown-${apartment.id}-${day}`)?.classList.add('hidden');
+                                      }}
+                                      className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+                                    >
+                                      <span className="mr-2">✅</span> Prenota
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
+      
+      {/* Script per chiudere i menu contestuali quando si clicca altrove */}
+      <script dangerouslySetInnerHTML={{
+        __html: `
+          document.addEventListener('click', function(event) {
+            const dropdowns = document.querySelectorAll('[id^="dropdown-"]');
+            const isMenuButton = (event.target.tagName === 'BUTTON' || event.target.tagName === 'SVG' || event.target.tagName === 'path') 
+                              && event.target.closest('button')?.getAttribute('data-toggle') === 'dropdown';
+            
+            if (!isMenuButton) {
+              dropdowns.forEach(dropdown => {
+                if (!dropdown.contains(event.target)) {
+                  dropdown.classList.add('hidden');
+                }
+              });
+            }
+          });
+        `
+      }} />
     </div>
   );
 }
