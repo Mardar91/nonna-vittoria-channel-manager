@@ -21,14 +21,17 @@ async function handleRequest(req: NextRequest) {
     const authHeader = req.headers.get('x-api-key') || '';
     const expectedApiKey = process.env.SYNC_API_KEY;
     
-    // Log per debug (in sviluppo)
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Auth header received:', authHeader ? 'Present (length: ' + authHeader.length + ')' : 'Missing');
-      console.log('Expected API key:', expectedApiKey ? 'Configured (length: ' + expectedApiKey.length + ')' : 'Not configured');
-    }
+    // Ottieni l'origine della richiesta
+    const origin = req.headers.get('origin') || '';
+    const host = req.headers.get('host') || '';
     
-    // Verifica la chiave API - più semplice, senza condizioni aggiuntive
-    if (!expectedApiKey || authHeader !== expectedApiKey) {
+    // Se la richiesta proviene dallo stesso host/origine (interno all'app), la consideriamo autorizzata
+    // altrimenti, verifichiamo la chiave API
+    const isInternalRequest = origin.includes(host) || 
+                             (req.url && new URL(req.url).host === host);
+    
+    // Verifica la chiave API solo per richieste esterne
+    if (!isInternalRequest && (!expectedApiKey || authHeader !== expectedApiKey)) {
       return NextResponse.json(
         { error: 'Unauthorized - Invalid API key' },
         { status: 401 }
