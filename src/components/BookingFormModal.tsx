@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Fragment } from 'react';
+import { useState, Fragment, useEffect } from 'react'; // Aggiungiamo useEffect
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import DatePicker from 'react-datepicker';
@@ -42,15 +42,17 @@ export default function BookingFormModal({
     notes: '',
   });
 
-  // Aggiorna formData quando cambiano le date iniziali
-  useState(() => {
-    setFormData(prev => ({
-      ...prev,
-      checkIn: startDate,
-      checkOut: endDate,
-      totalPrice: calculateTotalPrice(startDate, endDate, apartmentData.price)
-    }));
-  });
+  // Importante: useEffect invece di useState per reagire ai cambiamenti nelle date
+  useEffect(() => {
+    if (isOpen) { // Solo quando il modal è aperto
+      setFormData(prev => ({
+        ...prev,
+        checkIn: startDate,
+        checkOut: endDate,
+        totalPrice: calculateTotalPrice(startDate, endDate, apartmentData.price)
+      }));
+    }
+  }, [startDate, endDate, isOpen, apartmentData.price]); // Dipendenze corrette
 
   // Calcola il prezzo totale basato sulle date
   function calculateTotalPrice(checkIn: Date, checkOut: Date, pricePerNight: number): number {
