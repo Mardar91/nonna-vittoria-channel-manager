@@ -265,35 +265,28 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       
       {/* Tabella del calendario con intestazioni fisse */}
       <div className="overflow-x-auto relative">
-        <div className="min-w-max">
-          <table className="min-w-full border-collapse">
+        <div className="min-w-[1500px]"> {/* Aumentato lo spazio orizzontale */}
+          <table className="w-full border-collapse">
             <thead className="bg-white">
               <tr>
                 {/* Intestazione appartamenti */}
                 <th className="sticky left-0 z-30 border border-gray-200 bg-gray-100 p-3 font-medium text-left min-w-[180px] shadow-sm">
                   Appartamento
                 </th>
-                {/* Intestazione giorni della settimana */}
+                {/* Intestazione con giorni della settimana e numeri insieme */}
                 {weeks.map((week, weekIndex) => (
-                  week.map((_, dayIndex) => (
-                    <th key={`week${weekIndex}-day${dayIndex}`} className="border border-gray-200 bg-gray-100 p-3 font-medium text-center min-w-[50px]">
-                      {weekdayNames[dayIndex]}
-                    </th>
-                  ))
-                ))}
-              </tr>
-              <tr>
-                {/* Intestazione appartamenti (riga numeri) */}
-                <th className="sticky left-0 z-30 border border-gray-200 bg-gray-100 p-3 font-medium text-left shadow-sm">
-                  {/* Cella vuota sopra la colonna degli appartamenti */}
-                </th>
-                {/* Intestazione numeri dei giorni */}
-                {weeks.map((week, weekIndex) => (
-                  week.map((day, dayIndex) => (
-                    <th key={`date${weekIndex}-${dayIndex}`} className="border border-gray-200 bg-gray-100 p-3 font-medium text-center">
-                      {day !== null ? day : ''}
-                    </th>
-                  ))
+                  week.map((day, dayIndex) => {
+                    const date = day !== null 
+                      ? new Date(currentYear, currentMonth, day) 
+                      : new Date(currentYear, currentMonth, 1);
+                    const dayName = weekdayNames[dayIndex];
+                    return (
+                      <th key={`week${weekIndex}-day${dayIndex}`} className="border border-gray-200 bg-gray-100 p-3 font-medium text-center min-w-[60px]">
+                        <div>{dayName}</div>
+                        <div>{day !== null ? day : ''}</div>
+                      </th>
+                    );
+                  })
                 ))}
               </tr>
             </thead>
@@ -365,7 +358,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                       const isToday = date.getTime() === today.getTime();
                       
                       if (isToday) {
-                        cellClass += " ring-2 ring-blue-500 ring-offset-1";
+                        cellClass += " rounded-md ring-2 ring-inset ring-blue-500"; // Migliorato l'indicatore per oggi
                       }
                       
                       return (
@@ -381,11 +374,6 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                         >
                           <div className="flex justify-center items-center">
                             <span className={isToday ? "font-bold text-blue-800" : ""}>{day}</span>
-                            {isToday && (
-                              <span className="absolute top-0 right-0 transform translate-x-1/3 -translate-y-1/3">
-                                <span className="flex h-2 w-2 rounded-full bg-blue-500"></span>
-                              </span>
-                            )}
                           </div>
                           
                           {/* Menu contestuale - visibile al passaggio del mouse */}
@@ -428,7 +416,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                                     }}
                                     className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
                                   >
-                                    <span className="mr-2">📅</span> Vai al calendario
+                                    <span className="mr-2">📅</span> Calendario
                                   </button>
                                   
                                   {!hasBooking && !isBlocked && (
