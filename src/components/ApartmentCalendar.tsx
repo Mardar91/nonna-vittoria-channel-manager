@@ -472,6 +472,104 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
       toast.error('Errore nella modifica delle date');
     }
   };
+
+  // Funzione per resettare i prezzi personalizzati per le date future
+  const handleResetPrices = async () => {
+    try {
+      // Ottieni la data corrente (fuso orario italiano)
+      const today = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Rome'}));
+      today.setHours(0, 0, 0, 0);
+      
+      // Filtra solo le tariffe giornaliere future con prezzi personalizzati
+      const datesToReset = Object.entries(dailyRates)
+        .filter(([dateStr, rate]) => {
+          const date = new Date(rate.date);
+          return date >= today && rate.price !== undefined;
+        })
+        .map(([dateStr, rate]) => new Date(rate.date));
+      
+      if (datesToReset.length === 0) {
+        toast.info('Nessun prezzo personalizzato da resettare per le date future');
+        return;
+      }
+      
+      // Ordina le date
+      const sortedDates = datesToReset.sort((a, b) => a.getTime() - b.getTime());
+      
+      // Usa l'endpoint bulk-rates per aggiornare tutte le date
+      const response = await fetch(`/api/apartments/${apartmentId}/bulk-rates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          startDate: sortedDates[0].toISOString(),
+          endDate: sortedDates[sortedDates.length - 1].toISOString(),
+          price: null, // Impostare a null per ripristinare il prezzo predefinito
+          resetPrices: true // Flag per indicare che stiamo resettando i prezzi
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Errore nel reset dei prezzi');
+      }
+      
+      await loadDailyRates();
+      toast.success(`Prezzi personalizzati resettati per ${datesToReset.length} date future`);
+    } catch (error) {
+      console.error('Error resetting prices:', error);
+      toast.error('Errore nel reset dei prezzi');
+    }
+  };
+
+  // Funzione per resettare il soggiorno minimo per le date future
+  const handleResetMinStay = async () => {
+    try {
+      // Ottieni la data corrente (fuso orario italiano)
+      const today = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Rome'}));
+      today.setHours(0, 0, 0, 0);
+      
+      // Filtra solo le tariffe giornaliere future con soggiorno minimo personalizzato
+      const datesToReset = Object.entries(dailyRates)
+        .filter(([dateStr, rate]) => {
+          const date = new Date(rate.date);
+          return date >= today && rate.minStay !== undefined && rate.minStay !== apartmentData.minStay;
+        })
+        .map(([dateStr, rate]) => new Date(rate.date));
+      
+      if (datesToReset.length === 0) {
+        toast.info('Nessun soggiorno minimo personalizzato da resettare per le date future');
+        return;
+      }
+      
+      // Ordina le date
+      const sortedDates = datesToReset.sort((a, b) => a.getTime() - b.getTime());
+      
+      // Usa l'endpoint bulk-rates per aggiornare tutte le date
+      const response = await fetch(`/api/apartments/${apartmentId}/bulk-rates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          startDate: sortedDates[0].toISOString(),
+          endDate: sortedDates[sortedDates.length - 1].toISOString(),
+          minStay: apartmentData.minStay, // Imposta al valore predefinito dell'appartamento
+          resetMinStay: true // Flag per indicare che stiamo resettando il soggiorno minimo
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Errore nel reset del soggiorno minimo');
+      }
+      
+      await loadDailyRates();
+      toast.success(`Soggiorno minimo resettato per ${datesToReset.length} date future`);
+    } catch (error) {
+      console.error('Error resetting min stay:', error);
+      toast.error('Errore nel reset del soggiorno minimo');
+    }
+  };
   
   // Ottieni le informazioni di prenotazione per una data specifica
   const getBookingForDate = (date: Date): Booking | null => {
@@ -906,6 +1004,20 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
             className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
           >
             Sblocca Tutto il Mese
+          </button>
+
+          {/* Nuovi pulsanti per il reset */}
+          <button
+            onClick={handleResetPrices}
+            className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+          >
+            Reset Prezzi
+          </button>
+          <button
+            onClick={handleResetMinStay}
+            className="px-3 py-1 bg-yellow-600 text-white text-sm rounded-md hover:bg-yellow-700"
+          >
+            Reset Soggiorno Minimo
           </button>
         </div>
       </div>
