@@ -18,10 +18,13 @@ interface DayCellProps {
   bookingPosition?: 'start' | 'middle' | 'end' | 'single';
   isBlocked: boolean;
   hasCustomPrice: boolean;
+  hasSeasonalPrice?: boolean;
+  seasonName?: string;
   price: number;
+  minStay?: number;
   isSelected?: boolean;
   isSelectionMode?: boolean;
-  isPastDate?: boolean; // Nuova prop per identificare le date passate
+  isPastDate?: boolean;
   onClick: () => void;
 }
 
@@ -33,10 +36,13 @@ export default function DayCell({
   bookingPosition = 'single',
   isBlocked,
   hasCustomPrice,
+  hasSeasonalPrice = false,
+  seasonName,
   price,
+  minStay,
   isSelected = false,
   isSelectionMode = false,
-  isPastDate = false, // Default a false
+  isPastDate = false,
   onClick
 }: DayCellProps) {
   
@@ -46,7 +52,7 @@ export default function DayCell({
   if (isToday) {
     cellClassName += "border-blue-500 border-2 ";
   } else if (isSelected) {
-    cellClassName += "border-purple-500 border-2 ";
+    cellClassName += "border-indigo-500 border-2 ";
   } else {
     cellClassName += "border-gray-200 ";
   }
@@ -57,9 +63,11 @@ export default function DayCell({
   } else if (!isCurrentMonth) {
     cellClassName += "bg-gray-50 text-gray-400 ";
   } else if (isSelected) {
-    cellClassName += "bg-purple-50 ";
+    cellClassName += "bg-indigo-50 ";
   } else if (isBlocked) {
     cellClassName += "bg-red-50 ";
+  } else if (hasSeasonalPrice) {
+    cellClassName += "bg-purple-50 ";
   } else if (hasCustomPrice) {
     cellClassName += "bg-blue-50 ";
   }
@@ -70,16 +78,29 @@ export default function DayCell({
   return (
     <div className={cellClassName} onClick={onClick}>
       <div className="flex flex-col h-full">
-        <div className="text-right text-sm font-medium">
-          {date.getDate()}
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium">
+            {date.getDate()}
+          </span>
+          {minStay && (
+            <span className="text-xs bg-yellow-100 text-yellow-800 px-1 rounded">
+              Min: {minStay}
+            </span>
+          )}
         </div>
         
         <div className="flex-grow">
-          {/* Non mostriamo più le informazioni di prenotazione qui, 
-              ora vengono mostrate solo nella striscia */}
+          {hasSeasonalPrice && seasonName && (
+            <div className="mt-1 text-xs font-medium text-purple-600 truncate">
+              {seasonName}
+            </div>
+          )}
           
           {isCurrentMonth && (
-            <div className={`mt-auto text-xs font-medium ${hasCustomPrice ? 'text-blue-700' : ''}`}>
+            <div className={`mt-auto text-xs font-medium ${
+              hasCustomPrice ? 'text-blue-700' : 
+              hasSeasonalPrice ? 'text-purple-700' : ''
+            }`}>
               €{price.toFixed(2)}
             </div>
           )}
