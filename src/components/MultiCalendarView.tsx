@@ -265,7 +265,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       
       {/* Tabella del calendario con intestazioni fisse */}
       <div className="overflow-x-auto relative">
-        <div className="min-w-[1500px]"> {/* Aumentato lo spazio orizzontale */}
+        <div className="min-w-[1500px]"> {/* Larghezza minima per il calendario */}
           <table className="w-full border-collapse">
             <thead className="bg-white">
               <tr>
@@ -273,29 +273,22 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                 <th className="sticky left-0 z-30 border border-gray-200 bg-gray-100 p-3 font-medium text-left min-w-[180px] shadow-sm">
                   Appartamento
                 </th>
-                {/* Intestazione con giorni della settimana e numeri insieme */}
+                {/* Intestazione con solo i giorni della settimana, senza numeri */}
                 {weeks.map((week, weekIndex) => (
-                  week.map((day, dayIndex) => {
-                    const date = day !== null 
-                      ? new Date(currentYear, currentMonth, day) 
-                      : new Date(currentYear, currentMonth, 1);
-                    const dayName = weekdayNames[dayIndex];
-                    return (
-                      <th key={`week${weekIndex}-day${dayIndex}`} className="border border-gray-200 bg-gray-100 p-3 font-medium text-center min-w-[60px]">
-                        <div>{dayName}</div>
-                        <div>{day !== null ? day : ''}</div>
-                      </th>
-                    );
-                  })
+                  week.map((_, dayIndex) => (
+                    <th key={`week${weekIndex}-day${dayIndex}`} className="border border-gray-200 bg-gray-100 p-4 font-medium text-center min-w-[60px]">
+                      {weekdayNames[dayIndex]}
+                    </th>
+                  ))
                 ))}
               </tr>
             </thead>
             <tbody>
               {/* Righe per ogni appartamento */}
               {apartments.map((apartment) => (
-                <tr key={apartment.id}>
+                <tr key={apartment.id} className="h-20"> {/* Aumentata l'altezza della riga */}
                   <td
-                    className="sticky left-0 z-20 border border-gray-200 p-3 font-medium bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors shadow-sm"
+                    className="sticky left-0 z-20 border border-gray-200 p-4 font-medium bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors shadow-sm"
                     onClick={() => handleApartmentClick(apartment.id)}
                   >
                     {apartment.data.name}
@@ -304,7 +297,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                   {weeks.map((week, weekIndex) => (
                     week.map((day, dayIndex) => {
                       if (day === null) {
-                        return <td key={`cell${weekIndex}-${dayIndex}`} className="border border-gray-200 p-3 bg-gray-50"></td>;
+                        return <td key={`cell${weekIndex}-${dayIndex}`} className="border border-gray-200 p-4 bg-gray-50"></td>;
                       }
                       
                       const date = new Date(currentYear, currentMonth, day);
@@ -337,7 +330,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                       });
                       
                       // Determinare la classe della cella in base al suo stato
-                      let cellClass = "border border-gray-200 p-3 text-center relative";
+                      let cellClass = "border border-gray-200 p-4 text-center relative"; // Aumentato il padding
                       
                       // Se la data è passata, sfondo grigio chiaro
                       if (isPast) {
@@ -372,7 +365,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                             }
                           }}
                         >
-                          <div className="flex justify-center items-center">
+                          <div className="flex justify-center items-center text-lg"> {/* Testo più grande */}
                             <span className={isToday ? "font-bold text-blue-800" : ""}>{day}</span>
                           </div>
                           
@@ -380,7 +373,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                           {!isPast && (
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200">
                               <div 
-                                className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white bg-opacity-90 shadow-md hover:bg-opacity-100 transition-all"
+                                className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white bg-opacity-90 shadow-md hover:bg-opacity-100 transition-all" // Pulsante più grande
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <button 
@@ -400,7 +393,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                                   }}
                                   className="flex h-full w-full items-center justify-center rounded-full text-gray-700 hover:text-blue-600 transition-colors"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"> {/* Icona più grande */}
                                     <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
                                   </svg>
                                 </button>
