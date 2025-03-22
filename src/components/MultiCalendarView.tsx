@@ -220,6 +220,11 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     weeks.push(calendarDays.slice(i, i + 7));
   }
   
+  // Funzione per salvare il ref
+  const setDropdownRef = (el: HTMLDivElement | null, id: string) => {
+    dropdownRefs.current[id] = el;
+  };
+  
   return (
     <div className="space-y-4">
       {/* Header del calendario */}
@@ -427,7 +432,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                           </button>
                           <div 
                             id={dropdownId}
-                            ref={el => dropdownRefs.current[dropdownId] = el}
+                            ref={(el) => setDropdownRef(el, dropdownId)}
                             className="hidden absolute z-50 mt-1 w-40 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 top-full"
                             style={{ left: '50%', transform: 'translateX(-50%)' }}
                           >
