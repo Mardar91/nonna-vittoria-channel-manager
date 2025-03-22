@@ -489,7 +489,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         .map(([dateStr, rate]) => new Date(rate.date));
       
       if (datesToReset.length === 0) {
-        toast.info('Nessun prezzo personalizzato da resettare per le date future');
+        toast('Nessun prezzo personalizzato da resettare per le date future');
         return;
       }
       
@@ -538,7 +538,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         .map(([dateStr, rate]) => new Date(rate.date));
       
       if (datesToReset.length === 0) {
-        toast.info('Nessun soggiorno minimo personalizzato da resettare per le date future');
+        toast('Nessun soggiorno minimo personalizzato da resettare per le date future');
         return;
       }
       
