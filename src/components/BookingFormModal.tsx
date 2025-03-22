@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Fragment, useEffect } from 'react'; // Aggiungiamo useEffect
+import { useState, Fragment, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import DatePicker from 'react-datepicker';
@@ -42,6 +42,13 @@ export default function BookingFormModal({
     notes: '',
   });
 
+  // Helper per verificare se la durata del soggiorno è valida
+  const isValidStayDuration = (checkIn: Date, checkOut: Date): boolean => {
+    const minStay = apartmentData.minStay || 1;
+    const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+    return nights >= minStay;
+  };
+
   // Importante: useEffect invece di useState per reagire ai cambiamenti nelle date
   useEffect(() => {
     if (isOpen) { // Solo quando il modal è aperto
@@ -52,7 +59,7 @@ export default function BookingFormModal({
         totalPrice: calculateTotalPrice(startDate, endDate, apartmentData.price)
       }));
     }
-  }, [startDate, endDate, isOpen, apartmentData.price]); // Dipendenze corrette
+  }, [startDate, endDate, isOpen, apartmentData.price]);
 
   // Calcola il prezzo totale basato sulle date
   function calculateTotalPrice(checkIn: Date, checkOut: Date, pricePerNight: number): number {
@@ -74,16 +81,27 @@ export default function BookingFormModal({
   // Gestisci il cambio delle date
   const handleDateChange = (date: Date | null, field: 'checkIn' | 'checkOut') => {
     if (date) {
-      const newFormData = { ...formData, [field]: date };
+      let newCheckIn = field === 'checkIn' ? date : formData.checkIn;
+      let newCheckOut = field === 'checkOut' ? date : formData.checkOut;
       
-      // Ricalcola il prezzo totale quando cambiano le date
-      if (field === 'checkIn' || field === 'checkOut') {
-        newFormData.totalPrice = calculateTotalPrice(
-          field === 'checkIn' ? date : formData.checkIn,
-          field === 'checkOut' ? date : formData.checkOut,
-          apartmentData.price
-        );
+      // Se cambia il check-in, aggiorniamo il check-out se necessario 
+      // per rispettare il soggiorno minimo
+      if (field === 'checkIn') {
+        const minStay = apartmentData.minStay || 1;
+        const minCheckOut = new Date(date);
+        minCheckOut.setDate(minCheckOut.getDate() + minStay);
+        
+        if (newCheckOut < minCheckOut) {
+          newCheckOut = minCheckOut;
+        }
       }
+      
+      const newFormData = { 
+        ...formData, 
+        checkIn: newCheckIn, 
+        checkOut: newCheckOut,
+        totalPrice: calculateTotalPrice(newCheckIn, newCheckOut, apartmentData.price)
+      };
       
       setFormData(newFormData);
     }
@@ -95,6 +113,11 @@ export default function BookingFormModal({
     setLoading(true);
 
     try {
+      // Verifica la durata minima del soggiorno
+      if (!isValidStayDuration(formData.checkIn, formData.checkOut)) {
+        throw new Error(`Il soggiorno minimo per questo appartamento è di ${apartmentData.minStay} notti`);
+      }
+
       const response = await fetch('/api/bookings', {
         method: 'POST',
         headers: {
@@ -165,6 +188,13 @@ export default function BookingFormModal({
                       Nuova Prenotazione: {apartmentData.name}
                     </Dialog.Title>
                     
+                    {/* Informazione sul soggiorno minimo */}
+                    {apartmentData.minStay > 1 && (
+                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
+                        Questo appartamento richiede un soggiorno minimo di {apartmentData.minStay} notti.
+                      </div>
+                    )}
+                    
                     <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -192,7 +222,7 @@ export default function BookingFormModal({
                             selectsEnd
                             startDate={formData.checkIn}
                             endDate={formData.checkOut}
-                            minDate={formData.checkIn}
+                            minDate={new Date(formData.checkIn.getTime() + 24 * 60 * 60 * 1000 * (apartmentData.minStay || 1))}
                             dateFormat="dd/MM/yyyy"
                             className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                           />
@@ -298,7 +328,7 @@ export default function BookingFormModal({
                       <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                         <button
                           type="submit"
-                          disabled={loading}
+                          disabled={loading || !isValidStayDuration(formData.checkIn, formData.checkOut)}
                           className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
                         >
                           {loading ? 'Creazione...' : 'Crea Prenotazione'}
