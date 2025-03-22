@@ -54,6 +54,9 @@ export default function RateModal({
   const [minStay, setMinStay] = useState<number | undefined>(undefined);
   const [notes, setNotes] = useState('');
   
+  // Determina il soggiorno minimo effettivo per questa data (personalizzato o predefinito)
+  const effectiveMinStay = rateData?.minStay !== undefined ? rateData.minStay : (apartmentData.minStay || 1);
+  
   // Aggiorna i campi quando il modal viene aperto o quando cambiano i dati
   useEffect(() => {
     if (rateData) {
@@ -151,13 +154,15 @@ export default function RateModal({
                       </div>
                     )}
                     
-                    {/* Sezione soggiorno minimo */}
-                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <h4 className="font-medium text-yellow-800">Soggiorno Minimo</h4>
-                      <p className="text-sm text-yellow-700">
-                        L'appartamento richiede un soggiorno minimo di {apartmentData.minStay || 1} notti.
-                      </p>
-                    </div>
+                    {/* Sezione soggiorno minimo - Mostrato solo se >= 2 notti */}
+                    {effectiveMinStay >= 2 && (
+                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                        <h4 className="font-medium text-yellow-800">Soggiorno Minimo</h4>
+                        <p className="text-sm text-yellow-700">
+                          L'appartamento richiede un soggiorno minimo di {effectiveMinStay} notti.
+                        </p>
+                      </div>
+                    )}
                     
                     {/* Sezione prenotazione esistente */}
                     {booking && (
