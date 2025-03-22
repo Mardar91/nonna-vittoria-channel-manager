@@ -41,8 +41,77 @@ export async function POST(
       dates.push(new Date(currentDate));
       currentDate.setDate(currentDate.getDate() + 1);
     }
+
+    // Gestisce il reset dei prezzi - modifica solo le tariffe esistenti
+    if (data.resetPrices) {
+      // Otteniamo le tariffe esistenti nell'intervallo
+      const existingRates = await DailyRateModel.find({
+        apartmentId: params.id,
+        date: { $gte: start, $lte: end }
+      });
+
+      // Operazioni di aggiornamento solo per le tariffe esistenti
+      const operations = existingRates.map(rate => ({
+        updateOne: {
+          filter: { _id: rate._id },
+          update: {
+            $unset: { price: "" } // Rimuove il campo prezzo
+          }
+        }
+      }));
+
+      if (operations.length > 0) {
+        const result = await DailyRateModel.bulkWrite(operations);
+        return NextResponse.json({
+          success: true,
+          modifiedCount: result.modifiedCount,
+          message: 'Prezzi resettati con successo'
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        modifiedCount: 0,
+        message: 'Nessun prezzo da resettare'
+      });
+    }
     
-    // Aggiorna o crea tariffe per tutte le date
+    // Gestisce il reset del soggiorno minimo - modifica solo le tariffe esistenti
+    if (data.resetMinStay) {
+      // Otteniamo le tariffe esistenti nell'intervallo
+      const existingRates = await DailyRateModel.find({
+        apartmentId: params.id,
+        date: { $gte: start, $lte: end },
+        minStay: { $exists: true }
+      });
+
+      // Operazioni di aggiornamento solo per le tariffe esistenti
+      const operations = existingRates.map(rate => ({
+        updateOne: {
+          filter: { _id: rate._id },
+          update: {
+            $set: { minStay: data.minStay || 1 }
+          }
+        }
+      }));
+
+      if (operations.length > 0) {
+        const result = await DailyRateModel.bulkWrite(operations);
+        return NextResponse.json({
+          success: true,
+          modifiedCount: result.modifiedCount,
+          message: 'Soggiorno minimo resettato con successo'
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        modifiedCount: 0,
+        message: 'Nessun soggiorno minimo da resettare'
+      });
+    }
+    
+    // Comportamento standard: aggiorna o crea tariffe per tutte le date
     const operations = dates.map(date => ({
       updateOne: {
         filter: { apartmentId: params.id, date },
@@ -50,10 +119,10 @@ export async function POST(
           $set: {
             apartmentId: params.id,
             date,
-            price: data.price,
-            isBlocked: data.isBlocked,
-            minStay: data.minStay,
-            notes: data.notes
+            ...(data.price !== undefined && { price: data.price }),
+            ...(data.isBlocked !== undefined && { isBlocked: data.isBlocked }),
+            ...(data.minStay !== undefined && { minStay: data.minStay }),
+            ...(data.notes !== undefined && { notes: data.notes })
           }
         },
         upsert: true
