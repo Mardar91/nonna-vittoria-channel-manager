@@ -55,34 +55,37 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   
   // Funzione per generare i giorni del calendario per il mese corrente
   const generateCalendarDays = (year: number, month: number) => {
-    const days: Date[] = [];
-    // Genera giorni per il mese corrente (inclusi giorni iniziali e finali del mese precedente e successivo)
+    const daysInMonth = new Date(year, month + 1, 0).getDate(); // Numero di giorni nel mese
     const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
     
     // Calcola il primo giorno della settimana (0 = Lunedì nella nostra griglia)
-    const firstDayOfWeek = (firstDayOfMonth.getDay() + 6) % 7; // Adatta da Domenica(0) a Lunedì(0)
+    const firstWeekdayOfMonth = (firstDayOfMonth.getDay() + 6) % 7; // Adatta da Domenica(0) a Lunedì(0)
     
-    // Aggiungi i giorni del mese precedente
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      const day = new Date(firstDayOfMonth);
-      day.setDate(day.getDate() - (firstDayOfWeek - i));
+    // Calcola quanti giorni del mese precedente mostrare
+    const daysFromPrevMonth = firstWeekdayOfMonth;
+    
+    // Calcola quanti giorni totali mostrare nella griglia (massimo 42 = 6 settimane)
+    const totalDaysToShow = Math.min(42, daysFromPrevMonth + daysInMonth + (42 - daysFromPrevMonth - daysInMonth));
+    
+    const days: Date[] = [];
+    
+    // Aggiungi i giorni dal mese precedente
+    for (let i = 0; i < daysFromPrevMonth; i++) {
+      const day = new Date(year, month, 1 - (daysFromPrevMonth - i));
       days.push(day);
     }
     
     // Aggiungi i giorni del mese corrente
-    for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
+    for (let i = 1; i <= daysInMonth; i++) {
       days.push(new Date(year, month, i));
     }
     
     // Calcola quanti giorni del mese successivo aggiungere per completare la griglia
-    const remainingDays = (7 - days.length % 7) % 7;
+    const remainingDays = totalDaysToShow - days.length;
     
     // Aggiungi i giorni del mese successivo
     for (let i = 1; i <= remainingDays; i++) {
-      const day = new Date(lastDayOfMonth);
-      day.setDate(day.getDate() + i);
-      days.push(day);
+      days.push(new Date(year, month + 1, i));
     }
     
     setCalendarDays(days);
@@ -166,7 +169,34 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
   ];
   
+  // Questa è la parte critica che cambia: i giorni della settimana sono fissi
   const weekdayNames = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+  
+  // Ottieni i giorni del mese numerati dall'1 (1, 2, 3, ...)
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const daysNumbers = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  
+  // Ottieni il primo giorno della settimana del mese (0 = Lunedì)
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+  const firstWeekdayOfMonth = (firstDayOfMonth.getDay() + 6) % 7;
+  
+  // Prepara array dei giorni, posizionati correttamente nella settimana
+  let daysArray: (number | null)[] = Array(firstWeekdayOfMonth).fill(null);
+  daysArray = [...daysArray, ...daysNumbers];
+  
+  // Calcola le settimane da mostrare nel calendario
+  const weeks: (number | null)[][] = [];
+  for (let i = 0; i < daysArray.length; i += 7) {
+    weeks.push(daysArray.slice(i, i + 7));
+  }
+  
+  // Completa l'ultima settimana con null se necessario
+  if (weeks.length > 0) {
+    const lastWeek = weeks[weeks.length - 1];
+    if (lastWeek.length < 7) {
+      weeks[weeks.length - 1] = [...lastWeek, ...Array(7 - lastWeek.length).fill(null)];
+    }
+  }
   
   return (
     <div className="space-y-4">
@@ -225,50 +255,209 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         </div>
       </div>
       
-      {/* Calendario multi-appartamento */}
+      {/* Tabella del calendario */}
       <div className="overflow-x-auto">
-        <div className="min-w-max">
-          {/* Intestazione con i giorni della settimana */}
-          <div className="grid grid-cols-[minmax(180px,auto)_repeat(31,minmax(40px,1fr))] gap-px mb-2">
-            <div className="text-sm font-semibold h-10 flex items-center justify-center bg-gray-100">
-              Appartamento
-            </div>
-            {weekdayNames.map((day, i) => (
-              <div key={i} className="text-sm font-semibold h-10 flex items-center justify-center bg-gray-100">
-                {day}
-              </div>
-            ))}
-            {calendarDays.slice(7).map((day, index) => (
-              index % 7 === 0 ? (
-                <div 
-                  key={index + 7} 
-                  className="text-sm font-semibold h-10 flex items-center justify-center bg-gray-100"
-                >
-                  Lun
-                </div>
-              ) : null
-            ))}
-          </div>
-          
-          {/* Righe per ogni appartamento */}
-          <div className="space-y-px">
+        <table className="min-w-full border-collapse border border-gray-200">
+          <thead>
+            <tr>
+              <th className="border border-gray-200 bg-gray-100 p-2 font-medium text-left min-w-[180px]">
+                Appartamento
+              </th>
+              {/* Prima riga dell'intestazione: giorni della settimana ripetuti */}
+              {weeks.map((week, weekIndex) => (
+                week.map((_, dayIndex) => (
+                  <th key={`week${weekIndex}-day${dayIndex}`} className="border border-gray-200 bg-gray-100 p-2 font-medium text-center min-w-[40px]">
+                    {weekdayNames[dayIndex]}
+                  </th>
+                ))
+              ))}
+            </tr>
+            <tr>
+              <th className="border border-gray-200 bg-gray-100 p-2 font-medium text-left">
+                {/* Cella vuota sopra la colonna degli appartamenti */}
+              </th>
+              {/* Seconda riga dell'intestazione: giorni del mese */}
+              {weeks.map((week, weekIndex) => (
+                week.map((day, dayIndex) => (
+                  <th key={`date${weekIndex}-${dayIndex}`} className="border border-gray-200 bg-gray-100 p-2 font-medium text-center">
+                    {day !== null ? day : ''}
+                  </th>
+                ))
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Righe per ogni appartamento */}
             {apartments.map((apartment) => (
-              <MultiCalendarRow
-                key={apartment.id}
-                apartment={apartment.data}
-                bookings={apartment.bookings}
-                rates={apartment.rates}
-                days={calendarDays}
-                currentMonth={currentMonth}
-                onApartmentClick={() => handleApartmentClick(apartment.id)}
-                onDateClick={(date) => handleDateClick(apartment.id, date)}
-                onQuickAction={(date, action) => handleQuickAction(apartment.id, date, action)}
-                loading={loading}
-              />
+              <tr key={apartment.id}>
+                <td
+                  className="border border-gray-200 p-2 font-medium bg-gray-50 cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleApartmentClick(apartment.id)}
+                >
+                  {apartment.data.name}
+                </td>
+                {/* Celle per ogni giorno */}
+                {weeks.map((week, weekIndex) => (
+                  week.map((day, dayIndex) => {
+                    if (day === null) {
+                      return <td key={`cell${weekIndex}-${dayIndex}`} className="border border-gray-200 p-2 bg-gray-50"></td>;
+                    }
+                    
+                    const date = new Date(currentYear, currentMonth, day);
+                    
+                    // Funzione per determinare se c'è una prenotazione per questa data
+                    const hasBooking = apartment.bookings.some(booking => {
+                      const checkIn = new Date(booking.checkIn);
+                      const checkOut = new Date(booking.checkOut);
+                      const dateString = date.toISOString().split('T')[0];
+                      const checkInString = checkIn.toISOString().split('T')[0];
+                      const checkOutString = checkOut.toISOString().split('T')[0];
+                      return dateString >= checkInString && dateString < checkOutString;
+                    });
+                    
+                    // Funzione per determinare se c'è una tariffa personalizzata per questa data
+                    const hasPriceRate = apartment.rates.some(rate => {
+                      const rateDate = new Date(rate.date);
+                      const dateString = date.toISOString().split('T')[0];
+                      const rateDateString = rateDate.toISOString().split('T')[0];
+                      return dateString === rateDateString && rate.price !== undefined;
+                    });
+                    
+                    // Funzione per determinare se la data è bloccata
+                    const isBlocked = apartment.rates.some(rate => {
+                      const rateDate = new Date(rate.date);
+                      const dateString = date.toISOString().split('T')[0];
+                      const rateDateString = rateDate.toISOString().split('T')[0];
+                      return dateString === rateDateString && rate.isBlocked;
+                    });
+                    
+                    // Determinare la classe della cella in base al suo stato
+                    let cellClass = "border border-gray-200 p-2 text-center cursor-pointer";
+                    if (hasBooking) {
+                      cellClass += " bg-green-100";
+                    } else if (isBlocked) {
+                      cellClass += " bg-red-100";
+                    } else if (hasPriceRate) {
+                      cellClass += " bg-purple-100";
+                    } else {
+                      cellClass += " bg-blue-100";
+                    }
+                    
+                    // Verifica se è oggi
+                    const today = new Date();
+                    if (date.getDate() === today.getDate() && 
+                        date.getMonth() === today.getMonth() && 
+                        date.getFullYear() === today.getFullYear()) {
+                      cellClass += " ring-2 ring-blue-500";
+                    }
+                    
+                    return (
+                      <td
+                        key={`cell${weekIndex}-${dayIndex}`}
+                        className={cellClass}
+                        onClick={(e) => {
+                          // Evita di navigare quando si clicca sul pulsante del menu
+                          if (!(e.target as HTMLElement).closest('button')) {
+                            handleDateClick(apartment.id, date);
+                          }
+                        }}
+                      >
+                        <div className="relative group">
+                          <span>{day}</span>
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-white bg-opacity-80">
+                            <div className="relative">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Apri menu contestuale qui
+                                  const dropdown = document.getElementById(`dropdown-${apartment.id}-${day}`);
+                                  if (dropdown) {
+                                    dropdown.classList.toggle('hidden');
+                                  }
+                                }}
+                                className="p-1 rounded-full hover:bg-gray-200"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+                                </svg>
+                              </button>
+                              <div 
+                                id={`dropdown-${apartment.id}-${day}`}
+                                className="hidden absolute z-10 right-0 mt-1 w-36 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5"
+                              >
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDateClick(apartment.id, date);
+                                  }}
+                                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-100"
+                                >
+                                  Vai al calendario
+                                </button>
+                                {!hasBooking && !isBlocked && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleQuickAction(apartment.id, date, 'block');
+                                      document.getElementById(`dropdown-${apartment.id}-${day}`)?.classList.add('hidden');
+                                    }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-100"
+                                  >
+                                    Blocca
+                                  </button>
+                                )}
+                                {!hasBooking && isBlocked && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleQuickAction(apartment.id, date, 'unblock');
+                                      document.getElementById(`dropdown-${apartment.id}-${day}`)?.classList.add('hidden');
+                                    }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
+                                  >
+                                    Sblocca
+                                  </button>
+                                )}
+                                {!hasBooking && !isBlocked && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleQuickAction(apartment.id, date, 'book');
+                                      document.getElementById(`dropdown-${apartment.id}-${day}`)?.classList.add('hidden');
+                                    }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-100"
+                                  >
+                                    Prenota
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    );
+                  })
+                ))}
+              </tr>
             ))}
-          </div>
-        </div>
+          </tbody>
+        </table>
       </div>
+      
+      {/* Script per chiudere i menu contestuali quando si clicca altrove */}
+      <script dangerouslySetInnerHTML={{
+        __html: `
+          document.addEventListener('click', function(event) {
+            const dropdowns = document.querySelectorAll('[id^="dropdown-"]');
+            dropdowns.forEach(dropdown => {
+              if (!dropdown.contains(event.target) && 
+                  !(event.target.tagName === 'BUTTON' && event.target.nextElementSibling === dropdown)) {
+                dropdown.classList.add('hidden');
+              }
+            });
+          });
+        `
+      }} />
     </div>
   );
 }
