@@ -15,6 +15,7 @@ interface BookingFormModalProps {
   endDate: Date;
   apartmentId: string;
   apartmentData: any;
+  customMinStay?: number; // Nuova prop per il soggiorno minimo personalizzato
 }
 
 export default function BookingFormModal({
@@ -23,7 +24,8 @@ export default function BookingFormModal({
   startDate,
   endDate,
   apartmentId,
-  apartmentData
+  apartmentData,
+  customMinStay
 }: BookingFormModalProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -44,7 +46,8 @@ export default function BookingFormModal({
 
   // Helper per verificare se la durata del soggiorno è valida
   const isValidStayDuration = (checkIn: Date, checkOut: Date): boolean => {
-    const minStay = apartmentData.minStay || 1;
+    // Usa customMinStay se disponibile, altrimenti usa apartmentData.minStay
+    const minStay = customMinStay !== undefined ? customMinStay : (apartmentData.minStay || 1);
     const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
     return nights >= minStay;
   };
@@ -87,7 +90,8 @@ export default function BookingFormModal({
       // Se cambia il check-in, aggiorniamo il check-out se necessario 
       // per rispettare il soggiorno minimo
       if (field === 'checkIn') {
-        const minStay = apartmentData.minStay || 1;
+        // Usa customMinStay se disponibile, altrimenti usa apartmentData.minStay
+        const minStay = customMinStay !== undefined ? customMinStay : (apartmentData.minStay || 1);
         const minCheckOut = new Date(date);
         minCheckOut.setDate(minCheckOut.getDate() + minStay);
         
@@ -115,7 +119,9 @@ export default function BookingFormModal({
     try {
       // Verifica la durata minima del soggiorno
       if (!isValidStayDuration(formData.checkIn, formData.checkOut)) {
-        throw new Error(`Il soggiorno minimo per questo appartamento è di ${apartmentData.minStay} notti`);
+        // Usa customMinStay se disponibile, altrimenti usa apartmentData.minStay
+        const minStay = customMinStay !== undefined ? customMinStay : (apartmentData.minStay || 1);
+        throw new Error(`Il soggiorno minimo per questo appartamento è di ${minStay} notti`);
       }
 
       const response = await fetch('/api/bookings', {
@@ -143,6 +149,9 @@ export default function BookingFormModal({
       setLoading(false);
     }
   };
+
+  // Determina il soggiorno minimo effettivo (personalizzato o predefinito)
+  const effectiveMinStay = customMinStay !== undefined ? customMinStay : (apartmentData.minStay || 1);
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -189,9 +198,9 @@ export default function BookingFormModal({
                     </Dialog.Title>
                     
                     {/* Informazione sul soggiorno minimo */}
-                    {apartmentData.minStay > 1 && (
+                    {effectiveMinStay > 1 && (
                       <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
-                        Questo appartamento richiede un soggiorno minimo di {apartmentData.minStay} notti.
+                        Questo appartamento richiede un soggiorno minimo di {effectiveMinStay} notti.
                       </div>
                     )}
                     
@@ -222,7 +231,7 @@ export default function BookingFormModal({
                             selectsEnd
                             startDate={formData.checkIn}
                             endDate={formData.checkOut}
-                            minDate={new Date(formData.checkIn.getTime() + 24 * 60 * 60 * 1000 * (apartmentData.minStay || 1))}
+                            minDate={new Date(formData.checkIn.getTime() + 24 * 60 * 60 * 1000 * effectiveMinStay)}
                             dateFormat="dd/MM/yyyy"
                             className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                           />
