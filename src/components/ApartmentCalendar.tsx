@@ -595,8 +595,8 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
           </div>
         </div>
         
-        {/* Modalità selezione */}
-        <div className="flex items-center space-x-2">
+        {/* Modalità selezione - MODIFICATO: Pulsanti più piccoli, Annulla rosso e spazio maggiore */}
+        <div className="flex items-center space-x-4 my-2">
           <button
             onClick={() => {
               if (isSelectionMode) {
@@ -608,9 +608,9 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
                 setIsSelectionMode(true);
               }
             }}
-            className={`px-3 py-1 text-sm rounded-md ${
+            className={`px-2 py-1 text-xs font-medium rounded-md ${
               isSelectionMode 
-                ? 'bg-blue-600 text-white' 
+                ? 'bg-red-600 text-white' 
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
             }`}
           >
@@ -621,13 +621,13 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
             <>
               <button
                 onClick={() => setIsBulkEditModalOpen(true)}
-                className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
+                className="px-2 py-1 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700"
               >
                 Modifica {selectedDates.length} Date
               </button>
               <button
                 onClick={handleCreateBooking}
-                className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                className="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700"
               >
                 Nuova Prenotazione
               </button>
@@ -703,7 +703,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
                   price={price}
                   isSelected={isSelected}
                   isSelectionMode={isSelectionMode}
-                  isPastDate={isPastDay} // Passa la nuova proprietà
+                  isPastDate={isPastDay}
                   onClick={() => handleDayClick(day)}
                 />
               </div>
