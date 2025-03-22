@@ -56,6 +56,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   // Modal per nuova prenotazione
   const [isNewBookingModalOpen, setIsNewBookingModalOpen] = useState(false);
   const [newBookingStartDate, setNewBookingStartDate] = useState<Date>(new Date());
+  const [newBookingEndDate, setNewBookingEndDate] = useState<Date>(new Date()); // Nuovo stato per la data di fine
   
   // Riferimento alla griglia del calendario
   const calendarGridRef = useRef<HTMLDivElement>(null);
@@ -266,8 +267,9 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     const checkOut = new Date(sortedDates[sortedDates.length - 1]);
     checkOut.setDate(checkOut.getDate() + 1); // Aggiunge un giorno per il check-out
     
-    // Salva la data iniziale per il form di prenotazione
+    // Salva le date per il form di prenotazione
     setNewBookingStartDate(checkIn);
+    setNewBookingEndDate(checkOut); // Ora settiamo correttamente la data di fine
     
     // Apri il modal per la creazione della prenotazione
     setIsNewBookingModalOpen(true);
@@ -275,8 +277,13 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   
   // Funzione per creare una prenotazione da una singola data
   const handleCreateBookingFromDate = (date: Date) => {
-    // Imposta la data di inizio per il form di prenotazione
-    setNewBookingStartDate(date);
+    // Imposta le date per il form di prenotazione
+    const startDate = new Date(date);
+    const endDate = new Date(date);
+    endDate.setDate(endDate.getDate() + 1); // Aggiunge un giorno per il check-out
+    
+    setNewBookingStartDate(startDate);
+    setNewBookingEndDate(endDate);
     
     // Chiudi il modal delle tariffe
     setIsRateModalOpen(false);
@@ -574,12 +581,14 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-4">
-          <h2 className="text-xl font-semibold">
+      {/* Header del calendario con miglioramento della spaziatura */}
+      <div className="flex flex-col mb-6 space-y-4">
+        {/* Prima riga: Nome del mese/anno e frecce di navigazione */}
+        <div className="flex items-center">
+          <h2 className="text-xl font-semibold mr-6">
             {monthNames[currentMonth]} {currentYear}
           </h2>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-4">
             <button
               onClick={goToPreviousMonth}
               className="p-1 rounded-full hover:bg-gray-200"
@@ -595,8 +604,8 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
           </div>
         </div>
         
-        {/* Modalità selezione - MODIFICATO: Pulsanti più piccoli, Annulla rosso e spazio maggiore */}
-        <div className="flex items-center space-x-4 my-2">
+        {/* Seconda riga: Pulsanti di selezione e azioni */}
+        <div className="flex items-center space-x-6">
           <button
             onClick={() => {
               if (isSelectionMode) {
@@ -608,7 +617,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
                 setIsSelectionMode(true);
               }
             }}
-            className={`px-2 py-1 text-xs font-medium rounded-md ${
+            className={`px-3 py-2 text-sm font-medium rounded-md ${
               isSelectionMode 
                 ? 'bg-red-600 text-white' 
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
@@ -621,13 +630,13 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
             <>
               <button
                 onClick={() => setIsBulkEditModalOpen(true)}
-                className="px-2 py-1 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700"
+                className="px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700"
               >
                 Modifica {selectedDates.length} Date
               </button>
               <button
                 onClick={handleCreateBooking}
-                className="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700"
+                className="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
               >
                 Nuova Prenotazione
               </button>
@@ -635,23 +644,23 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
           )}
         </div>
         
-        {/* Leggenda */}
-        <div className="flex items-center space-x-4 text-sm">
+        {/* Terza riga: Legenda con maggiore separazione */}
+        <div className="flex items-center space-x-6 mt-4">
           <div className="flex items-center">
-            <div className="w-4 h-4 bg-green-100 border border-green-500 mr-1"></div>
+            <div className="w-4 h-4 bg-green-100 border border-green-500 mr-2"></div>
             <span>Prenotato</span>
           </div>
           <div className="flex items-center">
-            <div className="w-4 h-4 bg-red-100 border border-red-500 mr-1"></div>
+            <div className="w-4 h-4 bg-red-100 border border-red-500 mr-2"></div>
             <span>Bloccato</span>
           </div>
           <div className="flex items-center">
-            <div className="w-4 h-4 bg-blue-100 border border-blue-500 mr-1"></div>
+            <div className="w-4 h-4 bg-blue-100 border border-blue-500 mr-2"></div>
             <span>Prezzo Personalizzato</span>
           </div>
           {isSelectionMode && (
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-purple-100 border border-purple-500 mr-1"></div>
+              <div className="w-4 h-4 bg-purple-100 border border-purple-500 mr-2"></div>
               <span>Selezionato</span>
             </div>
           )}
@@ -773,12 +782,12 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         />
       )}
       
-      {/* Modal per nuova prenotazione */}
+      {/* Modal per nuova prenotazione - Ora passiamo la data di fine corretta */}
       <BookingFormModal
         isOpen={isNewBookingModalOpen}
         onClose={() => setIsNewBookingModalOpen(false)}
         startDate={newBookingStartDate}
-        endDate={new Date(new Date(newBookingStartDate).setDate(newBookingStartDate.getDate() + 1))}
+        endDate={newBookingEndDate} // Ora passiamo la data di fine prenotazione corretta
         apartmentId={apartmentId}
         apartmentData={apartmentData}
       />
