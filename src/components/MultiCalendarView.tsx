@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect, Fragment, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { Dialog, Transition } from '@headlessui/react';
@@ -38,6 +38,7 @@ interface MultiCalendarViewProps {
 
 export default function MultiCalendarView({ apartments }: MultiCalendarViewProps) {
   const router = useRouter();
+  const todayCellRef = useRef<HTMLTableCellElement>(null);
   
   // Crea una data con il fuso orario italiano
   const currentDateItaly = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Rome'}));
@@ -45,6 +46,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   const [currentYear, setCurrentYear] = useState(currentDateItaly.getFullYear());
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   
   // Stato per le selezioni multiple
   const [selectedDates, setSelectedDates] = useState<{[key: string]: {[key: string]: Date}}>({});
@@ -73,6 +75,20 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     }
   }, [currentMonth, currentYear]);
   
+  // Effetto per scorrere alla data di oggi quando il componente è montato
+  useEffect(() => {
+    // Aspetta che il DOM sia completamente renderizzato
+    setTimeout(() => {
+      if (todayCellRef.current) {
+        todayCellRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'center'
+        });
+      }
+    }, 500);
+  }, [calendarDays]);
+  
   // Funzione per passare al mese precedente
   const goToPreviousMonth = () => {
     if (currentMonth === 0) {
@@ -100,6 +116,17 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       setCurrentMonth(today.getMonth());
       setCurrentYear(today.getFullYear());
       toast.success('Visualizzazione impostata al mese corrente');
+      
+      // Attendi che il calendario sia aggiornato, poi scorri alla data attuale
+      setTimeout(() => {
+        if (todayCellRef.current) {
+          todayCellRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'center'
+          });
+        }
+      }, 300);
     } catch (error) {
       console.error("Errore nel tornare ad oggi:", error);
       toast.error("Errore nel tornare ad oggi");
@@ -117,22 +144,21 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         return; // Se è un checkbox, non fare nulla qui
       }
       
-      // Apri il menu contestuale
+      // Crea l'ID del dropdown
       const dropdownId = `dropdown-${apartmentId}-${date.getTime()}`;
-      const dropdown = document.getElementById(dropdownId);
       
+      // Se è già attivo, chiudilo
+      if (activeDropdown === dropdownId) {
+        setActiveDropdown(null);
+        return;
+      }
+      
+      // Altrimenti attiva questo dropdown
+      setActiveDropdown(dropdownId);
+      
+      // Posiziona il dropdown correttamente
+      const dropdown = document.getElementById(dropdownId);
       if (dropdown) {
-        // Nascondi tutti gli altri dropdown prima
-        document.querySelectorAll('[id^="dropdown-"]').forEach(el => {
-          if (el.id !== dropdownId) {
-            el.classList.add('hidden');
-          }
-        });
-        
-        // Mostra/nascondi questo dropdown
-        dropdown.classList.toggle('hidden');
-        
-        // Posiziona il dropdown correttamente
         const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
         dropdown.style.top = `${rect.bottom}px`;
         dropdown.style.left = `${rect.left}px`;
@@ -140,6 +166,14 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     } catch (error) {
       console.error("Errore nel gestire il click sulla data:", error);
     }
+  };
+  
+  // Funzione per chiudere il dropdown quando il mouse esce dalla cella
+  const handleCellMouseLeave = () => {
+    // Chiudi il dropdown con un piccolo ritardo per gestire il movimento tra cella e dropdown
+    setTimeout(() => {
+      setActiveDropdown(null);
+    }, 300);
   };
   
   // Funzione per gestire il click sulla checkbox
@@ -324,6 +358,9 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         router.push(`/bookings/new?apartmentId=${apartmentId}&checkIn=${date.toISOString().split('T')[0]}`);
         return;
       }
+      
+      // Chiudi il dropdown attivo
+      setActiveDropdown(null);
       
       router.refresh();
     } catch (error) {
@@ -615,12 +652,18 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                     
                     // Per le date con prenotazione, determina la posizione
                     let bookingPosition = booking ? getBookingPosition(day, booking) : null;
+
+                    // Genera ID del dropdown
+                    const dropdownId = `dropdown-${apartment.id}-${day.getTime()}`;
+                    const isDropdownActive = activeDropdown === dropdownId;
                     
                     return (
                       <td 
                         key={dayIndex} 
                         className={cellClass}
-                        onClick={(e) => !isPast && !booking && !isBlocked && handleDateClick(apartment.id, day, e)}
+                        onClick={(e) => !isPast && !booking && handleDateClick(apartment.id, day, e)}
+                        onMouseLeave={handleCellMouseLeave}
+                        ref={isCurrentDay ? todayCellRef : null}
                       >
                         <div className="flex flex-col h-full">
                           {/* Prezzo */}
@@ -676,14 +719,14 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                         
                         {/* Menu contestuale dropdown */}
                         <div 
-                          id={`dropdown-${apartment.id}-${day.getTime()}`}
-                          className="hidden fixed z-50 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-2"
+                          id={dropdownId}
+                          className={`fixed z-50 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-2 ${isDropdownActive ? '' : 'hidden'}`}
                         >
                           <div className="py-1">
                             <button
                               className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
                               onClick={() => {
-                                document.getElementById(`dropdown-${apartment.id}-${day.getTime()}`)?.classList.add('hidden');
+                                setActiveDropdown(null);
                                 router.push(`/apartments/${apartment.id}/calendar?date=${day.toISOString().split('T')[0]}`);
                               }}
                             >
@@ -694,7 +737,6 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               <button
                                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700"
                                 onClick={() => {
-                                  document.getElementById(`dropdown-${apartment.id}-${day.getTime()}`)?.classList.add('hidden');
                                   handleQuickAction(apartment.id, day, 'block');
                                 }}
                               >
@@ -706,7 +748,6 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               <button
                                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
                                 onClick={() => {
-                                  document.getElementById(`dropdown-${apartment.id}-${day.getTime()}`)?.classList.add('hidden');
                                   handleQuickAction(apartment.id, day, 'unblock');
                                 }}
                               >
@@ -718,7 +759,6 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               <button
                                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
                                 onClick={() => {
-                                  document.getElementById(`dropdown-${apartment.id}-${day.getTime()}`)?.classList.add('hidden');
                                   handleQuickAction(apartment.id, day, 'book');
                                 }}
                               >
@@ -834,20 +874,6 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
           </div>
         </Dialog>
       </Transition.Root>
-      
-      {/* Script per chiudere i menu contestuali quando si clicca altrove */}
-      <script dangerouslySetInnerHTML={{
-        __html: `
-          document.addEventListener('click', function(event) {
-            const dropdowns = document.querySelectorAll('[id^="dropdown-"]');
-            const isMenuToggle = event.target.closest('[id^="dropdown-"]');
-            
-            if (!isMenuToggle) {
-              dropdowns.forEach(dropdown => dropdown.classList.add('hidden'));
-            }
-          });
-        `
-      }} />
     </div>
   );
 }
