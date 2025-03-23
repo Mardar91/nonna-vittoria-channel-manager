@@ -1,8 +1,12 @@
+// src/app/api/payments/session/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import stripe from '@/lib/stripe';
+
+// Questa riga è importante! Indica a Next.js che questa route è sempre dinamica
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
