@@ -307,10 +307,16 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                       const hasBooking = apartment.bookings.some(booking => {
                         const checkIn = new Date(booking.checkIn);
                         const checkOut = new Date(booking.checkOut);
-                        const dateString = date.toISOString().split('T')[0];
-                        const checkInString = checkIn.toISOString().split('T')[0];
-                        const checkOutString = checkOut.toISOString().split('T')[0];
-                        return dateString >= checkInString && dateString < checkOutString;
+                        
+                        // Normalizza le date per i confronti
+                        checkIn.setHours(0, 0, 0, 0);
+                        checkOut.setHours(0, 0, 0, 0);
+                        
+                        const dateToCheck = new Date(date);
+                        dateToCheck.setHours(0, 0, 0, 0);
+                        
+                        // La data è compresa tra check-in e check-out (incluso il check-in, escluso il check-out)
+                        return dateToCheck >= checkIn && dateToCheck < checkOut;
                       });
                       
                       // Funzione per determinare se c'è una tariffa personalizzata per questa data
