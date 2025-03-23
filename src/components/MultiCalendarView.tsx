@@ -501,45 +501,45 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   return (
     <div className="space-y-4">
       {/* Header del calendario - adattato per mobile */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center">
-          <h2 className="text-xl font-semibold mr-6 hidden md:block">
-            {monthNames[currentMonth]} {currentYear}
-          </h2>
-          {/* Versione mobile del titolo del mese */}
-          <div className="flex items-center md:hidden">
-            <span className="text-lg font-semibold">
-              {monthNames[currentMonth]} {currentYear}
-            </span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={goToPreviousMonth}
-              className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-              disabled={loading}
-            >
-              <ChevronLeftIcon className="w-5 h-5" />
-            </button>
-            <button
-              onClick={goToNextMonth}
-              className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-              disabled={loading}
-            >
-              <ChevronRightIcon className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-        
-        {/* Tasto "Oggi" */}
-        <button
-          onClick={goToToday}
-          className="flex items-center px-3 py-1 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-600 transition-colors shadow-sm"
-          disabled={loading}
-        >
-          <CalendarIcon className="w-4 h-4 mr-1" />
-          Oggi
-        </button>
-      </div>
+<div className="flex justify-between items-center mb-4">
+  <div className="flex items-center">
+    <h2 className="text-xl font-semibold mr-6 hidden md:block">
+      {monthNames[currentMonth]} {currentYear}
+    </h2>
+    {/* Versione mobile del titolo del mese */}
+    <div className="flex items-center md:hidden">
+      <span className="text-lg font-semibold">
+        {monthNames[currentMonth]} {currentYear}
+      </span>
+    </div>
+    <div className="flex items-center space-x-4">
+      <button
+        onClick={goToPreviousMonth}
+        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+        disabled={loading}
+      >
+        <ChevronLeftIcon className="w-5 h-5" />
+      </button>
+      <button
+        onClick={goToNextMonth}
+        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+        disabled={loading}
+      >
+        <ChevronRightIcon className="w-5 h-5" />
+      </button>
+    </div>
+  </div>
+  
+  {/* Tasto "Oggi" */}
+  <button
+    onClick={goToToday}
+    className="flex items-center px-3 py-1 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-600 transition-colors shadow-sm"
+    disabled={loading}
+  >
+    <CalendarIcon className="w-4 h-4 mr-1" />
+    Oggi
+  </button>
+</div>
       
       {/* Legenda - nascondi su mobile */}
       <div className="flex flex-wrap items-center gap-4 mb-4 hidden md:flex">
