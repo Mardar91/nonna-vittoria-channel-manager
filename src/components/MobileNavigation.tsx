@@ -81,24 +81,20 @@ export default function MobileNavigation({ apartments = [] }: MobileNavigationPr
             return (
               <div 
                 key={item.name} 
-                className="flex flex-col items-center justify-center"
+                className="flex items-center justify-center"
                 onClick={item.action ? () => item.action() : undefined}
               >
                 {item.href ? (
-                  <Link href={item.href} className="flex flex-col items-center">
+                  <Link href={item.href} className="flex items-center justify-center">
                     <item.icon 
                       className={`h-6 w-6 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} 
                     />
-                    <span className={`text-xs mt-1 ${isActive ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
-                      {item.name}
-                    </span>
+                    {/* Rimosso il testo sotto le icone */}
                   </Link>
                 ) : (
-                  <button className="flex flex-col items-center">
+                  <button className="flex items-center justify-center">
                     <item.icon className="h-6 w-6 text-gray-500" />
-                    <span className="text-xs mt-1 text-gray-500">
-                      {item.name}
-                    </span>
+                    {/* Rimosso il testo sotto le icone */}
                   </button>
                 )}
               </div>
