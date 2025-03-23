@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
         // Mappa correttamente la fonte all'enum valido
         const validSource = mapSourceToEnumValue(source);
         
-        // Crea una nuova prenotazione
+        // Crea una nuova prenotazione - NON valida il soggiorno minimo per prenotazioni importate
         const booking = await BookingModel.create({
           apartmentId,
           guestName: guestInfo.name || 'Guest',
