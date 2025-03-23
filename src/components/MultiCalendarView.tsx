@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -37,7 +37,6 @@ interface MultiCalendarViewProps {
 
 export default function MultiCalendarView({ apartments }: MultiCalendarViewProps) {
   const router = useRouter();
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Crea una data con il fuso orario italiano
   const currentDateItaly = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Rome'}));
@@ -45,97 +44,112 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   const [currentYear, setCurrentYear] = useState(currentDateItaly.getFullYear());
   const [visibleDays, setVisibleDays] = useState<Date[]>([]);
   const [loading, setLoading] = useState(false);
-  const [todayCellRef, setTodayCellRef] = useState<HTMLElement | null>(null);
   
-  // Genera i giorni visibili (14 giorni partendo da oggi)
+  // Genera i giorni visibili (14 giorni partendo da oggi) all'avvio
   useEffect(() => {
-    const today = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Rome'}));
-    today.setHours(0, 0, 0, 0);
-    
-    // Genera 14 giorni (2 settimane) a partire da oggi
-    const days: Date[] = [];
-    for (let i = -3; i < 11; i++) {
-      const day = new Date(today);
-      day.setDate(today.getDate() + i);
-      days.push(day);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Genera 14 giorni (2 settimane) a partire da oggi
+      const days: Date[] = [];
+      for (let i = -3; i < 11; i++) {
+        const day = new Date(today);
+        day.setDate(today.getDate() + i);
+        days.push(day);
+      }
+      
+      setVisibleDays(days);
+      setCurrentMonth(today.getMonth());
+      setCurrentYear(today.getFullYear());
+    } catch (error) {
+      console.error("Errore nella generazione dei giorni:", error);
+      // Se c'è un errore, genera almeno un mese di base
+      const fallbackDays: Date[] = [];
+      const today = new Date();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      
+      for (let i = 1; i <= daysInMonth; i++) {
+        fallbackDays.push(new Date(today.getFullYear(), today.getMonth(), i));
+      }
+      
+      setVisibleDays(fallbackDays);
     }
-    
-    setVisibleDays(days);
-    setCurrentMonth(today.getMonth());
-    setCurrentYear(today.getFullYear());
   }, []);
   
-  // Centra la visuale sulla cella di oggi quando il componente è montato
-  useEffect(() => {
-    if (todayCellRef && scrollContainerRef.current) {
-      const container = scrollContainerRef.current;
-      const todayCell = todayCellRef;
-      
-      // Calcola la posizione di scorrimento per centrare la cella di oggi
-      const containerWidth = container.offsetWidth;
-      const cellLeft = todayCell.offsetLeft;
-      const cellWidth = todayCell.offsetWidth;
-      
-      // Scorri per centrare la cella di oggi
-      const scrollPosition = cellLeft - (containerWidth / 2) + (cellWidth / 2);
-      container.scrollLeft = Math.max(0, scrollPosition);
-    }
-  }, [todayCellRef]);
-  
-  // Funzione per navigare a una settimana precedente
+  // Funzione per navigare a giorni precedenti
   const goToPreviousWeek = () => {
-    const firstDay = new Date(visibleDays[0]);
-    const newDays = visibleDays.map(day => {
-      const newDay = new Date(day);
-      newDay.setDate(newDay.getDate() - 7);
-      return newDay;
-    });
+    if (visibleDays.length === 0) return;
     
-    setVisibleDays(newDays);
-    
-    // Aggiorna mese e anno se necessario
-    if (firstDay.getMonth() !== newDays[0].getMonth()) {
-      setCurrentMonth(newDays[0].getMonth());
-      setCurrentYear(newDays[0].getFullYear());
+    try {
+      const newDays = visibleDays.map(day => {
+        const newDay = new Date(day);
+        newDay.setDate(newDay.getDate() - 7);
+        return newDay;
+      });
+      
+      setVisibleDays(newDays);
+      
+      // Aggiorna mese e anno se necessario
+      if (newDays.length > 0) {
+        const firstDay = newDays[0];
+        setCurrentMonth(firstDay.getMonth());
+        setCurrentYear(firstDay.getFullYear());
+      }
+    } catch (error) {
+      console.error("Errore nel navigare alla settimana precedente:", error);
+      toast.error("Errore nel cambiare settimana");
     }
   };
   
-  // Funzione per navigare a una settimana successiva
+  // Funzione per navigare a giorni successivi
   const goToNextWeek = () => {
-    const firstDay = new Date(visibleDays[0]);
-    const newDays = visibleDays.map(day => {
-      const newDay = new Date(day);
-      newDay.setDate(newDay.getDate() + 7);
-      return newDay;
-    });
+    if (visibleDays.length === 0) return;
     
-    setVisibleDays(newDays);
-    
-    // Aggiorna mese e anno se necessario
-    if (firstDay.getMonth() !== newDays[0].getMonth()) {
-      setCurrentMonth(newDays[0].getMonth());
-      setCurrentYear(newDays[0].getFullYear());
+    try {
+      const newDays = visibleDays.map(day => {
+        const newDay = new Date(day);
+        newDay.setDate(newDay.getDate() + 7);
+        return newDay;
+      });
+      
+      setVisibleDays(newDays);
+      
+      // Aggiorna mese e anno se necessario
+      if (newDays.length > 0) {
+        const firstDay = newDays[0];
+        setCurrentMonth(firstDay.getMonth());
+        setCurrentYear(firstDay.getFullYear());
+      }
+    } catch (error) {
+      console.error("Errore nel navigare alla settimana successiva:", error);
+      toast.error("Errore nel cambiare settimana");
     }
   };
   
   // Funzione per tornare alla data corrente
   const goToToday = () => {
-    const today = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Rome'}));
-    today.setHours(0, 0, 0, 0);
-    
-    // Genera 14 giorni (2 settimane) a partire da oggi
-    const days: Date[] = [];
-    for (let i = -3; i < 11; i++) {
-      const day = new Date(today);
-      day.setDate(today.getDate() + i);
-      days.push(day);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Genera 14 giorni (2 settimane) a partire da oggi
+      const days: Date[] = [];
+      for (let i = -3; i < 11; i++) {
+        const day = new Date(today);
+        day.setDate(today.getDate() + i);
+        days.push(day);
+      }
+      
+      setVisibleDays(days);
+      setCurrentMonth(today.getMonth());
+      setCurrentYear(today.getFullYear());
+      
+      toast.success('Visualizzazione impostata alla data corrente');
+    } catch (error) {
+      console.error("Errore nel tornare ad oggi:", error);
+      toast.error("Errore nel tornare ad oggi");
     }
-    
-    setVisibleDays(days);
-    setCurrentMonth(today.getMonth());
-    setCurrentYear(today.getFullYear());
-    
-    toast.success('Visualizzazione impostata alla data corrente');
   };
   
   const handleApartmentClick = (apartmentId: string) => {
@@ -143,58 +157,72 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   };
   
   const handleDateClick = (apartmentId: string, date: Date) => {
-    router.push(`/apartments/${apartmentId}/calendar?date=${date.toISOString().split('T')[0]}`);
+    try {
+      const dateStr = date.toISOString().split('T')[0];
+      router.push(`/apartments/${apartmentId}/calendar?date=${dateStr}`);
+    } catch (error) {
+      console.error("Errore nel navigare alla data:", error);
+      toast.error("Errore nel navigare alla data");
+    }
   };
   
   // Funzione per verificare se una data è nel passato
   const isPastDate = (date: Date): boolean => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date < today;
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return date < today;
+    } catch (error) {
+      console.error("Errore nel controllare se la data è passata:", error);
+      return false;
+    }
   };
   
   // Funzione per formattare la data nel formato "Mar 20"
   const formatDate = (date: Date): { weekday: string; day: number } => {
-    const weekdays = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
-    return {
-      weekday: weekdays[date.getDay()],
-      day: date.getDate()
-    };
+    try {
+      const weekdays = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+      return {
+        weekday: weekdays[date.getDay()],
+        day: date.getDate()
+      };
+    } catch (error) {
+      console.error("Errore nel formattare la data:", error);
+      return { weekday: "", day: 0 };
+    }
   };
   
   // Funzione per ottenere il prezzo per una data specifica
   const getPriceForDate = (apartment: ApartmentWithBookings, date: Date): number => {
-    // Verifica se è una data di prenotazione
-    const booking = apartment.bookings.find(b => {
-      const checkIn = new Date(b.checkIn);
-      const checkOut = new Date(b.checkOut);
-      checkIn.setHours(0, 0, 0, 0);
-      checkOut.setHours(0, 0, 0, 0);
+    try {
+      // Verifica se ci sono prenotazioni per questa data
+      const booking = getBookingForDate(apartment, date);
       
-      const dateToCheck = new Date(date);
-      dateToCheck.setHours(0, 0, 0, 0);
+      if (booking) {
+        // Per semplicità, restituisci il prezzo totale della prenotazione
+        return booking.totalPrice;
+      }
       
-      return dateToCheck >= checkIn && dateToCheck < checkOut;
-    });
-    
-    if (booking) {
-      return booking.totalPrice / Math.max(1, 
-        Math.round((new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / (1000 * 60 * 60 * 24))
-      );
+      // Verifica se c'è una tariffa personalizzata
+      const customRate = apartment.rates.find(rate => {
+        try {
+          const rateDate = new Date(rate.date);
+          return rateDate.toDateString() === date.toDateString() && rate.price !== undefined;
+        } catch {
+          return false;
+        }
+      });
+      
+      if (customRate && customRate.price !== undefined) {
+        return customRate.price;
+      }
+      
+      // Altrimenti restituisci il prezzo base dell'appartamento
+      return apartment.data.price || 0;
+    } catch (error) {
+      console.error("Errore nel calcolare il prezzo per la data:", error);
+      return 0;
     }
-    
-    // Verifica se c'è una tariffa personalizzata
-    const customRate = apartment.rates.find(rate => {
-      const rateDate = new Date(rate.date);
-      return rateDate.toDateString() === date.toDateString() && rate.price !== undefined;
-    });
-    
-    if (customRate && customRate.price) {
-      return customRate.price;
-    }
-    
-    // Altrimenti restituisci il prezzo base dell'appartamento
-    return apartment.data.price;
   };
   
   const handleQuickAction = async (apartmentId: string, date: Date, action: 'block' | 'unblock' | 'book') => {
@@ -239,38 +267,73 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
   ];
   
-  // Verifica se due date sono nello stesso mese
-  const isSameMonth = (date1: Date, date2: Date): boolean => {
-    return date1.getMonth() === date2.getMonth() && date1.getFullYear() === date2.getFullYear();
-  };
-  
   // Determina il mese o i mesi visualizzati
   const getDisplayedMonthText = (): string => {
-    const firstDay = visibleDays[0];
-    const lastDay = visibleDays[visibleDays.length - 1];
-    
-    if (isSameMonth(firstDay, lastDay)) {
-      return `${monthNames[firstDay.getMonth()]} ${firstDay.getFullYear()}`;
-    } else {
-      return `${monthNames[firstDay.getMonth()]} - ${monthNames[lastDay.getMonth()]} ${
-        firstDay.getFullYear() === lastDay.getFullYear() 
-          ? firstDay.getFullYear() 
-          : `${firstDay.getFullYear()}/${lastDay.getFullYear()}`
-      }`;
+    try {
+      if (visibleDays.length === 0) {
+        return `${monthNames[currentMonth]} ${currentYear}`;
+      }
+      
+      const firstDay = visibleDays[0];
+      const lastDay = visibleDays[visibleDays.length - 1];
+      
+      if (firstDay.getMonth() === lastDay.getMonth() && 
+          firstDay.getFullYear() === lastDay.getFullYear()) {
+        return `${monthNames[firstDay.getMonth()]} ${firstDay.getFullYear()}`;
+      } else {
+        if (firstDay.getFullYear() === lastDay.getFullYear()) {
+          return `${monthNames[firstDay.getMonth()]} - ${monthNames[lastDay.getMonth()]} ${firstDay.getFullYear()}`;
+        } else {
+          return `${monthNames[firstDay.getMonth()]} ${firstDay.getFullYear()} - ${monthNames[lastDay.getMonth()]} ${lastDay.getFullYear()}`;
+        }
+      }
+    } catch (error) {
+      console.error("Errore nel determinare il testo del mese:", error);
+      return `${monthNames[currentMonth]} ${currentYear}`;
     }
   };
   
   // Verifica se la data è oggi
   const isToday = (date: Date): boolean => {
-    const today = new Date();
-    return date.getDate() === today.getDate() && 
-           date.getMonth() === today.getMonth() && 
-           date.getFullYear() === today.getFullYear();
+    try {
+      const today = new Date();
+      return date.getDate() === today.getDate() && 
+             date.getMonth() === today.getMonth() && 
+             date.getFullYear() === today.getFullYear();
+    } catch (error) {
+      console.error("Errore nel verificare se la data è oggi:", error);
+      return false;
+    }
   };
   
   // Trova la prenotazione per una data specifica
   const getBookingForDate = (apartment: ApartmentWithBookings, date: Date): Booking | null => {
-    return apartment.bookings.find(booking => {
+    try {
+      return apartment.bookings.find(booking => {
+        try {
+          const checkIn = new Date(booking.checkIn);
+          const checkOut = new Date(booking.checkOut);
+          
+          checkIn.setHours(0, 0, 0, 0);
+          checkOut.setHours(0, 0, 0, 0);
+          
+          const dateToCheck = new Date(date);
+          dateToCheck.setHours(0, 0, 0, 0);
+          
+          return dateToCheck >= checkIn && dateToCheck < checkOut;
+        } catch {
+          return false;
+        }
+      }) || null;
+    } catch (error) {
+      console.error("Errore nel trovare la prenotazione per la data:", error);
+      return null;
+    }
+  };
+  
+  // Verifica la posizione di una data in una prenotazione (inizio, centro, fine)
+  const getBookingPosition = (date: Date, booking: Booking): 'start' | 'middle' | 'end' => {
+    try {
       const checkIn = new Date(booking.checkIn);
       const checkOut = new Date(booking.checkOut);
       
@@ -280,42 +343,49 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       const dateToCheck = new Date(date);
       dateToCheck.setHours(0, 0, 0, 0);
       
-      return dateToCheck >= checkIn && dateToCheck < checkOut;
-    }) || null;
-  };
-  
-  // Verifica la posizione di una data in una prenotazione (inizio, centro, fine)
-  const getBookingPosition = (date: Date, booking: Booking): 'start' | 'middle' | 'end' => {
-    const checkIn = new Date(booking.checkIn);
-    const checkOut = new Date(booking.checkOut);
-    
-    checkIn.setHours(0, 0, 0, 0);
-    checkOut.setHours(0, 0, 0, 0);
-    
-    const dateToCheck = new Date(date);
-    dateToCheck.setHours(0, 0, 0, 0);
-    
-    if (dateToCheck.getTime() === checkIn.getTime()) {
-      return 'start';
+      if (dateToCheck.getTime() === checkIn.getTime()) {
+        return 'start';
+      }
+      
+      const dayBeforeCheckout = new Date(checkOut);
+      dayBeforeCheckout.setDate(dayBeforeCheckout.getDate() - 1);
+      
+      if (dateToCheck.getTime() === dayBeforeCheckout.getTime()) {
+        return 'end';
+      }
+      
+      return 'middle';
+    } catch (error) {
+      console.error("Errore nel determinare la posizione della prenotazione:", error);
+      return 'middle';
     }
-    
-    const dayBeforeCheckout = new Date(checkOut);
-    dayBeforeCheckout.setDate(dayBeforeCheckout.getDate() - 1);
-    
-    if (dateToCheck.getTime() === dayBeforeCheckout.getTime()) {
-      return 'end';
-    }
-    
-    return 'middle';
   };
   
   // Verifica se una data è bloccata
   const isDateBlocked = (apartment: ApartmentWithBookings, date: Date): boolean => {
-    return apartment.rates.some(rate => {
-      const rateDate = new Date(rate.date);
-      return rateDate.toDateString() === date.toDateString() && rate.isBlocked;
-    });
+    try {
+      return apartment.rates.some(rate => {
+        try {
+          const rateDate = new Date(rate.date);
+          return rateDate.toDateString() === date.toDateString() && rate.isBlocked;
+        } catch {
+          return false;
+        }
+      });
+    } catch (error) {
+      console.error("Errore nel verificare se la data è bloccata:", error);
+      return false;
+    }
   };
+  
+  // Controlla se c'è almeno un giorno da visualizzare
+  if (visibleDays.length === 0) {
+    return (
+      <div className="p-4 text-center">
+        <p>Caricamento del calendario...</p>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-4">
@@ -375,7 +445,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       </div>
       
       {/* Calendario principale - usando una tabella per un layout più coerente */}
-      <div className="overflow-x-auto pb-4" ref={scrollContainerRef}>
+      <div className="overflow-x-auto pb-4">
         <table className="min-w-full border-collapse">
           <thead className="bg-white sticky top-0 z-10">
             <tr>
@@ -386,7 +456,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
               
               {/* Intestazioni dei giorni */}
               {visibleDays.map((day, index) => {
-                const { weekday, day: dayNum } = formatDate(day);
+                const dateInfo = formatDate(day);
                 const isCurrentDay = isToday(day);
                 
                 return (
@@ -395,11 +465,10 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                     className={`border border-gray-200 py-1 min-w-[80px] text-center ${
                       isCurrentDay ? "bg-blue-50" : "bg-gray-100"
                     }`}
-                    ref={isCurrentDay ? (el) => setTodayCellRef(el) : null}
                   >
-                    <div className="font-medium">{weekday}</div>
+                    <div className="font-medium">{dateInfo.weekday}</div>
                     <div className={`text-lg ${isCurrentDay ? "font-bold text-blue-600" : ""}`}>
-                      {dayNum}
+                      {dateInfo.day}
                     </div>
                   </th>
                 );
@@ -416,7 +485,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                   className="sticky left-0 z-10 bg-white border border-gray-200 py-3 px-4 font-medium cursor-pointer hover:bg-gray-50"
                   onClick={() => handleApartmentClick(apartment.id)}
                 >
-                  {apartment.data.name}
+                  {apartment.data?.name || "Appartamento"}
                 </td>
                 
                 {/* Celle per ogni giorno */}
@@ -492,17 +561,15 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                           )}
                         </div>
                         
-                        {/* Solo per celle future - menu contestuale */}
+                        {/* Solo per celle future - controllo prenotazione */}
                         {!isPast && !booking && !isBlocked && (
                           <div className="text-center">
                             <input 
                               type="checkbox" 
-                              className="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out" 
-                              onChange={(e) => {
+                              className="h-4 w-4 text-blue-600 transition duration-150 ease-in-out" 
+                              onClick={(e) => {
                                 e.stopPropagation();
-                                if (e.target.checked) {
-                                  handleQuickAction(apartment.id, day, 'book');
-                                }
+                                handleQuickAction(apartment.id, day, 'book');
                               }}
                             />
                           </div>
