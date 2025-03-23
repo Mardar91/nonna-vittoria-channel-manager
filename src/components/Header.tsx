@@ -42,70 +42,60 @@ export default function Header() {
           <div className="flex">
             <div className="flex flex-shrink-0 items-center">
               <span className="text-lg font-semibold hidden md:block">Nonna Vittoria CM</span>
-              {/* Titolo pagina per mobile */}
-              <span className="text-xl font-bold md:hidden">{getPageTitle()}</span>
+              {/* Titolo pagina per mobile - rimosso per evitare duplicazione */}
             </div>
           </div>
           
           <div className="flex items-center">
-            <div className="ml-4 flex items-center">
-              {/* Notifiche e profilo - visibili solo su desktop */}
-              <div className="hidden md:ml-4 md:flex md:items-center">
-                <button
-                  type="button"
-                  className="rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  <span className="sr-only">View notifications</span>
-                  <BellIcon className="h-6 w-6" aria-hidden="true" />
-                </button>
+            <div className="flex items-center space-x-3">
+              {/* Notifiche - visibili sempre */}
+              <button
+                type="button"
+                className="rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                <span className="sr-only">View notifications</span>
+                <BellIcon className="h-6 w-6" aria-hidden="true" />
+              </button>
 
-                {/* Profile dropdown */}
-                <div className="relative ml-3">
-                  <div>
-                    <button 
-                      onClick={() => setIsMenuOpen(!isMenuOpen)}
-                      className="flex rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    >
-                      <span className="sr-only">Open user menu</span>
-                      <div className="h-8 w-8 rounded-full bg-blue-700 flex items-center justify-center text-white">
-                        {session?.user?.name?.charAt(0) || 'A'}
-                      </div>
-                    </button>
-                  </div>
-                  
-                  {isMenuOpen && (
-                    <div className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                      <Link 
-                        href="/profile" 
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        Profilo
-                      </Link>
-                      <Link 
-                        href="/settings" 
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        Impostazioni
-                      </Link>
-                      <Link 
-                        href="/api/auth/signout" 
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        Logout
-                      </Link>
+              {/* Profile button - visibile sempre */}
+              <div className="relative">
+                <div>
+                  <button 
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="flex rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    <span className="sr-only">Open user menu</span>
+                    <div className="h-8 w-8 rounded-full bg-blue-700 flex items-center justify-center text-white">
+                      {session?.user?.name?.charAt(0) || 'A'}
                     </div>
-                  )}
+                  </button>
                 </div>
-              </div>
-              
-              {/* Elemento placeholder per mobile, per mantenere allineamento */}
-              <div className="md:hidden">
-                <div className="h-8 w-8 rounded-full bg-transparent flex items-center justify-center">
-                  <span className="sr-only">Placeholder</span>
-                </div>
+                
+                {isMenuOpen && (
+                  <div className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <Link 
+                      href="/profile" 
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Profilo
+                    </Link>
+                    <Link 
+                      href="/settings" 
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Impostazioni
+                    </Link>
+                    <Link 
+                      href="/api/auth/signout" 
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Logout
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </div>
