@@ -9,7 +9,8 @@ import {
   PlusIcon, 
   CreditCardIcon, 
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  GlobeAltIcon // Nuova icona per Profilo Online
 } from '@heroicons/react/24/outline';
 import { signOut } from 'next-auth/react';
 
@@ -47,9 +48,9 @@ export default function MobileNavigation({ apartments = [] }: MobileNavigationPr
       isCenter: true,
     },
     {
-      name: 'Pagamenti',
-      href: '/payments',
-      icon: CreditCardIcon,
+      name: 'Profilo Online',
+      href: '/online-profile',
+      icon: GlobeAltIcon,
     },
     {
       name: 'Menu',
@@ -140,6 +141,13 @@ export default function MobileNavigation({ apartments = [] }: MobileNavigationPr
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Prenotazioni
+                </Link>
+                <Link
+                  href="/online-profile"
+                  className="block py-2 text-base font-medium text-gray-900"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Profilo Online
                 </Link>
                 <Link
                   href="/settings"
