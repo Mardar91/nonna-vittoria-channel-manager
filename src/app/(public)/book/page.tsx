@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition, Disclosure } from '@headlessui/react';
-import { ChevronUpIcon } from '@heroicons/react/24/outline';
+import { ChevronUpIcon, CreditCardIcon } from '@heroicons/react/24/outline';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import toast from 'react-hot-toast';
@@ -38,7 +38,7 @@ export default function BookingPage() {
   const [profile, setProfile] = useState<IPublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [bookingLoading, setBookingLoading] = useState(false);
+  const [processingBooking, setProcessingBooking] = useState(false);
 
   // Stato per la ricerca
   const [search, setSearch] = useState<SearchState>({
@@ -62,7 +62,7 @@ export default function BookingPage() {
     guestPhone: '',
     notes: '',
   });
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Carica il profilo pubblico
   useEffect(() => {
@@ -115,6 +115,24 @@ export default function BookingPage() {
     setSearch({ ...search, [type]: value });
   };
   
+  // Gestisci cambio nei campi del form di prenotazione
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setBookingFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Rimuovi l'errore quando l'utente inizia a digitare
+    if (formErrors[name]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+  
   // Cerca disponibilità
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,119 +168,6 @@ export default function BookingPage() {
       toast.error('Errore nella ricerca della disponibilità');
     } finally {
       setSearchLoading(false);
-    }
-  };
-  
-  // Gestisci cambio form prenotazione
-  const handleBookingFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setBookingFormData({
-      ...bookingFormData,
-      [name]: value
-    });
-    
-    // Rimuovi l'errore se il campo è stato compilato
-    if (errors[name] && value.trim()) {
-      const newErrors = {...errors};
-      delete newErrors[name];
-      setErrors(newErrors);
-    }
-  };
-  
-  // Valida il form
-  const validateForm = (): boolean => {
-    const newErrors: {[key: string]: string} = {};
-    
-    if (!bookingFormData.guestName.trim()) {
-      newErrors.guestName = 'Il nome è obbligatorio';
-    }
-    
-    if (!bookingFormData.guestEmail.trim()) {
-      newErrors.guestEmail = 'L\'email è obbligatoria';
-    } else if (!/^\S+@\S+\.\S+$/.test(bookingFormData.guestEmail)) {
-      newErrors.guestEmail = 'Email non valida';
-    }
-    
-    if (!bookingFormData.guestPhone.trim()) {
-      newErrors.guestPhone = 'Il telefono è obbligatorio';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-  
-  // Completa la prenotazione e procedi al pagamento
-  const handleCompleteBooking = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    setBookingLoading(true);
-    
-    try {
-      // Prepara i dati della prenotazione
-      const bookingData = {
-        checkIn: search.checkIn.toISOString(),
-        checkOut: search.checkOut.toISOString(),
-        numberOfGuests: search.adults + search.children,
-        ...bookingFormData,
-      };
-      
-      // Per prenotazione singola
-      if (selectedApartment) {
-        const response = await fetch('/api/bookings/public/checkout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...bookingData,
-            apartmentId: selectedApartment._id,
-            isGroupBooking: false,
-          }),
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Errore nella creazione della prenotazione');
-        }
-        
-        const data = await response.json();
-        
-        // Redirect a Stripe per il pagamento
-        window.location.href = data.url;
-      } 
-      // Per prenotazione di gruppo
-      else if (groupBookingSelection) {
-        const response = await fetch('/api/bookings/public/checkout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...bookingData,
-            isGroupBooking: true,
-            groupApartments: groupBookingSelection.map((apt: any) => apt._id),
-          }),
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Errore nella creazione della prenotazione');
-        }
-        
-        const data = await response.json();
-        
-        // Redirect a Stripe per il pagamento
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      toast.error((error as Error).message || 'Si è verificato un errore durante la prenotazione');
-    } finally {
-      setBookingLoading(false);
     }
   };
   
@@ -302,6 +207,118 @@ export default function BookingPage() {
       month: 'long',
       year: 'numeric',
     });
+  };
+  
+  // Valida il form di prenotazione
+  const validateBookingForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!bookingFormData.guestName.trim()) {
+      errors.guestName = 'Il nome è obbligatorio';
+    }
+    
+    if (!bookingFormData.guestEmail.trim()) {
+      errors.guestEmail = 'L\'email è obbligatoria';
+    } else if (!/\S+@\S+\.\S+/.test(bookingFormData.guestEmail)) {
+      errors.guestEmail = 'Inserisci un indirizzo email valido';
+    }
+    
+    if (!bookingFormData.guestPhone.trim()) {
+      errors.guestPhone = 'Il telefono è obbligatorio';
+    }
+    
+    setFormErrors(errors);
+    
+    return Object.keys(errors).length === 0;
+  };
+  
+  // Completa la prenotazione
+  const handleCompleteBooking = async () => {
+    if (!validateBookingForm()) {
+      return;
+    }
+    
+    setProcessingBooking(true);
+    
+    try {
+      let requestData;
+      
+      // Per prenotazione singola
+      if (selectedApartment) {
+        requestData = {
+          apartmentId: selectedApartment._id,
+          checkIn: search.checkIn,
+          checkOut: search.checkOut,
+          guestName: bookingFormData.guestName,
+          guestEmail: bookingFormData.guestEmail,
+          guestPhone: bookingFormData.guestPhone,
+          numberOfGuests: search.adults + search.children,
+          notes: bookingFormData.notes,
+          isGroupBooking: false
+        };
+      } 
+      // Per prenotazione di gruppo
+      else if (groupBookingSelection) {
+        requestData = {
+          isGroupBooking: true,
+          groupApartments: groupBookingSelection.map((apt: any) => apt._id),
+          checkIn: search.checkIn,
+          checkOut: search.checkOut,
+          guestName: bookingFormData.guestName,
+          guestEmail: bookingFormData.guestEmail,
+          guestPhone: bookingFormData.guestPhone,
+          numberOfGuests: search.adults + search.children,
+          notes: bookingFormData.notes
+        };
+      } else {
+        throw new Error('Nessun appartamento selezionato');
+      }
+      
+      // Crea la prenotazione
+      const response = await fetch('/api/bookings/public', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Errore nella creazione della prenotazione');
+      }
+      
+      const bookingData = await response.json();
+      
+      // Procedi con il pagamento
+      if (bookingData.success) {
+        // Reindirizza alla pagina di pagamento
+        const paymentResponse = await fetch('/api/payments/public-checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            bookingId: bookingData.booking?._id || bookingData.bookings?.[0]?._id,
+            isGroupBooking: !!groupBookingSelection,
+            groupBookingIds: bookingData.bookings?.map((b: any) => b._id) || []
+          }),
+        });
+        
+        if (!paymentResponse.ok) {
+          throw new Error('Errore nella creazione del pagamento');
+        }
+        
+        const paymentData = await paymentResponse.json();
+        
+        // Reindirizza alla pagina di checkout di Stripe
+        window.location.href = paymentData.url;
+      }
+    } catch (error) {
+      console.error('Error creating booking:', error);
+      toast.error((error as Error).message || 'Errore nella creazione della prenotazione');
+      setProcessingBooking(false);
+    }
   };
   
   if (loading) {
@@ -652,11 +669,23 @@ export default function BookingPage() {
                             </div>
                           )}
                           
+                          {/* Informazioni metodo di pagamento */}
+                          <div className="mt-4 bg-blue-50 p-4 rounded-md">
+                            <div className="flex items-center mb-2">
+                              <CreditCardIcon className="h-5 w-5 text-blue-600 mr-2" />
+                              <h4 className="font-medium text-blue-900">Informazioni sul Pagamento</h4>
+                            </div>
+                            <p className="text-sm text-blue-700">
+                              Al termine della prenotazione sarai reindirizzato alla pagina di pagamento sicura di Stripe.
+                              Accettiamo tutte le principali carte di credito.
+                            </p>
+                          </div>
+                          
                           {/* Form dati ospite */}
-                          <form className="mt-6 space-y-4" onSubmit={handleCompleteBooking}>
+                          <form className="mt-6 space-y-4">
                             <div>
                               <label htmlFor="guestName" className="block text-sm font-medium text-gray-700">
-                                Nome e Cognome *
+                                Nome e Cognome
                               </label>
                               <input
                                 type="text"
@@ -664,17 +693,19 @@ export default function BookingPage() {
                                 name="guestName"
                                 required
                                 value={bookingFormData.guestName}
-                                onChange={handleBookingFormChange}
-                                className={`mt-1 block w-full rounded-md border ${errors.guestName ? 'border-red-500' : 'border-gray-300'} py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm`}
+                                onChange={handleFormChange}
+                                className={`mt-1 block w-full rounded-md border ${
+                                  formErrors.guestName ? 'border-red-300' : 'border-gray-300'
+                                } py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm`}
                               />
-                              {errors.guestName && (
-                                <p className="mt-1 text-sm text-red-600">{errors.guestName}</p>
+                              {formErrors.guestName && (
+                                <p className="mt-1 text-sm text-red-600">{formErrors.guestName}</p>
                               )}
                             </div>
                             
                             <div>
                               <label htmlFor="guestEmail" className="block text-sm font-medium text-gray-700">
-                                Email *
+                                Email
                               </label>
                               <input
                                 type="email"
@@ -682,17 +713,19 @@ export default function BookingPage() {
                                 name="guestEmail"
                                 required
                                 value={bookingFormData.guestEmail}
-                                onChange={handleBookingFormChange}
-                                className={`mt-1 block w-full rounded-md border ${errors.guestEmail ? 'border-red-500' : 'border-gray-300'} py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm`}
+                                onChange={handleFormChange}
+                                className={`mt-1 block w-full rounded-md border ${
+                                  formErrors.guestEmail ? 'border-red-300' : 'border-gray-300'
+                                } py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm`}
                               />
-                              {errors.guestEmail && (
-                                <p className="mt-1 text-sm text-red-600">{errors.guestEmail}</p>
+                              {formErrors.guestEmail && (
+                                <p className="mt-1 text-sm text-red-600">{formErrors.guestEmail}</p>
                               )}
                             </div>
                             
                             <div>
                               <label htmlFor="guestPhone" className="block text-sm font-medium text-gray-700">
-                                Telefono *
+                                Telefono
                               </label>
                               <input
                                 type="tel"
@@ -700,11 +733,13 @@ export default function BookingPage() {
                                 name="guestPhone"
                                 required
                                 value={bookingFormData.guestPhone}
-                                onChange={handleBookingFormChange}
-                                className={`mt-1 block w-full rounded-md border ${errors.guestPhone ? 'border-red-500' : 'border-gray-300'} py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm`}
+                                onChange={handleFormChange}
+                                className={`mt-1 block w-full rounded-md border ${
+                                  formErrors.guestPhone ? 'border-red-300' : 'border-gray-300'
+                                } py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm`}
                               />
-                              {errors.guestPhone && (
-                                <p className="mt-1 text-sm text-red-600">{errors.guestPhone}</p>
+                              {formErrors.guestPhone && (
+                                <p className="mt-1 text-sm text-red-600">{formErrors.guestPhone}</p>
                               )}
                             </div>
                             
@@ -717,33 +752,40 @@ export default function BookingPage() {
                                 name="notes"
                                 rows={3}
                                 value={bookingFormData.notes}
-                                onChange={handleBookingFormChange}
+                                onChange={handleFormChange}
                                 className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                               />
-                            </div>
-                            
-                            <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                              <button
-                                type="submit"
-                                disabled={bookingLoading}
-                                className="inline-flex w-full justify-center rounded-md border border-transparent px-4 py-2 text-base font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
-                                style={primaryButtonStyle}
-                              >
-                                {bookingLoading ? 'Elaborazione...' : 'Procedi al pagamento'}
-                              </button>
-                              
-                              <button
-                                type="button"
-                                className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                onClick={() => setIsBookingModalOpen(false)}
-                              >
-                                Annulla
-                              </button>
                             </div>
                           </form>
                         </div>
                       </div>
                     </div>
+                  </div>
+                  <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                    <button
+                      type="button"
+                      className="inline-flex w-full justify-center rounded-md border border-transparent px-4 py-2 text-base font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+                      style={primaryButtonStyle}
+                      onClick={handleCompleteBooking}
+                      disabled={processingBooking}
+                    >
+                      {processingBooking ? (
+                        <>
+                          <span className="inline-block animate-spin mr-2">⏳</span>
+                          Elaborazione...
+                        </>
+                      ) : (
+                        'Procedi al pagamento'
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                      onClick={() => setIsBookingModalOpen(false)}
+                      disabled={processingBooking}
+                    >
+                      Annulla
+                    </button>
                   </div>
                 </Dialog.Panel>
               </Transition.Child>
