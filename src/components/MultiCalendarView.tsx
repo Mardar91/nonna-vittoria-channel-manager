@@ -500,12 +500,18 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   
   return (
     <div className="space-y-4">
-      {/* Header del calendario */}
+      {/* Header del calendario - adattato per mobile */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center">
-          <h2 className="text-xl font-semibold mr-6">
+          <h2 className="text-xl font-semibold mr-6 hidden md:block">
             {monthNames[currentMonth]} {currentYear}
           </h2>
+          {/* Versione mobile del titolo del mese */}
+          <div className="flex items-center md:hidden">
+            <span className="text-lg font-semibold">
+              {monthNames[currentMonth]} {currentYear}
+            </span>
+          </div>
           <div className="flex items-center space-x-4">
             <button
               onClick={goToPreviousMonth}
@@ -535,8 +541,8 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         </button>
       </div>
       
-      {/* Legenda */}
-      <div className="flex flex-wrap items-center gap-4 mb-4">
+      {/* Legenda - nascondi su mobile */}
+      <div className="flex flex-wrap items-center gap-4 mb-4 hidden md:flex">
         <div className="flex items-center">
           <div className="w-4 h-4 bg-green-100 border border-green-500 mr-2"></div>
           <span>Prenotato</span>
@@ -559,8 +565,8 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         </div>
       </div>
       
-      {/* Calendario principale - usando una tabella per un layout più coerente */}
-      <div className="overflow-x-auto pb-4">
+      {/* Calendario principale - adattato per mobile */}
+      <div className="overflow-x-auto pb-4 md:pb-6">
         <table className="min-w-full border-collapse">
           <thead className="bg-white sticky top-0 z-10">
             <tr>
@@ -577,12 +583,12 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                 return (
                   <th 
                     key={index} 
-                    className={`border border-gray-200 py-1 min-w-[80px] text-center ${
+                    className={`border border-gray-200 py-1 min-w-[60px] md:min-w-[80px] text-center ${
                       isCurrentDay ? "bg-blue-50" : "bg-gray-100"
                     }`}
                   >
-                    <div className="font-medium">{dateInfo.weekday}</div>
-                    <div className={`text-lg ${isCurrentDay ? "font-bold text-blue-600" : ""}`}>
+                    <div className="font-medium text-xs md:text-sm">{dateInfo.weekday}</div>
+                    <div className={`text-base md:text-lg ${isCurrentDay ? "font-bold text-blue-600" : ""}`}>
                       {dateInfo.day}
                     </div>
                   </th>
@@ -605,7 +611,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                   >
                     <div className="flex justify-between items-center">
                       <span 
-                        className="cursor-pointer hover:text-blue-600"
+                        className="cursor-pointer hover:text-blue-600 truncate text-sm md:text-base"
                         onClick={() => handleApartmentClick(apartment.id)}
                       >
                         {apartment.data?.name || "Appartamento"}
@@ -618,7 +624,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                           onClick={() => openBulkEditModal(apartment.id)}
                         >
                           <AdjustmentsHorizontalIcon className="w-4 h-4 mr-1" />
-                          Modifica {selectedCount} {selectedCount === 1 ? 'data' : 'date'}
+                          <span className="hidden sm:inline">{selectedCount} {selectedCount === 1 ? 'data' : 'date'}</span>
                         </button>
                       )}
                     </div>
@@ -636,7 +642,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                     const price = getPriceForDate(apartment, day);
                     
                     // Determina la classe della cella
-                    let cellClass = "border border-gray-200 p-1 relative h-16 ";
+                    let cellClass = "border border-gray-200 p-1 relative h-14 md:h-16 ";
                     
                     if (isSelected) {
                       cellClass += "bg-indigo-100 ";
@@ -673,7 +679,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                       >
                         <div className="flex flex-col h-full">
                           {/* Prezzo */}
-                          <div className="text-center text-sm font-medium">
+                          <div className="text-center text-xs md:text-sm font-medium">
                             {!booking && !isBlocked && `${price}€`}
                           </div>
                           
@@ -711,7 +717,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                             <div className="text-center mt-1">
                               <input 
                                 type="checkbox" 
-                                className="h-4 w-4 text-blue-600 transition duration-150 ease-in-out" 
+                                className="h-3 w-3 md:h-4 md:w-4 text-blue-600 transition duration-150 ease-in-out" 
                                 checked={isSelected}
                                 onChange={(e) => {
                                   e.stopPropagation();
