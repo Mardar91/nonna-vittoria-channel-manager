@@ -1,3 +1,4 @@
+// src/components/MobileNavigation.tsx
 'use client';
 
 import { useState } from 'react';
@@ -71,9 +72,9 @@ export default function MobileNavigation({ apartments = [] }: MobileNavigationPr
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="flex flex-col items-center justify-center bg-blue-600 -mt-5 rounded-full mx-auto h-16 w-16"
+                  className="flex flex-col items-center justify-center bg-blue-600 -mt-4 rounded-full mx-auto h-14 w-14"
                 >
-                  <item.icon className="h-8 w-8 text-white" />
+                  <item.icon className="h-7 w-7 text-white" />
                 </Link>
               );
             }
@@ -89,12 +90,10 @@ export default function MobileNavigation({ apartments = [] }: MobileNavigationPr
                     <item.icon 
                       className={`h-6 w-6 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} 
                     />
-                    {/* Rimosso il testo sotto le icone */}
                   </Link>
                 ) : (
                   <button className="flex items-center justify-center">
                     <item.icon className="h-6 w-6 text-gray-500" />
-                    {/* Rimosso il testo sotto le icone */}
                   </button>
                 )}
               </div>
