@@ -501,45 +501,45 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   return (
     <div className="space-y-4">
       {/* Header del calendario - adattato per mobile */}
-<div className="flex justify-between items-center mb-4">
-  <div className="flex items-center">
-    <h2 className="text-xl font-semibold mr-6 hidden md:block">
-      {monthNames[currentMonth]} {currentYear}
-    </h2>
-    {/* Versione mobile del titolo del mese */}
-    <div className="flex items-center md:hidden">
-      <span className="text-lg font-semibold">
-        {monthNames[currentMonth]} {currentYear}
-      </span>
-    </div>
-    <div className="flex items-center space-x-4">
-      <button
-        onClick={goToPreviousMonth}
-        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-        disabled={loading}
-      >
-        <ChevronLeftIcon className="w-5 h-5" />
-      </button>
-      <button
-        onClick={goToNextMonth}
-        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-        disabled={loading}
-      >
-        <ChevronRightIcon className="w-5 h-5" />
-      </button>
-    </div>
-  </div>
-  
-  {/* Tasto "Oggi" */}
-  <button
-    onClick={goToToday}
-    className="flex items-center px-3 py-1 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-600 transition-colors shadow-sm"
-    disabled={loading}
-  >
-    <CalendarIcon className="w-4 h-4 mr-1" />
-    Oggi
-  </button>
-</div>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center">
+          <h2 className="text-xl font-semibold mr-6 hidden md:block">
+            {monthNames[currentMonth]} {currentYear}
+          </h2>
+          {/* Versione mobile del titolo del mese */}
+          <div className="flex items-center md:hidden">
+            <span className="text-lg font-semibold">
+              {monthNames[currentMonth]} {currentYear}
+            </span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={goToPreviousMonth}
+              className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+              disabled={loading}
+            >
+              <ChevronLeftIcon className="w-5 h-5" />
+            </button>
+            <button
+              onClick={goToNextMonth}
+              className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+              disabled={loading}
+            >
+              <ChevronRightIcon className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        
+        {/* Tasto "Oggi" */}
+        <button
+          onClick={goToToday}
+          className="flex items-center px-3 py-1 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-600 transition-colors shadow-sm"
+          disabled={loading}
+        >
+          <CalendarIcon className="w-4 h-4 mr-1" />
+          Oggi
+        </button>
+      </div>
       
       {/* Legenda - nascondi su mobile */}
       <div className="flex flex-wrap items-center gap-4 mb-4 hidden md:flex">
@@ -570,12 +570,12 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         <table className="min-w-full border-collapse">
           <thead className="bg-white sticky top-0 z-10">
             <tr>
-              {/* Intestazione appartamento */}
-              <th className="sticky left-0 z-20 bg-gray-100 border border-gray-200 py-3 px-4 min-w-[180px] text-left font-medium">
+              {/* Intestazione appartamento - ridotta per mobile */}
+              <th className="sticky left-0 z-20 bg-gray-100 border border-gray-200 py-3 px-2 md:px-4 min-w-[100px] md:min-w-[180px] text-left font-medium">
                 Appartamento
               </th>
               
-              {/* Intestazioni dei giorni */}
+              {/* Intestazioni dei giorni - aumentata per mobile */}
               {calendarDays.map((day, index) => {
                 const dateInfo = formatDate(day);
                 const isCurrentDay = isToday(day);
@@ -583,7 +583,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                 return (
                   <th 
                     key={index} 
-                    className={`border border-gray-200 py-1 min-w-[60px] md:min-w-[80px] text-center ${
+                    className={`border border-gray-200 py-1 min-w-[75px] md:min-w-[80px] text-center ${
                       isCurrentDay ? "bg-blue-50" : "bg-gray-100"
                     }`}
                   >
@@ -605,9 +605,9 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
               
               return (
                 <tr key={apartment.id}>
-                  {/* Nome appartamento */}
+                  {/* Nome appartamento - ridotta per mobile */}
                   <td 
-                    className="sticky left-0 z-10 bg-white border border-gray-200 py-3 px-4 font-medium"
+                    className="sticky left-0 z-10 bg-white border border-gray-200 py-3 px-2 md:px-4 font-medium"
                   >
                     <div className="flex justify-between items-center">
                       <span 
@@ -620,11 +620,11 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                       {/* Pulsante modifica in blocco - visibile solo se ci sono date selezionate */}
                       {selectedCount > 0 && (
                         <button
-                          className="ml-2 p-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-md text-xs flex items-center"
+                          className="ml-1 md:ml-2 p-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-md text-xs flex items-center"
                           onClick={() => openBulkEditModal(apartment.id)}
                         >
-                          <AdjustmentsHorizontalIcon className="w-4 h-4 mr-1" />
-                          <span className="hidden sm:inline">{selectedCount} {selectedCount === 1 ? 'data' : 'date'}</span>
+                          <AdjustmentsHorizontalIcon className="w-4 h-4 md:mr-1" />
+                          <span className="hidden sm:inline">{selectedCount}</span>
                         </button>
                       )}
                     </div>
