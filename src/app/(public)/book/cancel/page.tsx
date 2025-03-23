@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { XCircleIcon } from '@heroicons/react/24/outline';
 
-export default function BookingCancelPage() {
+// Componente che utilizza useSearchParams
+function CancelContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
   const isGroup = searchParams.get('group');
@@ -96,5 +97,18 @@ export default function BookingCancelPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// Componente principale che avvolge il contenuto in Suspense
+export default function BookingCancelPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    }>
+      <CancelContent />
+    </Suspense>
   );
 }
