@@ -31,6 +31,14 @@ export async function importICalEvents(url: string): Promise<ICalEvent[]> {
         continue;
       }
 
+      // Normalizza le date rimuovendo l'informazione sul fuso orario
+      // Imposta le ore a 12:00 per evitare problemi di fuso orario
+      const startDate = new Date(event.start);
+      startDate.setHours(12, 0, 0, 0);
+      
+      const endDate = new Date(event.end);
+      endDate.setHours(12, 0, 0, 0);
+
       // Estrai più informazioni possibili dall'evento
       const summary = event.summary || 'Prenotazione esterna';
       let description = event.description || '';
@@ -57,8 +65,8 @@ export async function importICalEvents(url: string): Promise<ICalEvent[]> {
       }
 
       bookings.push({
-        start: event.start,
-        end: event.end,
+        start: startDate,
+        end: endDate,
         summary,
         description,
         uid: event.uid || uuidv4(),
@@ -93,9 +101,16 @@ export function generateICalFeed(apartment: IApartment, bookings: IBooking[]): s
       booking.notes ? `Note: ${booking.notes}` : '',
     ].filter(Boolean).join('\n');
 
+    // Normalizza le date di check-in e check-out
+    const checkIn = new Date(booking.checkIn);
+    checkIn.setHours(12, 0, 0, 0);
+    
+    const checkOut = new Date(booking.checkOut);
+    checkOut.setHours(12, 0, 0, 0);
+
     calendar.createEvent({
-      start: booking.checkIn,
-      end: booking.checkOut,
+      start: checkIn,
+      end: checkOut,
       summary,
       description,
       id: booking._id?.toString() || uuidv4(),
