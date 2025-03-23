@@ -122,7 +122,7 @@ async function handleRequest(req: NextRequest) {
                   source = 'booking';
                 }
                 
-                // Crea una nuova prenotazione
+                // Crea una nuova prenotazione - Accetta sempre prenotazioni importate, anche con soggiorno minimo inferiore
                 const booking = await BookingModel.create({
                   apartmentId: apartment._id,
                   guestName: guestInfo.name || 'Ospite',
