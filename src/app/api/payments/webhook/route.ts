@@ -37,14 +37,31 @@ export async function POST(req: NextRequest) {
       
       await connectDB();
       
-      // Trova e aggiorna la prenotazione
-      const bookingId = session.metadata.bookingId;
-      if (bookingId) {
-        const booking = await BookingModel.findById(bookingId);
-        if (booking) {
-          booking.status = 'confirmed';
-          booking.paymentStatus = 'paid';
-          await booking.save();
+      // Verifica se è una prenotazione di gruppo
+      const isGroupBooking = session.metadata.isGroupBooking === 'true';
+      
+      if (isGroupBooking) {
+        // Per prenotazioni di gruppo
+        const groupBookingIds = session.metadata.groupBookingIds.split(',');
+        
+        // Aggiorna tutte le prenotazioni del gruppo
+        await BookingModel.updateMany(
+          { _id: { $in: groupBookingIds } },
+          {
+            status: 'confirmed',
+            paymentStatus: 'paid'
+          }
+        );
+      } else {
+        // Per prenotazione singola
+        const bookingId = session.metadata.bookingId;
+        if (bookingId) {
+          const booking = await BookingModel.findById(bookingId);
+          if (booking) {
+            booking.status = 'confirmed';
+            booking.paymentStatus = 'paid';
+            await booking.save();
+          }
         }
       }
     } else if (event.type === 'checkout.session.expired') {
@@ -53,13 +70,27 @@ export async function POST(req: NextRequest) {
       
       await connectDB();
       
-      // Trova la prenotazione
-      const bookingId = session.metadata.bookingId;
-      if (bookingId) {
-        const booking = await BookingModel.findById(bookingId);
-        if (booking && booking.status === 'pending') {
-          booking.paymentStatus = 'failed';
-          await booking.save();
+      // Verifica se è una prenotazione di gruppo
+      const isGroupBooking = session.metadata.isGroupBooking === 'true';
+      
+      if (isGroupBooking) {
+        // Per prenotazioni di gruppo
+        const groupBookingIds = session.metadata.groupBookingIds.split(',');
+        
+        // Aggiorna lo stato di tutte le prenotazioni del gruppo
+        await BookingModel.updateMany(
+          { _id: { $in: groupBookingIds }, status: 'pending' },
+          { paymentStatus: 'failed' }
+        );
+      } else {
+        // Per prenotazione singola
+        const bookingId = session.metadata.bookingId;
+        if (bookingId) {
+          const booking = await BookingModel.findById(bookingId);
+          if (booking && booking.status === 'pending') {
+            booking.paymentStatus = 'failed';
+            await booking.save();
+          }
         }
       }
     }
