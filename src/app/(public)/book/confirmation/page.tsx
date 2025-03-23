@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 
-export default function BookingConfirmationPage() {
+// Componente che utilizza useSearchParams
+function ConfirmationContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const [loading, setLoading] = useState(true);
@@ -184,5 +185,18 @@ export default function BookingConfirmationPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// Componente principale che avvolge il contenuto in Suspense
+export default function BookingConfirmationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    }>
+      <ConfirmationContent />
+    </Suspense>
   );
 }
