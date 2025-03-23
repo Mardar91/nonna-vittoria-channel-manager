@@ -1,0 +1,200 @@
+import { NextRequest, NextResponse } from 'next/server';
+import connectDB from '@/lib/db';
+import ApartmentModel from '@/models/Apartment';
+import BookingModel from '@/models/Booking';
+import DailyRateModel from '@/models/DailyRate';
+import PublicProfileModel from '@/models/PublicProfile';
+import { checkAvailability } from '@/lib/ical';
+
+// Funzione per verificare la disponibilità di un appartamento
+async function checkApartmentAvailability(
+  apartmentId: string,
+  checkIn: Date,
+  checkOut: Date
+) {
+  // Verifica prenotazioni esistenti
+  const existingBookings = await BookingModel.find({
+    apartmentId,
+    status: { $ne: 'cancelled' },
+    $or: [
+      {
+        checkIn: { $lt: checkOut },
+        checkOut: { $gt: checkIn }
+      }
+    ]
+  });
+
+  if (existingBookings.length > 0) {
+    return { available: false };
+  }
+
+  // Verifica se ci sono date bloccate nel periodo
+  const blockedDates = await DailyRateModel.find({
+    apartmentId,
+    date: { $gte: checkIn, $lt: checkOut },
+    isBlocked: true
+  });
+
+  if (blockedDates.length > 0) {
+    return { available: false };
+  }
+
+  // Verifica soggiorno minimo
+  const minStayForCheckIn = await DailyRateModel.findOne({
+    apartmentId,
+    date: checkIn
+  });
+
+  // Calcola le notti
+  const nights = Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+  
+  const apartment = await ApartmentModel.findById(apartmentId);
+  
+  // Usa il soggiorno minimo personalizzato o quello predefinito dell'appartamento
+  const minimumStay = minStayForCheckIn?.minStay || (apartment?.minStay || 1);
+  
+  if (nights < minimumStay) {
+    return { 
+      available: false, 
+      reason: 'min_stay', 
+      minStay: minimumStay 
+    };
+  }
+
+  // Se arriviamo qui, l'appartamento è disponibile
+  return { 
+    available: true,
+    apartment: apartment 
+  };
+}
+
+// POST: Verificare la disponibilità degli appartamenti
+export async function POST(req: NextRequest) {
+  try {
+    const data = await req.json();
+    const { checkIn, checkOut, guests, children = 0 } = data;
+    
+    // Validazione
+    if (!checkIn || !checkOut || !guests) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+    
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    
+    // Verifica che le date siano valide
+    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
+      return NextResponse.json(
+        { error: 'Invalid dates' },
+        { status: 400 }
+      );
+    }
+    
+    // Verifica che il check-out sia dopo il check-in
+    if (checkInDate >= checkOutDate) {
+      return NextResponse.json(
+        { error: 'Check-out must be after check-in' },
+        { status: 400 }
+      );
+    }
+    
+    // Calcola il totale degli ospiti
+    const totalGuests = parseInt(guests) + parseInt(children.toString());
+    
+    await connectDB();
+    
+    // Ottieni il profilo pubblico per verificare se il booking di gruppo è consentito
+    const profile = await PublicProfileModel.findOne({});
+    const allowGroupBooking = profile?.allowGroupBooking || false;
+    
+    // Ottieni tutti gli appartamenti
+    const apartments = await ApartmentModel.find({}).sort({ maxGuests: -1 });
+    
+    // Risultati
+    const availableApartments = [];
+    const groupBookingOptions = [];
+    
+    // Verifica la disponibilità per ciascun appartamento
+    for (const apartment of apartments) {
+      // Verifica che l'appartamento possa ospitare tutti gli ospiti
+      if (apartment.maxGuests >= totalGuests) {
+        const result = await checkApartmentAvailability(
+          apartment._id.toString(),
+          checkInDate,
+          checkOutDate
+        );
+        
+        if (result.available) {
+          availableApartments.push({
+            ...apartment.toObject(),
+            nights: Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)),
+          });
+        }
+      }
+    }
+    
+    // Se non ci sono appartamenti disponibili per tutti gli ospiti insieme, ma il booking di gruppo è consentito
+    if (availableApartments.length === 0 && allowGroupBooking && totalGuests > 1) {
+      // Ottieni tutti gli appartamenti disponibili
+      const allAvailableApts = [];
+      
+      for (const apartment of apartments) {
+        const result = await checkApartmentAvailability(
+          apartment._id.toString(),
+          checkInDate,
+          checkOutDate
+        );
+        
+        if (result.available) {
+          allAvailableApts.push({
+            ...apartment.toObject(),
+            nights: Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)),
+          });
+        }
+      }
+      
+      // Crea combinazioni di appartamenti per ospitare tutti gli ospiti
+      if (allAvailableApts.length >= 2) {
+        // Ordina gli appartamenti per capacità
+        allAvailableApts.sort((a, b) => b.maxGuests - a.maxGuests);
+        
+        // Algoritmo semplice per trovare combinazioni
+        let remainingGuests = totalGuests;
+        const combination = [];
+        
+        for (const apt of allAvailableApts) {
+          if (remainingGuests <= 0) break;
+          
+          // Aggiungi questo appartamento alla combinazione
+          combination.push(apt);
+          
+          // Aggiorna gli ospiti rimanenti
+          remainingGuests -= apt.maxGuests;
+        }
+        
+        // Se abbiamo trovato una combinazione che può ospitare tutti
+        if (remainingGuests <= 0) {
+          groupBookingOptions.push(combination);
+        }
+      }
+    }
+    
+    return NextResponse.json({
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      guests: totalGuests,
+      availableApartments,
+      groupBookingOptions,
+      allowGroupBooking
+    });
+  } catch (error) {
+    console.error('Error checking availability:', error);
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}
