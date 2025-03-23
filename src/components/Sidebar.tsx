@@ -9,7 +9,8 @@ import {
   CreditCardIcon,
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
-  ViewColumnsIcon, // Nuova icona per Multi Calendar
+  ViewColumnsIcon,
+  GlobeAltIcon, // Nuova icona per Profilo Online
 } from '@heroicons/react/24/outline';
 import { signOut } from 'next-auth/react';
 
@@ -36,6 +37,11 @@ const Sidebar = () => {
       name: 'Prenotazioni',
       href: '/bookings',
       icon: CalendarIcon,
+    },
+    {
+      name: 'Profilo Online',
+      href: '/online-profile',
+      icon: GlobeAltIcon,
     },
     {
       name: 'Pagamenti',
