@@ -54,6 +54,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   const [bulkEditApartmentId, setBulkEditApartmentId] = useState<string | null>(null);
   const [bulkEditPrice, setBulkEditPrice] = useState<number | ''>('');
   const [bulkEditMinStay, setBulkEditMinStay] = useState<number | ''>('');
+  const [bulkEditIsBlocked, setBulkEditIsBlocked] = useState<boolean | null>(null);
   
   // Genera i giorni del calendario per il mese corrente
   useEffect(() => {
@@ -137,7 +138,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     router.push(`/apartments/${apartmentId}`);
   };
   
-  const handleDateClick = (apartmentId: string, date: Date, event: React.MouseEvent) => {
+  const handleDateClick = (apartmentId: string, date: Date, event: React.MouseEvent, booking: Booking | null) => {
     try {
       // Verifica se l'elemento cliccato è un checkbox
       if ((event.target as HTMLElement).tagName === 'INPUT') {
@@ -211,6 +212,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     setBulkEditApartmentId(apartmentId);
     setBulkEditPrice('');
     setBulkEditMinStay('');
+    setBulkEditIsBlocked(null);
     setIsBulkEditModalOpen(true);
   };
   
@@ -292,6 +294,10 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       
       if (bulkEditMinStay !== '') {
         updateData.minStay = Number(bulkEditMinStay);
+      }
+      
+      if (bulkEditIsBlocked !== null) {
+        updateData.isBlocked = bulkEditIsBlocked;
       }
       
       // Chiamata all'API per l'aggiornamento in blocco
@@ -661,7 +667,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                       <td 
                         key={dayIndex} 
                         className={cellClass}
-                        onClick={(e) => !isPast && !booking && handleDateClick(apartment.id, day, e)}
+                        onClick={(e) => handleDateClick(apartment.id, day, e, booking)}
                         onMouseLeave={handleCellMouseLeave}
                         ref={isCurrentDay ? todayCellRef : null}
                       >
@@ -733,6 +739,32 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               <span className="mr-2">📅</span> Calendario
                             </button>
                             
+                            {/* Opzioni per celle con prenotazione */}
+                            {booking && (
+                              <button
+                                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                                onClick={() => {
+                                  setActiveDropdown(null);
+                                  router.push(`/bookings/${booking.id}`);
+                                }}
+                              >
+                                <span className="mr-2">👁️</span> Dettagli Prenotazione
+                              </button>
+                            )}
+                            
+                            {booking && (
+                              <button
+                                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                                onClick={() => {
+                                  setActiveDropdown(null);
+                                  router.push(`/bookings/${booking.id}/edit`);
+                                }}
+                              >
+                                <span className="mr-2">✏️</span> Modifica Prenotazione
+                              </button>
+                            )}
+                            
+                            {/* Opzioni per celle disponibili */}
                             {!booking && !isBlocked && (
                               <button
                                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700"
@@ -744,6 +776,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               </button>
                             )}
                             
+                            {/* Opzioni per celle bloccate */}
                             {!booking && isBlocked && (
                               <button
                                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
@@ -755,7 +788,8 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               </button>
                             )}
                             
-                            {!booking && !isBlocked && (
+                            {/* Opzione prenota sempre disponibile se non c'è prenotazione */}
+                            {!booking && (
                               <button
                                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
                                 onClick={() => {
@@ -845,6 +879,51 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                               placeholder="Lascia vuoto per non modificare"
                             />
+                          </div>
+                        </div>
+                        
+                        {/* Blocco date */}
+                        <div className="flex items-center space-x-3">
+                          <div className="flex space-x-3 items-center">
+                            <input
+                              type="radio"
+                              id="bulk-blocked-true"
+                              name="bulk-blocked"
+                              checked={bulkEditIsBlocked === true}
+                              onChange={() => setBulkEditIsBlocked(true)}
+                              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            />
+                            <label htmlFor="bulk-blocked-true" className="text-sm text-gray-700">
+                              Blocca date
+                            </label>
+                          </div>
+                          
+                          <div className="flex space-x-3 items-center">
+                            <input
+                              type="radio"
+                              id="bulk-blocked-false"
+                              name="bulk-blocked"
+                              checked={bulkEditIsBlocked === false}
+                              onChange={() => setBulkEditIsBlocked(false)}
+                              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            />
+                            <label htmlFor="bulk-blocked-false" className="text-sm text-gray-700">
+                              Sblocca date
+                            </label>
+                          </div>
+                          
+                          <div className="flex space-x-3 items-center">
+                            <input
+                              type="radio"
+                              id="bulk-blocked-unchanged"
+                              name="bulk-blocked"
+                              checked={bulkEditIsBlocked === null}
+                              onChange={() => setBulkEditIsBlocked(null)}
+                              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            />
+                            <label htmlFor="bulk-blocked-unchanged" className="text-sm text-gray-700">
+                              Non modificare
+                            </label>
                           </div>
                         </div>
                       </div>
