@@ -10,7 +10,6 @@
   "version": 2,
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
   "regions": ["arn1"],
   "headers": [
     {
