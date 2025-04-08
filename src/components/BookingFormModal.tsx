@@ -7,6 +7,7 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import { calculateTotalPrice } from '@/lib/utils';
 
 interface BookingFormModalProps {
   isOpen: boolean;
@@ -37,12 +38,32 @@ export default function BookingFormModal({
     numberOfGuests: 1,
     checkIn: startDate,
     checkOut: endDate,
-    totalPrice: calculateTotalPrice(startDate, endDate, apartmentData.price),
+    totalPrice: 0,
     status: 'confirmed',
     paymentStatus: 'pending',
     source: 'direct',
     notes: '',
   });
+
+  // Calcola il prezzo totale quando cambiano le date o il numero di ospiti
+  useEffect(() => {
+    if (isOpen) {
+      const nights = Math.ceil((formData.checkOut.getTime() - formData.checkIn.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const totalPrice = calculateTotalPrice(
+        apartmentData, 
+        formData.numberOfGuests, 
+        nights
+      );
+      
+      setFormData(prev => ({
+        ...prev,
+        checkIn: startDate,
+        checkOut: endDate,
+        totalPrice
+      }));
+    }
+  }, [startDate, endDate, formData.numberOfGuests, isOpen, apartmentData]);
 
   // Helper per verificare se la durata del soggiorno è valida
   const isValidStayDuration = (checkIn: Date, checkOut: Date): boolean => {
@@ -51,24 +72,6 @@ export default function BookingFormModal({
     const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
     return nights >= minStay;
   };
-
-  // Importante: useEffect invece di useState per reagire ai cambiamenti nelle date
-  useEffect(() => {
-    if (isOpen) { // Solo quando il modal è aperto
-      setFormData(prev => ({
-        ...prev,
-        checkIn: startDate,
-        checkOut: endDate,
-        totalPrice: calculateTotalPrice(startDate, endDate, apartmentData.price)
-      }));
-    }
-  }, [startDate, endDate, isOpen, apartmentData.price]);
-
-  // Calcola il prezzo totale basato sulle date
-  function calculateTotalPrice(checkIn: Date, checkOut: Date, pricePerNight: number): number {
-    const days = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-    return days * pricePerNight;
-  }
 
   // Gestisci il cambio nei campi del form
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -100,14 +103,16 @@ export default function BookingFormModal({
         }
       }
       
-      const newFormData = { 
+      // Calcola il nuovo prezzo totale
+      const nights = Math.ceil((newCheckOut.getTime() - newCheckIn.getTime()) / (1000 * 60 * 60 * 24));
+      const totalPrice = calculateTotalPrice(apartmentData, formData.numberOfGuests, nights);
+      
+      setFormData({ 
         ...formData, 
         checkIn: newCheckIn, 
         checkOut: newCheckOut,
-        totalPrice: calculateTotalPrice(newCheckIn, newCheckOut, apartmentData.price)
-      };
-      
-      setFormData(newFormData);
+        totalPrice
+      });
     }
   };
 
@@ -192,7 +197,7 @@ export default function BookingFormModal({
                 </div>
                 
                 <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
                     <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900">
                       Nuova Prenotazione: {apartmentData.name}
                     </Dialog.Title>
@@ -201,6 +206,22 @@ export default function BookingFormModal({
                     {effectiveMinStay > 1 && (
                       <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
                         Questo appartamento richiede un soggiorno minimo di {effectiveMinStay} notti.
+                      </div>
+                    )}
+                    
+                    {/* Informazione sul prezzo per persona, se applicabile */}
+                    {apartmentData.priceType === 'per_person' && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+                        Il prezzo è di €{apartmentData.price.toFixed(2)} per persona per notte.
+                      </div>
+                    )}
+                    
+                    {/* Informazione sul sovrapprezzo per ospiti, se applicabile */}
+                    {apartmentData.priceType === 'flat' && apartmentData.extraGuestPrice > 0 && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+                        {apartmentData.extraGuestPriceType === 'fixed' 
+                          ? `Sovrapprezzo di €${apartmentData.extraGuestPrice.toFixed(2)} per ogni ospite oltre ${apartmentData.baseGuests}.`
+                          : `Sovrapprezzo del ${apartmentData.extraGuestPrice}% per ogni ospite oltre ${apartmentData.baseGuests}.`}
                       </div>
                     )}
                     
@@ -300,6 +321,11 @@ export default function BookingFormModal({
                             required
                             className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                           />
+                          {formData.numberOfGuests > apartmentData.maxGuests && (
+                            <p className="mt-1 text-xs text-red-600">
+                              Massimo {apartmentData.maxGuests} ospiti consentiti.
+                            </p>
+                          )}
                         </div>
 
                         <div>
@@ -344,7 +370,7 @@ export default function BookingFormModal({
                         </button>
                         <button
                           type="button"
-                          className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                          className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto"
                           onClick={onClose}
                         >
                           Annulla
