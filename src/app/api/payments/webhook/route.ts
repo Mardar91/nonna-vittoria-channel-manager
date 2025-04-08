@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
           }
         }
       }
-    } else if (event.type === 'checkout.session.expired') {
-      // Se la sessione è scaduta
+    } else if (event.type === 'checkout.session.expired' || event.type === 'checkout.session.async_payment_failed') {
+      // Se la sessione è scaduta o il pagamento è fallito
       const session = event.data.object as any;
       
       await connectDB();
@@ -77,18 +77,24 @@ export async function POST(req: NextRequest) {
         // Per prenotazioni di gruppo
         const groupBookingIds = session.metadata.groupBookingIds.split(',');
         
-        // Aggiorna lo stato di tutte le prenotazioni del gruppo
+        // Marca tutte le prenotazioni del gruppo come cancellate
         await BookingModel.updateMany(
-          { _id: { $in: groupBookingIds }, status: 'pending' },
-          { paymentStatus: 'failed' }
+          { _id: { $in: groupBookingIds } },
+          {
+            status: 'cancelled',
+            paymentStatus: 'failed',
+            notes: booking => `${booking.notes || ''} Cancellata automaticamente: pagamento non completato`
+          }
         );
       } else {
         // Per prenotazione singola
         const bookingId = session.metadata.bookingId;
         if (bookingId) {
           const booking = await BookingModel.findById(bookingId);
-          if (booking && booking.status === 'pending') {
+          if (booking && booking.status === 'inquiry') {
+            booking.status = 'cancelled';
             booking.paymentStatus = 'failed';
+            booking.notes = `${booking.notes || ''} Cancellata automaticamente: pagamento non completato`;
             await booking.save();
           }
         }
