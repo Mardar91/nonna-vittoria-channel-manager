@@ -71,7 +71,8 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Aggiorna la prenotazione con l'ID della sessione Stripe
+      // Aggiorna la prenotazione con l'ID della sessione Stripe,
+      // ma mantieni lo stato come 'inquiry' fino a pagamento completato
       booking.paymentId = session.id;
       await booking.save();
 
