@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { IPublicProfile } from '@/models/PublicProfile';
 import { IApartment } from '@/models/Apartment';
+import { calculateTotalPrice } from '@/lib/utils';
 
 interface SearchState {
   checkIn: Date;
@@ -172,9 +173,15 @@ export default function BookingPage() {
   };
   
   // Calcola il prezzo totale
-  const calculateTotalPrice = (apartment: any): number => {
-    if (!apartment || !apartment.price || !apartment.nights) return 0;
-    return apartment.price * apartment.nights;
+  const getTotalPrice = (apartment: any): number => {
+    if (!apartment || !apartment.nights) return 0;
+    
+    // Usa la funzione di calcolo del prezzo
+    return calculateTotalPrice(
+      apartment,
+      search.adults + search.children,
+      apartment.nights
+    );
   };
   
   // Calcola il prezzo totale per prenotazione di gruppo
@@ -182,7 +189,7 @@ export default function BookingPage() {
     if (!apartments || apartments.length === 0) return 0;
     
     return apartments.reduce((total, apt) => {
-      return total + (apt.price * apt.nights);
+      return total + getTotalPrice(apt);
     }, 0);
   };
   
@@ -495,10 +502,28 @@ export default function BookingPage() {
                           {apartment.description && apartment.description.length > 100 ? '...' : ''}
                         </p>
                         
+                        {/* Informazioni sul prezzo */}
+                        <div className="mt-2 text-sm text-gray-600">
+                          {apartment.priceType === 'per_person' ? (
+                            <p>€{apartment.price.toFixed(2)} per persona per notte</p>
+                          ) : (
+                            <>
+                              <p>€{apartment.price.toFixed(2)} per notte (fino a {apartment.baseGuests} ospiti)</p>
+                              {apartment.extraGuestPrice > 0 && search.adults + search.children > apartment.baseGuests && (
+                                <p className="text-xs text-gray-500">
+                                  {apartment.extraGuestPriceType === 'fixed' 
+                                    ? `+€${apartment.extraGuestPrice.toFixed(2)} per ogni ospite extra`
+                                    : `+${apartment.extraGuestPrice}% per ogni ospite extra`}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        
                         <div className="mt-4 flex justify-between items-center">
                           <div>
                             <div className="text-sm text-gray-500">Prezzo per {apartment.nights} notti</div>
-                            <div className="text-2xl font-bold">€{calculateTotalPrice(apartment).toFixed(2)}</div>
+                            <div className="text-2xl font-bold">€{getTotalPrice(apartment).toFixed(2)}</div>
                           </div>
                           
                           <button
@@ -534,7 +559,7 @@ export default function BookingPage() {
                                   <div className="font-medium">{apt.name}</div>
                                   <div className="text-sm text-gray-600">Max {apt.maxGuests} ospiti</div>
                                 </div>
-                                <div className="font-medium">€{(apt.price * apt.nights).toFixed(2)}</div>
+                                <div className="font-medium">€{getTotalPrice(apt).toFixed(2)}</div>
                               </li>
                             ))}
                           </ul>
@@ -642,9 +667,28 @@ export default function BookingPage() {
                             <div className="mt-4">
                               <h4 className="font-medium text-gray-900 mb-2">Riepilogo Appartamento</h4>
                               <p className="text-sm text-gray-600 mb-2">{selectedApartment.description}</p>
-                              <div className="flex justify-between items-center font-medium">
+                              
+                              {/* Info prezzo dinamico */}
+                              <div className="mt-2 text-sm text-gray-600">
+                                {selectedApartment.priceType === 'per_person' ? (
+                                  <p>€{selectedApartment.price.toFixed(2)} per persona per notte</p>
+                                ) : (
+                                  <>
+                                    <p>€{selectedApartment.price.toFixed(2)} per notte (fino a {selectedApartment.baseGuests} ospiti)</p>
+                                    {selectedApartment.extraGuestPrice > 0 && search.adults + search.children > selectedApartment.baseGuests && (
+                                      <p className="text-xs text-gray-500">
+                                        {selectedApartment.extraGuestPriceType === 'fixed' 
+                                          ? `+€${selectedApartment.extraGuestPrice.toFixed(2)} per ogni ospite extra`
+                                          : `+${selectedApartment.extraGuestPrice}% per ogni ospite extra`}
+                                      </p>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                              
+                              <div className="flex justify-between items-center font-medium mt-2">
                                 <span>Prezzo totale:</span>
-                                <span>€{calculateTotalPrice(selectedApartment).toFixed(2)}</span>
+                                <span>€{getTotalPrice(selectedApartment).toFixed(2)}</span>
                               </div>
                             </div>
                           )}
@@ -658,7 +702,7 @@ export default function BookingPage() {
                                   <p className="font-medium">{apt.name}</p>
                                   <div className="flex justify-between items-center text-sm text-gray-600">
                                     <span>Max {apt.maxGuests} ospiti</span>
-                                    <span>€{(apt.price * apt.nights).toFixed(2)}</span>
+                                    <span>€{getTotalPrice(apt).toFixed(2)}</span>
                                   </div>
                                 </div>
                               ))}
