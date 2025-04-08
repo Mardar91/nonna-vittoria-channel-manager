@@ -410,7 +410,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
           const dateToCheck = new Date(date);
           dateToCheck.setHours(0, 0, 0, 0);
           
-          return dateToCheck >= checkIn && dateToCheck < checkOut;
+          return booking.status === 'confirmed' && dateToCheck >= checkIn && dateToCheck < checkOut;
         } catch {
           return false;
         }
@@ -432,7 +432,6 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       
       const dateToCheck = new Date(date);
       dateToCheck.setHours(0, 0, 0, 0);
-      
       if (dateToCheck.getTime() === checkIn.getTime()) {
         return 'start';
       }
