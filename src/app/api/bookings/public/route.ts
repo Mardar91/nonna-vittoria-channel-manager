@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
       const startDate = new Date(checkIn);
       const endDate = new Date(checkOut);
       
-      // Verifica prenotazioni esistenti
+      // Verifica prenotazioni esistenti - MODIFICA: verifica solo prenotazioni CONFERMATE
       const existingBookings = await BookingModel.find({
         apartmentId,
-        status: { $ne: 'cancelled' },
+        status: 'confirmed', // Modifica: controlla solo le prenotazioni confermate
         $or: [
           {
             checkIn: { $lt: endDate },
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       const nights = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
       const totalPrice = apartment.price * nights;
       
-      // Crea la prenotazione
+      // Crea la prenotazione con stato 'inquiry'
       const booking = await BookingModel.create({
         apartmentId,
         guestName,
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
         checkOut: endDate,
         totalPrice,
         numberOfGuests,
-        status: 'pending',
+        status: 'inquiry', // Modifica: inizialmente è una richiesta, non una prenotazione in attesa
         paymentStatus: 'pending',
         source: 'direct',
         notes
@@ -135,10 +135,10 @@ export async function POST(req: NextRequest) {
           );
         }
         
-        // Verifica prenotazioni esistenti
+        // Verifica prenotazioni esistenti - solo prenotazioni CONFERMATE
         const existingBookings = await BookingModel.find({
           apartmentId: aptId,
-          status: { $ne: 'cancelled' },
+          status: 'confirmed', // Verifica solo prenotazioni confermate
           $or: [
             {
               checkIn: { $lt: endDate },
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
         const totalPrice = apartment.price * nights;
         totalGroupPrice += totalPrice;
         
-        // Prepara la prenotazione da creare
+        // Prepara la prenotazione da creare con stato 'inquiry'
         bookingsToCreate.push({
           apartmentId: aptId,
           guestName,
@@ -168,8 +168,8 @@ export async function POST(req: NextRequest) {
           checkIn: startDate,
           checkOut: endDate,
           totalPrice,
-          numberOfGuests, // Questo sarà diviso tra gli appartamenti nella prenotazione reale
-          status: 'pending',
+          numberOfGuests, 
+          status: 'inquiry', // Stato iniziale come 'inquiry'
           paymentStatus: 'pending',
           source: 'direct',
           notes: `${notes ? notes + ' - ' : ''}Parte di prenotazione di gruppo`
