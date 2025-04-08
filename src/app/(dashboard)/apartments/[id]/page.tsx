@@ -72,7 +72,20 @@ export default async function ApartmentDetailPage({ params }: { params: { id: st
             
             <div>
               <p className="text-sm font-medium text-gray-500">Prezzo</p>
-              <p className="mt-1">€{apartment.price.toFixed(2)} / notte</p>
+              {apartment.priceType === 'per_person' ? (
+                <p className="mt-1">€{apartment.price.toFixed(2)} / per persona per notte</p>
+              ) : (
+                <div>
+                  <p className="mt-1">€{apartment.price.toFixed(2)} / notte (fino a {apartment.baseGuests} ospiti)</p>
+                  {apartment.extraGuestPrice > 0 && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      {apartment.extraGuestPriceType === 'fixed' 
+                        ? `+€${apartment.extraGuestPrice.toFixed(2)} per ogni ospite aggiuntivo`
+                        : `+${apartment.extraGuestPrice}% per ogni ospite aggiuntivo`}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             
             <div>
@@ -88,6 +101,11 @@ export default async function ApartmentDetailPage({ params }: { params: { id: st
             <div>
               <p className="text-sm font-medium text-gray-500">Ospiti Massimi</p>
               <p className="mt-1">{apartment.maxGuests}</p>
+            </div>
+            
+            <div>
+              <p className="text-sm font-medium text-gray-500">Soggiorno Minimo</p>
+              <p className="mt-1">{apartment.minStay} notti</p>
             </div>
           </div>
           
