@@ -1,4 +1,3 @@
-// src/components/BookingForm.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,6 +7,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import toast from 'react-hot-toast';
 import { IBooking } from '@/models/Booking';
 import { IApartment } from '@/models/Apartment';
+import { calculateTotalPrice } from '@/lib/utils';
 
 interface BookingFormProps {
   booking?: IBooking;
@@ -36,22 +36,30 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
     notes: '',
   });
 
-  // Calcola il prezzo totale quando cambia l'appartamento o le date
+  // Ottieni l'appartamento selezionato
+  const selectedApartment = apartments.find(a => a._id === formData.apartmentId);
+
+  // Calcola il prezzo totale quando cambia l'appartamento, le date o il numero di ospiti
   useEffect(() => {
-    if (formData.apartmentId && formData.checkIn && formData.checkOut) {
+    if (formData.apartmentId && formData.checkIn && formData.checkOut && formData.numberOfGuests) {
       const apartment = apartments.find(a => a._id === formData.apartmentId);
+      
       if (apartment) {
         const checkIn = new Date(formData.checkIn);
         const checkOut = new Date(formData.checkOut);
-        const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+        const nights = Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
         
-        if (nights > 0) {
-          const totalPrice = nights * apartment.price;
-          setFormData(prev => ({ ...prev, totalPrice }));
-        }
+        // Usa la funzione di calcolo del prezzo
+        const totalPrice = calculateTotalPrice(
+          apartment, 
+          formData.numberOfGuests, 
+          nights
+        );
+        
+        setFormData(prev => ({ ...prev, totalPrice }));
       }
     }
-  }, [formData.apartmentId, formData.checkIn, formData.checkOut, apartments]);
+  }, [formData.apartmentId, formData.checkIn, formData.checkOut, formData.numberOfGuests, apartments]);
 
   // Popola il form se stiamo modificando una prenotazione esistente
   useEffect(() => {
@@ -246,11 +254,17 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
                   name="numberOfGuests"
                   id="numberOfGuests"
                   min="1"
+                  max={selectedApartment?.maxGuests || 99}
                   value={formData.numberOfGuests}
                   onChange={handleChange}
                   required
                   className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                 />
+                {selectedApartment && formData.numberOfGuests > selectedApartment.maxGuests && (
+                  <p className="mt-1 text-xs text-red-600">
+                    Questo appartamento può ospitare al massimo {selectedApartment.maxGuests} ospiti.
+                  </p>
+                )}
               </div>
 
               <div className="col-span-6 sm:col-span-3">
@@ -268,6 +282,25 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
                   required
                   className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                 />
+                {selectedApartment && (
+                  <div className="mt-1 text-xs text-gray-500">
+                    {selectedApartment.priceType === 'per_person' ? (
+                      <p>Calcolato in base a {formData.numberOfGuests} ospiti a €{selectedApartment.price} per persona per notte.</p>
+                    ) : (
+                      <>
+                        <p>Prezzo base: €{selectedApartment.price} per notte</p>
+                        {formData.numberOfGuests > selectedApartment.baseGuests && (
+                          <p>
+                            {formData.numberOfGuests - selectedApartment.baseGuests} ospiti extra a{' '}
+                            {selectedApartment.extraGuestPriceType === 'fixed' 
+                              ? `€${selectedApartment.extraGuestPrice} per notte ciascuno`
+                              : `${selectedApartment.extraGuestPrice}% di supplemento ciascuno`}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="col-span-6 sm:col-span-3">
