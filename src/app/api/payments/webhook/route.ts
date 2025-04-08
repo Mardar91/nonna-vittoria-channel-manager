@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import connectDB from '@/lib/db';
-import BookingModel from '@/models/Booking';
+import BookingModel, { IBooking } from '@/models/Booking';
 import stripe from '@/lib/stripe';
 
 export async function POST(req: NextRequest) {
@@ -83,7 +83,9 @@ export async function POST(req: NextRequest) {
           {
             status: 'cancelled',
             paymentStatus: 'failed',
-            notes: booking => `${booking.notes || ''} Cancellata automaticamente: pagamento non completato`
+            $set: {
+              notes: "Cancellata automaticamente: pagamento non completato"
+            }
           }
         );
       } else {
