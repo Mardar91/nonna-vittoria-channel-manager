@@ -41,7 +41,7 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
 
   // Calcola il prezzo totale quando cambia l'appartamento, le date o il numero di ospiti
   useEffect(() => {
-    if (formData.apartmentId && formData.checkIn && formData.checkOut && formData.numberOfGuests) {
+    if (formData.apartmentId && formData.checkIn && formData.checkOut && formData.numberOfGuests !== undefined) {
       const apartment = apartments.find(a => a._id === formData.apartmentId);
       
       if (apartment) {
@@ -260,7 +260,7 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
                   required
                   className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                 />
-                {selectedApartment && formData.numberOfGuests > selectedApartment.maxGuests && (
+                {selectedApartment && formData.numberOfGuests !== undefined && formData.numberOfGuests > selectedApartment.maxGuests && (
                   <p className="mt-1 text-xs text-red-600">
                     Questo appartamento può ospitare al massimo {selectedApartment.maxGuests} ospiti.
                   </p>
@@ -289,7 +289,7 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
                     ) : (
                       <>
                         <p>Prezzo base: €{selectedApartment.price} per notte</p>
-                        {formData.numberOfGuests > selectedApartment.baseGuests && (
+                        {formData.numberOfGuests !== undefined && formData.numberOfGuests > selectedApartment.baseGuests && (
                           <p>
                             {formData.numberOfGuests - selectedApartment.baseGuests} ospiti extra a{' '}
                             {selectedApartment.extraGuestPriceType === 'fixed' 
