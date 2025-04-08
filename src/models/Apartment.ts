@@ -6,6 +6,10 @@ export interface IApartment {
   description: string;
   address: string;
   price: number;
+  priceType: 'flat' | 'per_person'; // Tipo di prezzo: fisso o per persona
+  baseGuests: number; // Numero di ospiti inclusi nel prezzo base
+  extraGuestPrice: number; // Prezzo per ogni ospite aggiuntivo
+  extraGuestPriceType: 'fixed' | 'percentage'; // Tipo di sovrapprezzo: fisso o percentuale
   bedrooms: number;
   bathrooms: number;
   maxGuests: number;
@@ -30,6 +34,10 @@ const ApartmentSchema = new Schema<IApartment>(
     description: { type: String, required: true },
     address: { type: String, required: true },
     price: { type: Number, required: true },
+    priceType: { type: String, enum: ['flat', 'per_person'], default: 'flat' },
+    baseGuests: { type: Number, default: 1 },
+    extraGuestPrice: { type: Number, default: 0 },
+    extraGuestPriceType: { type: String, enum: ['fixed', 'percentage'], default: 'fixed' },
     bedrooms: { type: Number, required: true, default: 1 },
     bathrooms: { type: Number, required: true, default: 1 },
     maxGuests: { type: Number, required: true, default: 2 },
