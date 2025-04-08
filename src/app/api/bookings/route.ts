@@ -4,6 +4,7 @@ import connectDB from '@/lib/db';
 import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import { checkAvailability, syncCalendarsForApartment } from '@/lib/ical';
+import { calculateTotalPrice } from '@/lib/utils';
 
 // GET: Ottenere tutte le prenotazioni
 export async function GET(req: NextRequest) {
@@ -116,9 +117,27 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Calcola il prezzo totale corretto se non specificato o per verificare quello fornito
+    const checkIn = new Date(data.checkIn);
+    const checkOut = new Date(data.checkOut);
+    const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Calcola il prezzo totale in base al numero di ospiti
+    const totalPrice = calculateTotalPrice(
+      apartment,
+      data.numberOfGuests,
+      nights
+    );
+
+    // Usa il prezzo totale calcolato o quello fornito dal client (se differente)
+    const finalBookingData = {
+      ...data,
+      totalPrice: data.totalPrice || totalPrice
+    };
     
     // Creare la prenotazione
-    const booking = await BookingModel.create(data);
+    const booking = await BookingModel.create(finalBookingData);
     
     return NextResponse.json(booking, { status: 201 });
   } catch (error) {
