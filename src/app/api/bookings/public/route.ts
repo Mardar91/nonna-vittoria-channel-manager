@@ -4,6 +4,7 @@ import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import PublicProfileModel from '@/models/PublicProfile';
 import { checkAvailability } from '@/lib/ical';
+import { calculateTotalPrice } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   try {
@@ -82,9 +83,9 @@ export async function POST(req: NextRequest) {
         );
       }
       
-      // Calcola prezzo totale
+      // Calcola prezzo totale con la nuova funzione
       const nights = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-      const totalPrice = apartment.price * nights;
+      const totalPrice = calculateTotalPrice(apartment, numberOfGuests, nights);
       
       // Crea la prenotazione con stato 'inquiry'
       const booking = await BookingModel.create({
@@ -154,9 +155,11 @@ export async function POST(req: NextRequest) {
           }, { status: 400 });
         }
         
-        // Calcola prezzo totale per questo appartamento
+        // Calcola prezzo totale per questo appartamento con la nuova funzione
         const nights = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-        const totalPrice = apartment.price * nights;
+        // Assume che ogni appartamento ospiti un numero equo di persone
+        const guestsPerApartment = Math.ceil(numberOfGuests / groupApartments.length);
+        const totalPrice = calculateTotalPrice(apartment, guestsPerApartment, nights);
         totalGroupPrice += totalPrice;
         
         // Prepara la prenotazione da creare con stato 'inquiry'
@@ -168,7 +171,7 @@ export async function POST(req: NextRequest) {
           checkIn: startDate,
           checkOut: endDate,
           totalPrice,
-          numberOfGuests, 
+          numberOfGuests: guestsPerApartment,
           status: 'inquiry', // Stato iniziale come 'inquiry'
           paymentStatus: 'pending',
           source: 'direct',
