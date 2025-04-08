@@ -29,6 +29,10 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
     description: '',
     address: '',
     price: 0,
+    priceType: 'flat',
+    baseGuests: 1,
+    extraGuestPrice: 0,
+    extraGuestPriceType: 'fixed',
     bedrooms: 1,
     bathrooms: 1,
     maxGuests: 2,
@@ -60,6 +64,10 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
         description: apartment.description,
         address: apartment.address,
         price: apartment.price,
+        priceType: apartment.priceType || 'flat',
+        baseGuests: apartment.baseGuests || 1,
+        extraGuestPrice: apartment.extraGuestPrice || 0,
+        extraGuestPriceType: apartment.extraGuestPriceType || 'fixed',
         bedrooms: apartment.bedrooms,
         bathrooms: apartment.bathrooms,
         maxGuests: apartment.maxGuests,
@@ -335,22 +343,113 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
                 />
               </div>
 
-              <div className="col-span-6 sm:col-span-3">
-                <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-                  Prezzo (€ per notte)
-                </label>
-                <input
-                  type="number"
-                  name="price"
-                  id="price"
-                  value={formData.price}
-                  onChange={handleChange}
-                  min="0"
-                  step="0.01"
-                  required
-                  className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                />
+              {/* Inizio Nuova Sezione Prezzo */}
+              <div className="col-span-6">
+                <fieldset className="border border-gray-300 rounded-md p-4">
+                  <legend className="text-sm font-medium text-gray-700 px-2">Configurazione Prezzo</legend>
+                  
+                  <div className="mb-4">
+                    <label htmlFor="priceType" className="block text-sm font-medium text-gray-700">
+                      Tipo di Prezzo
+                    </label>
+                    <select
+                      id="priceType"
+                      name="priceType"
+                      value={formData.priceType}
+                      onChange={handleChange}
+                      className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    >
+                      <option value="flat">Prezzo fisso per appartamento</option>
+                      <option value="per_person">Prezzo per persona</option>
+                    </select>
+                  </div>
+                  
+                  <div className="grid grid-cols-6 gap-6">
+                    <div className="col-span-6 sm:col-span-3">
+                      <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+                        {formData.priceType === 'per_person' ? 'Prezzo per persona (€)' : 'Prezzo base (€)'}
+                      </label>
+                      <input
+                        type="number"
+                        name="price"
+                        id="price"
+                        value={formData.price}
+                        onChange={handleChange}
+                        min="0"
+                        step="0.01"
+                        required
+                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                      />
+                    </div>
+                    
+                    {formData.priceType === 'flat' && (
+                      <div className="col-span-6 sm:col-span-3">
+                        <label htmlFor="baseGuests" className="block text-sm font-medium text-gray-700">
+                          Ospiti inclusi nel prezzo base
+                        </label>
+                        <input
+                          type="number"
+                          name="baseGuests"
+                          id="baseGuests"
+                          value={formData.baseGuests}
+                          onChange={handleChange}
+                          min="1"
+                          max={formData.maxGuests || 1}
+                          required
+                          className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
+                  {formData.priceType === 'flat' && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Prezzo per ospiti aggiuntivi</h4>
+                      
+                      <div className="grid grid-cols-6 gap-6">
+                        <div className="col-span-6 sm:col-span-3">
+                          <label htmlFor="extraGuestPrice" className="block text-sm font-medium text-gray-700">
+                            Sovrapprezzo per ospite aggiuntivo
+                          </label>
+                          <input
+                            type="number"
+                            name="extraGuestPrice"
+                            id="extraGuestPrice"
+                            value={formData.extraGuestPrice}
+                            onChange={handleChange}
+                            min="0"
+                            step="0.01"
+                            className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                          />
+                        </div>
+                        
+                        <div className="col-span-6 sm:col-span-3">
+                          <label htmlFor="extraGuestPriceType" className="block text-sm font-medium text-gray-700">
+                            Tipo di sovrapprezzo
+                          </label>
+                          <select
+                            id="extraGuestPriceType"
+                            name="extraGuestPriceType"
+                            value={formData.extraGuestPriceType}
+                            onChange={handleChange}
+                            className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          >
+                            <option value="fixed">Importo fisso</option>
+                            <option value="percentage">Percentuale sul prezzo base</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-2 text-sm text-gray-500">
+                        {formData.extraGuestPriceType === 'fixed' 
+                          ? `Ogni ospite oltre i ${formData.baseGuests} pagherà €${formData.extraGuestPrice} in più per notte.`
+                          : `Ogni ospite oltre i ${formData.baseGuests} aumenterà il prezzo base del ${formData.extraGuestPrice}% per notte.`}
+                      </div>
+                    </div>
+                  )}
+                </fieldset>
               </div>
+              {/* Fine Nuova Sezione Prezzo */}
 
               <div className="col-span-6 sm:col-span-3">
                 <label htmlFor="minStay" className="block text-sm font-medium text-gray-700">
