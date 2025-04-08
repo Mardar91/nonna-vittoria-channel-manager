@@ -592,7 +592,8 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
       const checkOutStr = dateToString(checkOut);
       
       // La data è compresa tra check-in e check-out (incluso il check-in, escluso il check-out)
-      return (dateStr >= checkInStr && dateStr < checkOutStr);
+      // Solo se la prenotazione è confermata
+      return (booking.status === 'confirmed' && dateStr >= checkInStr && dateStr < checkOutStr);
     }) || null;
   };
   
@@ -739,7 +740,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
       lastDayPlusOne.setDate(lastDayPlusOne.getDate() + 1);
       
       // La prenotazione è visibile se si sovrappone con il calendario visualizzato
-      return (checkIn < lastDayPlusOne && checkOut > firstDay);
+      return (booking.status === 'confirmed' && checkIn < lastDayPlusOne && checkOut > firstDay);
     });
     
     return visibleBookings.map((booking, bookingIndex) => {
