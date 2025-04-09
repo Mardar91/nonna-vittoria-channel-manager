@@ -517,7 +517,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     }
   };
   
-  // Raggruppa le prenotazioni per appartamento
+  // FUNZIONE MODIFICATA: Raggruppa le prenotazioni per appartamento considerando il cambio di mese
   const processBookings = (apartment: ApartmentWithBookings) => {
     const result: Array<{
       booking: Booking;
@@ -525,43 +525,85 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       endIdx: number;
       checkIn: Date;
       checkOut: Date;
+      startsInPreviousMonth: boolean;
+      endsInNextMonth: boolean;
     }> = [];
     
     const confirmedBookings = apartment.bookings.filter(booking => booking.status === 'confirmed');
     
+    // Ottieni il primo e l'ultimo giorno del mese corrente
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+    lastDayOfMonth.setHours(0, 0, 0, 0);
+    
     for (const booking of confirmedBookings) {
-      const checkIn = new Date(booking.checkIn);
-      const checkOut = new Date(booking.checkOut);
-      
-      checkIn.setHours(0, 0, 0, 0);
-      checkOut.setHours(0, 0, 0, 0);
-      
-      // Trova gli indici dei giorni nel calendario
-      const firstDayIdx = calendarDays.findIndex(day => {
-        const d = new Date(day);
-        d.setHours(0, 0, 0, 0);
-        return d.getTime() >= checkIn.getTime() && d.getTime() < checkOut.getTime();
-      });
-      
-      if (firstDayIdx === -1) continue; // Non visibile nel calendario corrente
-      
-      const lastDayIdx = calendarDays.findIndex(day => {
-        const d = new Date(day);
-        d.setHours(0, 0, 0, 0);
-        const nextDay = new Date(d);
-        nextDay.setDate(nextDay.getDate() + 1);
-        return nextDay.getTime() >= checkOut.getTime();
-      });
-      
-      const lastIdx = lastDayIdx === -1 ? calendarDays.length - 1 : lastDayIdx;
-      
-      result.push({
-        booking,
-        startIdx: firstDayIdx,
-        endIdx: lastIdx,
-        checkIn,
-        checkOut
-      });
+      try {
+        const checkIn = new Date(booking.checkIn);
+        const checkOut = new Date(booking.checkOut);
+        
+        checkIn.setHours(0, 0, 0, 0);
+        checkOut.setHours(0, 0, 0, 0);
+        
+        // Verifica se la prenotazione è visibile nel mese corrente
+        // La prenotazione è visibile se il check-out è dopo l'inizio del mese
+        // e il check-in è prima della fine del mese
+        if (checkOut > firstDayOfMonth && checkIn <= lastDayOfMonth) {
+          // Determina se la prenotazione inizia nel mese precedente
+          const startsInPreviousMonth = checkIn < firstDayOfMonth;
+          
+          // Determina se la prenotazione finisce nel mese successivo
+          const endsInNextMonth = checkOut > new Date(lastDayOfMonth.getTime() + 86400000);
+          
+          // Trova gli indici dei giorni nel calendario
+          let firstDayIdx;
+          
+          if (startsInPreviousMonth) {
+            // Se inizia nel mese precedente, la prima cella è la prima del mese
+            firstDayIdx = 0;
+          } else {
+            // Altrimenti, cerca la data di check-in nel calendario
+            firstDayIdx = calendarDays.findIndex(day => {
+              const d = new Date(day);
+              d.setHours(0, 0, 0, 0);
+              return d.getTime() === checkIn.getTime();
+            });
+          }
+          
+          if (firstDayIdx === -1) continue; // Salta se la data di check-in non è trovata
+          
+          let lastDayIdx;
+          
+          if (endsInNextMonth) {
+            // Se termina nel mese successivo, l'ultima cella è l'ultima del mese
+            lastDayIdx = calendarDays.length - 1;
+          } else {
+            // Altrimenti trova il giorno prima del check-out
+            const dayBeforeCheckout = new Date(checkOut);
+            dayBeforeCheckout.setDate(dayBeforeCheckout.getDate() - 1);
+            
+            lastDayIdx = calendarDays.findIndex(day => {
+              const d = new Date(day);
+              d.setHours(0, 0, 0, 0);
+              return d.getTime() === dayBeforeCheckout.getTime();
+            });
+          }
+          
+          if (lastDayIdx === -1) continue; // Salta se la data di check-out non è trovata
+          
+          result.push({
+            booking,
+            startIdx: firstDayIdx,
+            endIdx: lastDayIdx,
+            checkIn,
+            checkOut,
+            startsInPreviousMonth,
+            endsInNextMonth
+          });
+        }
+      } catch (error) {
+        console.error("Errore nell'elaborazione della prenotazione:", error);
+      }
     }
     
     return result;
@@ -681,7 +723,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
               // Conta le date selezionate per questo appartamento
               const selectedCount = getSelectedDatesCount(apartment.id);
               
-              // Processa le prenotazioni per questo appartamento
+              // Processa le prenotazioni per questo appartamento con la funzione aggiornata
               const processedBookings = processBookings(apartment);
               
               return (
@@ -720,15 +762,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                     const price = getPriceForDate(apartment, day);
                     
                     // Trova se questa data è l'inizio di una prenotazione
-                    const bookingInfo = processedBookings.find(b => {
-                      const currentDate = new Date(day);
-                      currentDate.setHours(0, 0, 0, 0);
-                      
-                      const bookingStart = new Date(b.checkIn);
-                      bookingStart.setHours(0, 0, 0, 0);
-                      
-                      return currentDate.getTime() === bookingStart.getTime();
-                    });
+                    const bookingInfo = processedBookings.find(b => b.startIdx === dayIndex);
                     
                     // Determina la classe della cella
                     let cellClass = "border border-gray-200 relative ";
@@ -796,6 +830,8 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                             style={{
                               width: `${(bookingInfo.endIdx - bookingInfo.startIdx + 1) * 100}%`,
                               minWidth: `${(bookingInfo.endIdx - bookingInfo.startIdx + 1) * 75}px`,
+                              borderLeft: bookingInfo.startsInPreviousMonth ? '4px solid #22c55e' : '', // Bordo verde se continua dal mese precedente
+                              borderRight: bookingInfo.endsInNextMonth ? '4px solid #22c55e' : '',     // Bordo verde se continua nel mese successivo
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
