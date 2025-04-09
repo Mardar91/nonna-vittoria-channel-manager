@@ -162,8 +162,30 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       const dropdown = document.getElementById(dropdownId);
       if (dropdown) {
         const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        dropdown.style.top = `${rect.bottom}px`;
+        const viewportHeight = window.innerHeight;
+        const dropdownHeight = 170; // Altezza stimata del dropdown in pixel
+        
+        // Verifica se il dropdown andrebbe fuori dallo schermo nella parte inferiore
+        const isNearBottom = rect.bottom + dropdownHeight > viewportHeight;
+        
+        if (isNearBottom) {
+          // Posiziona il dropdown sopra la cella
+          dropdown.style.top = `${rect.top - dropdownHeight}px`;
+        } else {
+          // Posiziona il dropdown sotto la cella
+          dropdown.style.top = `${rect.bottom}px`;
+        }
+        
+        // Posiziona orizzontalmente
         dropdown.style.left = `${rect.left}px`;
+        
+        // Assicurati che il dropdown non vada fuori dalla parte destra dello schermo
+        const viewportWidth = window.innerWidth;
+        const dropdownWidth = 160; // Larghezza stimata del dropdown in pixel
+        
+        if (rect.left + dropdownWidth > viewportWidth) {
+          dropdown.style.left = `${viewportWidth - dropdownWidth - 10}px`; // 10px di margine
+        }
       }
     } catch (error) {
       console.error("Errore nel gestire il click sulla data:", error);
@@ -422,7 +444,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   };
   
   // Verifica la posizione di una data in una prenotazione (inizio, centro, fine)
-  const getBookingPosition = (date: Date, booking: Booking): 'start' | 'middle' | 'end' => {
+  const getBookingPosition = (date: Date, booking: Booking): 'start' | 'middle' | 'end' | 'single' => {
     try {
       const checkIn = new Date(booking.checkIn);
       const checkOut = new Date(booking.checkOut);
@@ -432,6 +454,12 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       
       const dateToCheck = new Date(date);
       dateToCheck.setHours(0, 0, 0, 0);
+      
+      // Caso di prenotazione di un solo giorno
+      if (new Date(checkOut).getTime() - new Date(checkIn).getTime() === 86400000) {
+        return 'single';
+      }
+      
       if (dateToCheck.getTime() === checkIn.getTime()) {
         return 'start';
       }
@@ -687,21 +715,30 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                           <div className="flex-grow flex items-center justify-center relative">
                             {booking && (
                               <div 
-                                className={`absolute inset-0 flex items-center justify-center p-1 ${
-                                  isPast ? 'bg-gray-200 bg-opacity-50' : 'bg-green-100'
-                                } ${bookingPosition === 'start' ? 'rounded-l-md' : ''} ${
-                                  bookingPosition === 'end' ? 'rounded-r-md' : ''
+                                className={`absolute inset-0 flex items-center justify-center ${
+                                  isPast ? 'opacity-50' : 'opacity-100'
                                 }`}
                               >
-                                <div className="text-center text-xs">
-                                  <div className="font-semibold truncate max-w-full">
+                                <div 
+                                  className={`absolute inset-0 ${
+                                    isPast ? 'bg-gray-200' : 'bg-green-100 border border-green-300'
+                                  } ${bookingPosition === 'start' ? 'rounded-l-md border-l-2 border-l-green-600' : ''}
+                                  ${bookingPosition === 'middle' ? '' : ''}
+                                  ${bookingPosition === 'end' ? 'rounded-r-md border-r-2 border-r-green-600' : ''}
+                                  ${bookingPosition === 'single' ? 'rounded-md border-2 border-green-600' : ''}
+                                  flex flex-col justify-center px-1 overflow-hidden`}
+                                >
+                                  <div className="text-xs font-semibold truncate max-w-full">
                                     {booking.guestName}
                                   </div>
-                                  {bookingPosition === 'start' && (
-                                    <div className="text-xs">{booking.numberOfGuests} ospiti</div>
+                                  {(bookingPosition === 'start' || bookingPosition === 'single') && (
+                                    <>
+                                      <div className="text-xs">{booking.numberOfGuests} ospiti</div>
+                                      <div className="text-xs font-medium">{booking.totalPrice}€</div>
+                                    </>
                                   )}
-                                  {bookingPosition === 'start' && (
-                                    <div className="text-xs font-medium">{booking.totalPrice}€</div>
+                                  {bookingPosition === 'end' && (
+                                    <div className="text-xs italic">fine</div>
                                   )}
                                 </div>
                               </div>
