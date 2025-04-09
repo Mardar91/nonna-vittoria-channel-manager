@@ -65,6 +65,30 @@ export default function BookingPage() {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  // Funzione per distribuire gli ospiti tra gli appartamenti
+  const distributeGuests = (combination: any[], totalGuests: number) => {
+    let remainingGuests = totalGuests;
+    
+    // Copia degli appartamenti per non modificare l'originale
+    const distributedApartments = combination.map(apt => ({
+      ...apt,
+      effectiveGuests: 0 // Quanti ospiti effettivamente assegnati a questo appartamento
+    }));
+    
+    // Ordina gli appartamenti per prezzo (opzionale, può essere utile per ottimizzare i costi)
+    distributedApartments.sort((a, b) => a.price - b.price);
+    
+    // Distribuisci gli ospiti
+    for (let i = 0; i < distributedApartments.length && remainingGuests > 0; i++) {
+      const apt = distributedApartments[i];
+      const assignedGuests = Math.min(remainingGuests, apt.maxGuests);
+      apt.effectiveGuests = assignedGuests;
+      remainingGuests -= assignedGuests;
+    }
+    
+    return distributedApartments;
+  };
+
   // Carica il profilo pubblico
   useEffect(() => {
     const loadProfile = async () => {
@@ -188,11 +212,21 @@ export default function BookingPage() {
   };
   
   // Calcola il prezzo totale per prenotazione di gruppo
-  const calculateGroupTotalPrice = (apartments: any[]): number => {
-    if (!apartments || apartments.length === 0) return 0;
+  const calculateGroupTotalPrice = (combination: any[]): number => {
+    if (!combination || combination.length === 0) return 0;
     
-    return apartments.reduce((total, apt) => {
-      return total + getTotalPrice(apt);
+    // Distribuisci gli ospiti tra gli appartamenti
+    const distributedApartments = distributeGuests(combination, search.adults + search.children);
+    
+    // Calcola il prezzo totale in base agli ospiti effettivamente assegnati
+    return distributedApartments.reduce((total, apt) => {
+      if (apt.effectiveGuests === 0) return total; // Salta appartamenti non utilizzati
+      
+      return total + calculateTotalPrice(
+        apt,
+        apt.effectiveGuests, // Usa il numero effettivo di ospiti assegnati
+        apt.nights
+      );
     }, 0);
   };
   
@@ -204,9 +238,9 @@ export default function BookingPage() {
   };
   
   // Apri modal di prenotazione per gruppo
-  const openGroupBookingModal = (combination: any[]) => {
+  const openGroupBookingModal = (distributedApartments: any[]) => {
     setSelectedApartment(null);
-    setGroupBookingSelection(combination);
+    setGroupBookingSelection(distributedApartments);
     setIsBookingModalOpen(true);
   };
   
@@ -274,13 +308,18 @@ export default function BookingPage() {
       else if (groupBookingSelection) {
         requestData = {
           isGroupBooking: true,
-          groupApartments: groupBookingSelection.map((apt: any) => apt._id),
+          groupApartments: groupBookingSelection
+            .filter((apt: any) => apt.effectiveGuests > 0)
+            .map((apt: any) => ({
+              apartmentId: apt._id,
+              numberOfGuests: apt.effectiveGuests
+            })),
           checkIn: search.checkIn,
           checkOut: search.checkOut,
           guestName: bookingFormData.guestName,
           guestEmail: bookingFormData.guestEmail,
           guestPhone: bookingFormData.guestPhone,
-          numberOfGuests: search.adults + search.children,
+          totalGuests: search.adults + search.children,
           notes: bookingFormData.notes
         };
       } else {
@@ -432,7 +471,7 @@ export default function BookingPage() {
                   onChange={(e) => handleGuestsChange(e, 'adults')}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                  {Array.from({length: 20}, (_, i) => i + 1).map((num) => (
                     <option key={num} value={num}>
                       {num}
                     </option>
@@ -451,7 +490,7 @@ export default function BookingPage() {
                   onChange={(e) => handleGuestsChange(e, 'children')}
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {[0, 1, 2, 3, 4, 5].map((num) => (
+                  {Array.from({length: 11}, (_, i) => i).map((num) => (
                     <option key={num} value={num}>
                       {num}
                     </option>
@@ -571,30 +610,60 @@ export default function BookingPage() {
                       {results.groupBookingOptions.map((combination, index) => (
                         <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 mb-4 shadow-sm">
                           <h4 className="font-medium text-gray-900 mb-2">Combinazione {index + 1}</h4>
-                          <ul className="space-y-2 mb-4">
-                            {combination.map((apt: any) => (
-                              <li key={apt._id} className="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <div>
-                                  <div className="font-medium">{apt.name}</div>
-                                  <div className="text-sm text-gray-600">Max {apt.maxGuests} ospiti</div>
-                                </div>
-                                <div className="font-medium">€{getTotalPrice(apt).toFixed(2)}</div>
-                              </li>
-                            ))}
-                          </ul>
                           
-                          <div className="flex justify-between items-center mt-4">
-                            <div className="text-lg font-bold">
-                              Totale: €{calculateGroupTotalPrice(combination).toFixed(2)}
-                            </div>
-                            <button
-                              onClick={() => openGroupBookingModal(combination)}
-                              className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                              style={primaryButtonStyle}
-                            >
-                              Prenota combinazione
-                            </button>
-                          </div>
+                          {/* Distribuisci gli ospiti tra gli appartamenti */}
+                          {(() => {
+                            const distributedApartments = distributeGuests(
+                              combination, 
+                              search.adults + search.children
+                            );
+                            
+                            // Calcola il numero totale di ospiti effettivamente assegnati
+                            const totalAssignedGuests = distributedApartments.reduce(
+                              (sum, apt) => sum + apt.effectiveGuests, 0
+                            );
+                            
+                            return (
+                              <>
+                                <ul className="space-y-2 mb-4">
+                                  {distributedApartments.map((apt: any) => (
+                                    apt.effectiveGuests > 0 ? (
+                                      <li key={apt._id} className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                        <div>
+                                          <div className="font-medium">{apt.name}</div>
+                                          <div className="text-sm text-gray-600">
+                                            {apt.effectiveGuests} ospiti (max {apt.maxGuests})
+                                          </div>
+                                        </div>
+                                        <div className="font-medium">
+                                          €{calculateTotalPrice(apt, apt.effectiveGuests, apt.nights).toFixed(2)}
+                                        </div>
+                                      </li>
+                                    ) : null // Non mostrare appartamenti non utilizzati
+                                  ))}
+                                </ul>
+                                
+                                {totalAssignedGuests < search.adults + search.children && (
+                                  <div className="text-sm text-orange-600 mb-3">
+                                    Attenzione: Questa combinazione può ospitare al massimo {totalAssignedGuests} persone.
+                                  </div>
+                                )}
+                                
+                                <div className="flex justify-between items-center mt-4">
+                                  <div className="text-lg font-bold">
+                                    Totale: €{calculateGroupTotalPrice(combination).toFixed(2)}
+                                  </div>
+                                  <button
+                                    onClick={() => openGroupBookingModal(distributedApartments)}
+                                    className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                    style={primaryButtonStyle}
+                                  >
+                                    Prenota combinazione
+                                  </button>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>
@@ -725,18 +794,23 @@ export default function BookingPage() {
                           {groupBookingSelection && (
                             <div className="mt-4">
                               <h4 className="font-medium text-gray-900 mb-2">Riepilogo Apartamenti</h4>
-                              {groupBookingSelection.map((apt: any, index: number) => (
+                              {groupBookingSelection
+                                .filter((apt: any) => apt.effectiveGuests > 0)
+                                .map((apt: any) => (
                                 <div key={apt._id} className="border-b border-gray-200 pb-2 mb-2">
                                   <p className="font-medium">{apt.name}</p>
                                   <div className="flex justify-between items-center text-sm text-gray-600">
-                                    <span>Max {apt.maxGuests} ospiti</span>
-                                    <span>€{getTotalPrice(apt).toFixed(2)}</span>
+                                    <span>{apt.effectiveGuests} ospiti (max {apt.maxGuests})</span>
+                                    <span>€{calculateTotalPrice(apt, apt.effectiveGuests, apt.nights).toFixed(2)}</span>
                                   </div>
                                 </div>
                               ))}
                               <div className="flex justify-between items-center font-medium mt-2">
                                 <span>Prezzo totale:</span>
-                                <span>€{calculateGroupTotalPrice(groupBookingSelection).toFixed(2)}</span>
+                                <span>€{groupBookingSelection
+                                  .filter((apt: any) => apt.effectiveGuests > 0)
+                                  .reduce((total: number, apt: any) => 
+                                    total + calculateTotalPrice(apt, apt.effectiveGuests, apt.nights), 0).toFixed(2)}</span>
                               </div>
                             </div>
                           )}
