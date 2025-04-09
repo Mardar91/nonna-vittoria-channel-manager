@@ -19,11 +19,12 @@ export async function POST(req: NextRequest) {
       numberOfGuests,
       notes,
       isGroupBooking,
-      groupApartments
+      groupApartments,
+      totalGuests
     } = data;
     
     // Validazione dei dati di base
-    if (!guestName || !guestEmail || !checkIn || !checkOut || !numberOfGuests) {
+    if (!guestName || !guestEmail || !checkIn || !checkOut) {
       return NextResponse.json(
         { error: 'Mancano campi obbligatori' },
         { status: 400 }
@@ -85,7 +86,11 @@ export async function POST(req: NextRequest) {
       
       // Calcola prezzo totale con la nuova funzione
       const nights = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-      const totalPrice = calculateTotalPrice(apartment, numberOfGuests, nights);
+      
+      // Limita il numero di ospiti alla capacità massima dell'appartamento
+      const effectiveGuests = Math.min(numberOfGuests, apartment.maxGuests);
+      
+      const totalPrice = calculateTotalPrice(apartment, effectiveGuests, nights);
       
       // Crea la prenotazione con stato 'inquiry'
       const booking = await BookingModel.create({
@@ -96,7 +101,7 @@ export async function POST(req: NextRequest) {
         checkIn: startDate,
         checkOut: endDate,
         totalPrice,
-        numberOfGuests,
+        numberOfGuests: effectiveGuests, // Salva il numero effettivo di ospiti
         status: 'inquiry', // Modifica: inizialmente è una richiesta, non una prenotazione in attesa
         paymentStatus: 'pending',
         source: 'direct',
@@ -126,20 +131,26 @@ export async function POST(req: NextRequest) {
       const bookingsToCreate = [];
       let totalGroupPrice = 0;
       
-      for (const aptId of groupApartments) {
+      // Nuova logica: ora groupApartments contiene oggetti con apartmentId e numberOfGuests
+      for (const groupItem of groupApartments) {
+        const { apartmentId, numberOfGuests } = groupItem;
+        
+        // Salta appartamenti che non hanno ospiti assegnati
+        if (!numberOfGuests || numberOfGuests <= 0) continue;
+        
         // Verifica che l'appartamento esista
-        const apartment = await ApartmentModel.findById(aptId);
+        const apartment = await ApartmentModel.findById(apartmentId);
         if (!apartment) {
           return NextResponse.json(
-            { error: `Appartamento ${aptId} non trovato` },
+            { error: `Appartamento ${apartmentId} non trovato` },
             { status: 404 }
           );
         }
         
         // Verifica prenotazioni esistenti - solo prenotazioni CONFERMATE
         const existingBookings = await BookingModel.find({
-          apartmentId: aptId,
-          status: 'confirmed', // Verifica solo prenotazioni confermate
+          apartmentId,
+          status: 'confirmed',
           $or: [
             {
               checkIn: { $lt: endDate },
@@ -151,32 +162,37 @@ export async function POST(req: NextRequest) {
         if (existingBookings.length > 0) {
           return NextResponse.json({
             error: `L'appartamento ${apartment.name} non è più disponibile per le date selezionate`,
-            apartmentId: aptId
+            apartmentId
           }, { status: 400 });
         }
         
         // Calcola prezzo totale per questo appartamento con la nuova funzione
         const nights = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-        // Assume che ogni appartamento ospiti un numero equo di persone
-        const guestsPerApartment = Math.ceil(numberOfGuests / groupApartments.length);
-        const totalPrice = calculateTotalPrice(apartment, guestsPerApartment, nights);
+        const totalPrice = calculateTotalPrice(apartment, numberOfGuests, nights);
         totalGroupPrice += totalPrice;
         
         // Prepara la prenotazione da creare con stato 'inquiry'
         bookingsToCreate.push({
-          apartmentId: aptId,
+          apartmentId,
           guestName,
           guestEmail,
           guestPhone,
           checkIn: startDate,
           checkOut: endDate,
           totalPrice,
-          numberOfGuests: guestsPerApartment,
-          status: 'inquiry', // Stato iniziale come 'inquiry'
+          numberOfGuests,
+          status: 'inquiry',
           paymentStatus: 'pending',
           source: 'direct',
           notes: `${notes ? notes + ' - ' : ''}Parte di prenotazione di gruppo`
         });
+      }
+      
+      if (bookingsToCreate.length === 0) {
+        return NextResponse.json(
+          { error: 'Nessun appartamento valido nella prenotazione di gruppo' },
+          { status: 400 }
+        );
       }
       
       // Crea tutte le prenotazioni
