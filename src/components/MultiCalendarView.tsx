@@ -517,84 +517,54 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     }
   };
   
-  // Helper per ottenere l'indice di una data nell'array calendarDays
-  const getDateIndex = (date: Date): number => {
-    return calendarDays.findIndex(day => 
-      day.getDate() === date.getDate() && 
-      day.getMonth() === date.getMonth() && 
-      day.getFullYear() === date.getFullYear()
-    );
-  };
-  
-  // NUOVO: Helper per raggruppare le prenotazioni per l'appartamento
-  const getBookingStrips = (apartment: ApartmentWithBookings): Array<{booking: Booking, startIdx: number, endIdx: number}> => {
-    try {
-      const bookingStrips: Array<{booking: Booking, startIdx: number, endIdx: number}> = [];
+  // Raggruppa le prenotazioni per appartamento
+  const processBookings = (apartment: ApartmentWithBookings) => {
+    const result: Array<{
+      booking: Booking;
+      startIdx: number;
+      endIdx: number;
+      checkIn: Date;
+      checkOut: Date;
+    }> = [];
+    
+    const confirmedBookings = apartment.bookings.filter(booking => booking.status === 'confirmed');
+    
+    for (const booking of confirmedBookings) {
+      const checkIn = new Date(booking.checkIn);
+      const checkOut = new Date(booking.checkOut);
       
-      // Filtra solo le prenotazioni confermate
-      const confirmedBookings = apartment.bookings.filter(booking => booking.status === 'confirmed');
+      checkIn.setHours(0, 0, 0, 0);
+      checkOut.setHours(0, 0, 0, 0);
       
-      for (const booking of confirmedBookings) {
-        const checkIn = new Date(booking.checkIn);
-        const checkOut = new Date(booking.checkOut);
-        
-        checkIn.setHours(0, 0, 0, 0);
-        checkOut.setHours(0, 0, 0, 0);
-        
-        // Trova l'indice nel calendario per check-in
-        let startIdx = calendarDays.findIndex(day => {
-          const dayDate = new Date(day);
-          dayDate.setHours(0, 0, 0, 0);
-          return dayDate.getTime() === checkIn.getTime();
-        });
-        
-        // Se il check-in è prima del mese visualizzato, imposta all'inizio
-        if (startIdx === -1) {
-          // Verifica se il check-in è prima del primo giorno del calendario
-          if (checkIn < calendarDays[0]) {
-            startIdx = 0;
-          } else {
-            // Il check-in è dopo l'ultimo giorno del calendario
-            continue;
-          }
-        }
-        
-        // Trova l'indice nel calendario per il giorno prima del check-out
-        const dayBeforeCheckout = new Date(checkOut);
-        dayBeforeCheckout.setDate(dayBeforeCheckout.getDate() - 1);
-        
-        let endIdx = calendarDays.findIndex(day => {
-          const dayDate = new Date(day);
-          dayDate.setHours(0, 0, 0, 0);
-          return dayDate.getTime() === dayBeforeCheckout.getTime();
-        });
-        
-        // Se il check-out è dopo il mese visualizzato, imposta alla fine
-        if (endIdx === -1) {
-          // Verifica se il check-out è dopo l'ultimo giorno del calendario
-          if (dayBeforeCheckout > calendarDays[calendarDays.length - 1]) {
-            endIdx = calendarDays.length - 1;
-          } else {
-            // Il check-out è prima del primo giorno del calendario
-            continue;
-          }
-        }
-        
-        // Se la prenotazione è visibile nel mese corrente, aggiungila
-        if (startIdx <= calendarDays.length - 1 && endIdx >= 0) {
-          bookingStrips.push({
-            booking,
-            startIdx: Math.max(0, startIdx),
-            endIdx: Math.min(calendarDays.length - 1, endIdx)
-          });
-        }
-      }
+      // Trova gli indici dei giorni nel calendario
+      const firstDayIdx = calendarDays.findIndex(day => {
+        const d = new Date(day);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime() >= checkIn.getTime() && d.getTime() < checkOut.getTime();
+      });
       
-      return bookingStrips;
-    } catch (error) {
-      console.error("Errore nel calcolare le strisce di prenotazione:", error);
-      return [];
+      if (firstDayIdx === -1) continue; // Non visibile nel calendario corrente
+      
+      const lastDayIdx = calendarDays.findIndex(day => {
+        const d = new Date(day);
+        d.setHours(0, 0, 0, 0);
+        const nextDay = new Date(d);
+        nextDay.setDate(nextDay.getDate() + 1);
+        return nextDay.getTime() >= checkOut.getTime();
+      });
+      
+      const lastIdx = lastDayIdx === -1 ? calendarDays.length - 1 : lastDayIdx;
+      
+      result.push({
+        booking,
+        startIdx: firstDayIdx,
+        endIdx: lastIdx,
+        checkIn,
+        checkOut
+      });
     }
+    
+    return result;
   };
   
   // Controlla se c'è almeno un giorno da visualizzare
@@ -608,7 +578,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   
   return (
     <div className="space-y-4">
-      {/* Header del calendario - adattato per mobile */}
+      {/* Header del calendario */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center">
           <h2 className="text-xl font-semibold mr-6 hidden md:block">
@@ -649,7 +619,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         </button>
       </div>
       
-      {/* Legenda - nascondi su mobile */}
+      {/* Legenda */}
       <div className="flex flex-wrap items-center gap-4 mb-4 hidden md:flex">
         <div className="flex items-center">
           <div className="w-4 h-4 bg-green-100 border border-green-500 mr-2"></div>
@@ -673,17 +643,17 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         </div>
       </div>
       
-      {/* Calendario principale - adattato per mobile */}
+      {/* Calendario principale */}
       <div className="overflow-x-auto pb-4 md:pb-6">
         <table className="min-w-full border-collapse">
           <thead className="bg-white sticky top-0 z-10">
             <tr>
-              {/* Intestazione appartamento - ridotta per mobile */}
+              {/* Intestazione appartamento */}
               <th className="sticky left-0 z-20 bg-gray-100 border border-gray-200 py-3 px-2 md:px-4 min-w-[100px] md:min-w-[180px] text-left font-medium">
                 Appartamento
               </th>
               
-              {/* Intestazioni dei giorni - aumentata per mobile */}
+              {/* Intestazioni dei giorni */}
               {calendarDays.map((day, index) => {
                 const dateInfo = formatDate(day);
                 const isCurrentDay = isToday(day);
@@ -711,12 +681,12 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
               // Conta le date selezionate per questo appartamento
               const selectedCount = getSelectedDatesCount(apartment.id);
               
-              // NUOVO: Ottieni le strisce di prenotazione per questo appartamento
-              const bookingStrips = getBookingStrips(apartment);
+              // Processa le prenotazioni per questo appartamento
+              const processedBookings = processBookings(apartment);
               
               return (
                 <tr key={apartment.id} className="relative">
-                  {/* Nome appartamento - ridotta per mobile */}
+                  {/* Nome appartamento */}
                   <td 
                     className="sticky left-0 z-10 bg-white border border-gray-200 py-3 px-2 md:px-4 font-medium"
                   >
@@ -728,7 +698,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                         {apartment.data?.name || "Appartamento"}
                       </span>
                       
-                      {/* Pulsante modifica in blocco - visibile solo se ci sono date selezionate */}
+                      {/* Pulsante modifica in blocco */}
                       {selectedCount > 0 && (
                         <button
                           className="ml-1 md:ml-2 p-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-md text-xs flex items-center"
@@ -741,41 +711,44 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                     </div>
                   </td>
                   
-                  {/* Celle per ogni giorno */}
                   {calendarDays.map((day, dayIndex) => {
                     const isPast = isPastDate(day);
                     const isCurrentDay = isToday(day);
+                    const booking = getBookingForDate(apartment, day);
                     const isBlocked = isDateBlocked(apartment, day);
                     const isSelected = isDateSelected(apartment.id, day);
-                    
-                    // Cerca se questa data è dentro una prenotazione
-                    const booking = getBookingForDate(apartment, day);
-                    
-                    // Ottieni il prezzo per questa data
                     const price = getPriceForDate(apartment, day);
                     
+                    // Trova se questa data è l'inizio di una prenotazione
+                    const bookingInfo = processedBookings.find(b => {
+                      const currentDate = new Date(day);
+                      currentDate.setHours(0, 0, 0, 0);
+                      
+                      const bookingStart = new Date(b.checkIn);
+                      bookingStart.setHours(0, 0, 0, 0);
+                      
+                      return currentDate.getTime() === bookingStart.getTime();
+                    });
+                    
                     // Determina la classe della cella
-                    let cellClass = "border border-gray-200 p-1 relative h-14 md:h-16 ";
+                    let cellClass = "border border-gray-200 relative ";
                     
                     if (isSelected) {
                       cellClass += "bg-indigo-100 ";
                     } else if (isCurrentDay) {
                       cellClass += "bg-blue-50 ";
                     } else if (isPast) {
-                      // Cella per data passata - stile più chiaro
                       cellClass += "bg-gray-100 ";
                     } else if (booking) {
-                      // Cella prenotata - MODIFICATO: trasparente per mostrare le strisce
+                      // Per permettere la visualizzazione della prenotazione
                       cellClass += "bg-transparent ";
                     } else if (isBlocked) {
-                      // Cella bloccata - rossa
                       cellClass += "bg-red-50 ";
                     } else {
-                      // Cella disponibile - blu chiaro
                       cellClass += "bg-blue-50 ";
                     }
                     
-                    // Genera ID del dropdown
+                    // ID del dropdown
                     const dropdownId = `dropdown-${apartment.id}-${day.getTime()}`;
                     const isDropdownActive = activeDropdown === dropdownId;
                     
@@ -786,36 +759,54 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                         onClick={(e) => handleDateClick(apartment.id, day, e, booking)}
                         onMouseLeave={handleCellMouseLeave}
                         ref={isCurrentDay ? todayCellRef : null}
+                        style={{ height: "60px", padding: "2px", position: "relative" }}
                       >
-                        <div className="flex flex-col h-full">
-                          {/* Prezzo */}
-                          <div className="text-center text-xs md:text-sm font-medium">
-                            {!booking && !isBlocked && `${price}€`}
-                          </div>
-                          
-                          {/* Checkbox per date future disponibili */}
-                          {!isPast && !booking && !isBlocked && (
-                            <div className="text-center mt-1">
-                              <input 
-                                type="checkbox" 
-                                className="h-3 w-3 md:h-4 md:w-4 text-blue-600 transition duration-150 ease-in-out" 
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  handleCheckboxChange(apartment.id, day, e.target.checked);
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </div>
-                          )}
-                          
-                          {/* Visualizzazione delle date bloccate */}
-                          {isBlocked && !booking && (
-                            <div className="h-full flex items-center justify-center">
-                              <div className="text-xs font-medium text-red-600">Bloccato</div>
-                            </div>
-                          )}
+                        {/* Contenuto della cella standard */}
+                        <div className="text-center text-xs md:text-sm">
+                          {!booking && !isBlocked && `${price}€`}
                         </div>
+                        
+                        {/* Visualizza elemento bloccato */}
+                        {isBlocked && !booking && (
+                          <div className="h-full flex items-center justify-center">
+                            <div className="text-xs font-medium text-red-600">Bloccato</div>
+                          </div>
+                        )}
+                        
+                        {/* Checkbox per selezione */}
+                        {!isPast && !booking && !isBlocked && (
+                          <div className="text-center mt-1">
+                            <input 
+                              type="checkbox" 
+                              className="h-3 w-3 md:h-4 md:w-4 text-blue-600" 
+                              checked={isSelected}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleCheckboxChange(apartment.id, day, e.target.checked);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Visualizza la prenotazione all'inizio della prenotazione */}
+                        {bookingInfo && (
+                          <div 
+                            className="absolute top-0 left-0 h-full bg-green-100 border border-green-300 rounded-md flex flex-col justify-center px-2 text-xs overflow-hidden z-5 cursor-pointer"
+                            style={{
+                              width: `${(bookingInfo.endIdx - bookingInfo.startIdx + 1) * 100}%`,
+                              minWidth: `${(bookingInfo.endIdx - bookingInfo.startIdx + 1) * 75}px`,
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/bookings/${bookingInfo.booking.id}`);
+                            }}
+                          >
+                            <div className="font-semibold truncate">{bookingInfo.booking.guestName}</div>
+                            <div className="truncate">{bookingInfo.booking.numberOfGuests} ospiti</div>
+                            <div className="font-medium truncate">{bookingInfo.booking.totalPrice}€</div>
+                          </div>
+                        )}
                         
                         {/* Menu contestuale dropdown */}
                         <div 
@@ -882,7 +873,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               </button>
                             )}
                             
-                            {/* Opzione prenota sempre disponibile se non c'è prenotazione */}
+                            {/* Opzione prenota */}
                             {!booking && (
                               <button
                                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
@@ -896,37 +887,6 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                           </div>
                         </div>
                       </td>
-                    );
-                  })}
-                  
-                  {/* NUOVO: Strisce di prenotazione sovrapposte */}
-                  {bookingStrips.map((strip, stripIndex) => {
-                    const { booking, startIdx, endIdx } = strip;
-                    const stripWidth = (endIdx - startIdx + 1) * 100; // Larghezza percentuale basata sul numero di celle
-                    
-                    // Calcola la posizione left in base alle celle del calendario
-                    const leftOffset = startIdx * 100 / calendarDays.length;
-                    const widthPercentage = stripWidth / calendarDays.length;
-                    
-                    return (
-                      <div 
-                        key={`${apartment.id}-booking-${booking.id}-${stripIndex}`}
-                        className="absolute z-5 top-0 h-14 md:h-16 flex items-center pointer-events-none"
-                        style={{
-                          left: `calc(180px + ${leftOffset}%)`, // 180px è la larghezza della prima colonna
-                          width: `${widthPercentage}%`,
-                          marginTop: '1px', // Piccolo margine per allineare con le celle
-                        }}
-                      >
-                        <div className="h-full w-full bg-green-100 border border-green-300 rounded-md flex flex-col justify-center px-2 overflow-hidden">
-                          {/* Contenuto della striscia */}
-                          <div className="text-xs font-semibold truncate max-w-full">
-                            {booking.guestName}
-                          </div>
-                          <div className="text-xs truncate">{booking.numberOfGuests} ospiti</div>
-                          <div className="text-xs font-medium truncate">{booking.totalPrice}€</div>
-                        </div>
-                      </div>
                     );
                   })}
                 </tr>
