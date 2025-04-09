@@ -327,6 +327,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
 
       if (dateKeys.length === 0) {
         toast.error("Nessuna data selezionata");
+        setLoading(false); // Aggiunto per uscire se non ci sono date
         return;
       }
 
@@ -416,6 +417,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         // Naviga alla pagina di creazione prenotazione
         router.push(`/bookings/new?apartmentId=${apartmentId}&checkIn=${dateString}`);
         closeDropdown(); // Chiudi il dropdown dopo la navigazione
+        setLoading(false); // Interrompi loading qui perché esci dalla funzione
         return; // Esce dalla funzione
       }
 
@@ -427,7 +429,10 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       console.error('Errore nell\'azione rapida:', error);
       toast.error(`Si è verificato un errore: ${error.message}`);
     } finally {
-      setLoading(false);
+       // Assicurati che loading sia impostato a false solo se non siamo usciti prima (nel caso 'book')
+       if (action !== 'book') {
+           setLoading(false);
+       }
     }
   };
 
@@ -491,7 +496,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     try {
       const apartmentDates = selectedDates[apartmentId] || {};
       return !!apartmentDates[date.toISOString().split('T')[0]]; // Confronta YYYY-MM-DD
-    } catch (error) P
+    } catch (error) { // <--- CORREZIONE APPLICATA QUI
       console.error("Errore nel verificare se la data è selezionata:", error);
       return false;
     }
@@ -500,6 +505,8 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   // Ottieni il numero di date selezionate per un appartamento
   const getSelectedDatesCount = (apartmentId: string): number => {
     try {
+      // Assicurati che apartmentId non sia null o undefined prima di accedere
+      if (!apartmentId) return 0;
       const apartmentDates = selectedDates[apartmentId] || {};
       return Object.keys(apartmentDates).length;
     } catch (error) {
@@ -533,8 +540,21 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         // Converti checkIn e checkOut in oggetti Date UTC a mezzanotte
         const checkInDate = new Date(booking.checkIn);
         const checkOutDate = new Date(booking.checkOut);
+        // Verifica validità date prima di procedere
+        if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
+            console.warn(`Date non valide per prenotazione ${booking.id}`);
+            continue;
+        }
+
         const checkIn = new Date(Date.UTC(checkInDate.getUTCFullYear(), checkInDate.getUTCMonth(), checkInDate.getUTCDate()));
         const checkOut = new Date(Date.UTC(checkOutDate.getUTCFullYear(), checkOutDate.getUTCMonth(), checkOutDate.getUTCDate()));
+
+        // Verifica che checkOut sia dopo checkIn
+        if (checkOut.getTime() <= checkIn.getTime()) {
+            console.warn(`Check-out non valido per prenotazione ${booking.id}`);
+            continue;
+        }
+
 
         // Verifica se la prenotazione è visibile nel mese corrente
         // checkOut è esclusivo, quindi la prenotazione finisce il giorno *prima* di checkOut
@@ -557,7 +577,14 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
             firstVisibleDayIdx = calendarDays.findIndex(day => day.getTime() === checkIn.getTime());
           }
 
-          if (firstVisibleDayIdx === -1) continue; // Salta se l'indice non è valido
+          // Se non trovato ma dovrebbe essere in questo mese, potrebbe esserci un disallineamento date
+           if (firstVisibleDayIdx === -1 && !startsInPreviousMonth) {
+               console.warn(`Indice primo giorno non trovato per ${booking.id} (${checkIn.toISOString()}) nel mese ${currentMonth+1}/${currentYear}`);
+               continue; // Salta se l'indice non è valido
+           }
+           // Se è -1 ma startsInPreviousMonth è true, va bene (indice 0)
+           if (firstVisibleDayIdx === -1) firstVisibleDayIdx = 0;
+
 
           let lastVisibleDayIdx = -1;
            // Trova l'ultimo giorno *incluso* nella prenotazione visibile nel mese
@@ -571,16 +598,19 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
           }
 
            // Se non trovato ma dovrebbe essere in questo mese, potrebbe esserci un problema
-           // O se finisce esattamente l'ultimo giorno del mese.
-          if (lastVisibleDayIdx === -1) {
-             // Potrebbe finire l'ultimo giorno del mese, ricontrolla
-             if (actualLastDayOfBooking.getTime() === lastDayOfMonth.getTime()) {
-               lastVisibleDayIdx = calendarDays.length - 1;
-             } else {
-               console.warn("Indice ultimo giorno non trovato per", booking.id, actualLastDayOfBooking);
-               continue; // Salta se l'indice non è valido
-             }
+          if (lastVisibleDayIdx === -1 && !endsInNextMonth) {
+             console.warn(`Indice ultimo giorno non trovato per ${booking.id} (${actualLastDayOfBooking.toISOString()}) nel mese ${currentMonth+1}/${currentYear}`);
+             continue; // Salta se l'indice non è valido
            }
+           // Se è -1 ma endsInNextMonth è true, va bene (ultimo indice)
+           if (lastVisibleDayIdx === -1) lastVisibleDayIdx = calendarDays.length - 1;
+
+
+          // Assicurati che endIdx non sia minore di startIdx (può succedere con logica complessa)
+          if (lastVisibleDayIdx < firstVisibleDayIdx) {
+              console.warn(`Errore indice: endIdx (${lastVisibleDayIdx}) < startIdx (${firstVisibleDayIdx}) per booking ${booking.id}`);
+              continue;
+          }
 
 
           result.push({
