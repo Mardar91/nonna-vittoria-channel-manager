@@ -265,6 +265,19 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     }
   };
   
+  // Funzione per formattare la data nel formato italiano "Ven 10 Aprile"
+  const formatDateForDropdown = (date: Date): string => {
+    try {
+      const weekdays = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+      const months = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+      
+      return `${weekdays[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
+    } catch (error) {
+      console.error("Errore nel formattare la data per il dropdown:", error);
+      return "";
+    }
+  };
+  
   // Funzione per ottenere il prezzo per una data specifica
   const getPriceForDate = (apartment: ApartmentWithBookings, date: Date): number => {
     try {
@@ -772,7 +785,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                     // Determina la classe della cella
                     let cellClass = "border border-gray-200 relative ";
                     
-                    // MODIFICATO: Diamo priorità alla trasparenza quando fa parte di una prenotazione
+                    // Diamo priorità alla trasparenza quando fa parte di una prenotazione
                     if (isSelected) {
                       cellClass += "bg-indigo-100 ";
                     } else if (bookingInfo) {
@@ -850,12 +863,25 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                           </div>
                         )}
                         
-                        {/* Menu contestuale dropdown */}
+                        {/* MODIFICATO: Menu contestuale dropdown */}
                         <div 
                           id={dropdownId}
                           className={`fixed z-50 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-2 ${isDropdownActive ? '' : 'hidden'}`}
                         >
+                          {/* Intestazione con data formattata */}
+                          <div className="px-4 py-2 font-medium border-b border-gray-200">
+                            {formatDateForDropdown(day)}
+                          </div>
+                          
                           <div className="py-1">
+                            {/* Indicazione "Data passata" per date passate */}
+                            {isPast && (
+                              <div className="px-4 py-2 text-sm text-gray-500 italic">
+                                Data passata
+                              </div>
+                            )}
+                            
+                            {/* Pulsante Calendario sempre presente */}
                             <button
                               className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
                               onClick={() => {
@@ -875,7 +901,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                                   router.push(`/bookings/${booking.id}`);
                                 }}
                               >
-                                <span className="mr-2">👁️</span> Dettagli Prenotazione
+                                <span className="mr-2">👁️</span> Dettagli
                               </button>
                             )}
                             
@@ -887,12 +913,12 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                                   router.push(`/bookings/${booking.id}/edit`);
                                 }}
                               >
-                                <span className="mr-2">✏️</span> Modifica Prenotazione
+                                <span className="mr-2">✏️</span> Modifica
                               </button>
                             )}
                             
-                            {/* Opzioni per celle disponibili */}
-                            {!booking && !isBlocked && (
+                            {/* Opzioni per celle disponibili (non mostrare per date passate) */}
+                            {!booking && !isBlocked && !isPast && (
                               <button
                                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700"
                                 onClick={() => {
@@ -903,8 +929,8 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               </button>
                             )}
                             
-                            {/* Opzioni per celle bloccate */}
-                            {!booking && isBlocked && (
+                            {/* Opzioni per celle bloccate (non mostrare per date passate) */}
+                            {!booking && isBlocked && !isPast && (
                               <button
                                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
                                 onClick={() => {
@@ -915,8 +941,8 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               </button>
                             )}
                             
-                            {/* Opzione prenota */}
-                            {!booking && (
+                            {/* Opzione prenota (non mostrare per date passate) */}
+                            {!booking && !isPast && (
                               <button
                                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
                                 onClick={() => {
