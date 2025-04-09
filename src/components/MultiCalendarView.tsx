@@ -517,54 +517,93 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     }
   };
   
-  // Raggruppa le prenotazioni per appartamento
+  // Processa le prenotazioni per l'appartamento e determina quali sono visibili nel calendario corrente
   const processBookings = (apartment: ApartmentWithBookings) => {
-    const result: Array<{
-      booking: Booking;
-      startIdx: number;
-      endIdx: number;
-      checkIn: Date;
-      checkOut: Date;
-    }> = [];
-    
+    // Filtra solo le prenotazioni confermate
     const confirmedBookings = apartment.bookings.filter(booking => booking.status === 'confirmed');
+    const results: Array<{
+      booking: Booking;
+      cells: Array<{dayIndex: number; isFirstDay: boolean; isLastDay: boolean}>;
+      displayInfo: {
+        startDate: Date;
+        endDate: Date;
+        isPartialStart: boolean;
+        isPartialEnd: boolean;
+        isContinued: boolean; // Indica se la prenotazione continua oltre il mese corrente
+      };
+    }> = [];
+
+    // Ottieni il primo e l'ultimo giorno del mese visualizzato
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    
+    // Imposta le ore a 0 per il confronto delle date
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+    lastDayOfMonth.setHours(0, 0, 0, 0);
     
     for (const booking of confirmedBookings) {
-      const checkIn = new Date(booking.checkIn);
-      const checkOut = new Date(booking.checkOut);
-      
-      checkIn.setHours(0, 0, 0, 0);
-      checkOut.setHours(0, 0, 0, 0);
-      
-      // Trova gli indici dei giorni nel calendario
-      const firstDayIdx = calendarDays.findIndex(day => {
-        const d = new Date(day);
-        d.setHours(0, 0, 0, 0);
-        return d.getTime() >= checkIn.getTime() && d.getTime() < checkOut.getTime();
-      });
-      
-      if (firstDayIdx === -1) continue; // Non visibile nel calendario corrente
-      
-      const lastDayIdx = calendarDays.findIndex(day => {
-        const d = new Date(day);
-        d.setHours(0, 0, 0, 0);
-        const nextDay = new Date(d);
-        nextDay.setDate(nextDay.getDate() + 1);
-        return nextDay.getTime() >= checkOut.getTime();
-      });
-      
-      const lastIdx = lastDayIdx === -1 ? calendarDays.length - 1 : lastDayIdx;
-      
-      result.push({
-        booking,
-        startIdx: firstDayIdx,
-        endIdx: lastIdx,
-        checkIn,
-        checkOut
-      });
+      try {
+        const checkIn = new Date(booking.checkIn);
+        const checkOut = new Date(booking.checkOut);
+        
+        // Normalizza le date per il confronto
+        checkIn.setHours(0, 0, 0, 0);
+        checkOut.setHours(0, 0, 0, 0);
+        
+        // Verifica se la prenotazione è visibile nel mese corrente
+        // La prenotazione è visibile se il check-out è dopo l'inizio del mese
+        // e il check-in è prima della fine del mese
+        if (checkOut > firstDayOfMonth && checkIn <= lastDayOfMonth) {
+          // Cella per ogni giorno della prenotazione nel mese corrente
+          const cells: Array<{dayIndex: number; isFirstDay: boolean; isLastDay: boolean}> = [];
+          
+          // Determina se la prenotazione inizia prima del mese corrente
+          const isPartialStart = checkIn < firstDayOfMonth;
+          
+          // Determina se la prenotazione termina dopo il mese corrente
+          const isPartialEnd = checkOut > lastDayOfMonth;
+          
+          // Determina i giorni effettivi da visualizzare
+          const startDate = isPartialStart ? firstDayOfMonth : checkIn;
+          const endDate = isPartialEnd ? lastDayOfMonth : new Date(checkOut);
+          endDate.setDate(endDate.getDate() - 1); // Il check-out è esclusivo
+          
+          // Trova i giorni della prenotazione all'interno del calendario
+          for (let i = 0; i < calendarDays.length; i++) {
+            const currentDay = new Date(calendarDays[i]);
+            currentDay.setHours(0, 0, 0, 0);
+            
+            // Controlla se il giorno corrente è all'interno del periodo di prenotazione
+            if (currentDay >= startDate && currentDay <= endDate) {
+              cells.push({
+                dayIndex: i,
+                isFirstDay: currentDay.getTime() === startDate.getTime(),
+                isLastDay: currentDay.getTime() === endDate.getTime()
+              });
+            }
+          }
+          
+          // Aggiungi la prenotazione processata solo se ha almeno una cella da visualizzare
+          if (cells.length > 0) {
+            results.push({
+              booking,
+              cells,
+              displayInfo: {
+                startDate,
+                endDate,
+                isPartialStart,
+                isPartialEnd,
+                isContinued: isPartialStart || isPartialEnd
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Errore nell'elaborazione della prenotazione:", error);
+      }
     }
     
-    return result;
+    return results;
   };
   
   // Controlla se c'è almeno un giorno da visualizzare
@@ -685,7 +724,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
               const processedBookings = processBookings(apartment);
               
               return (
-                <tr key={apartment.id} className="relative">
+                <tr key={apartment.id} className="relative booking-row">
                   {/* Nome appartamento */}
                   <td 
                     className="sticky left-0 z-10 bg-white border border-gray-200 py-3 px-2 md:px-4 font-medium"
@@ -714,21 +753,13 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                   {calendarDays.map((day, dayIndex) => {
                     const isPast = isPastDate(day);
                     const isCurrentDay = isToday(day);
+                    
+                    // Cerca se questa data è in una prenotazione
                     const booking = getBookingForDate(apartment, day);
+                    
                     const isBlocked = isDateBlocked(apartment, day);
                     const isSelected = isDateSelected(apartment.id, day);
                     const price = getPriceForDate(apartment, day);
-                    
-                    // Trova se questa data è l'inizio di una prenotazione
-                    const bookingInfo = processedBookings.find(b => {
-                      const currentDate = new Date(day);
-                      currentDate.setHours(0, 0, 0, 0);
-                      
-                      const bookingStart = new Date(b.checkIn);
-                      bookingStart.setHours(0, 0, 0, 0);
-                      
-                      return currentDate.getTime() === bookingStart.getTime();
-                    });
                     
                     // Determina la classe della cella
                     let cellClass = "border border-gray-200 relative ";
@@ -740,7 +771,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                     } else if (isPast) {
                       cellClass += "bg-gray-100 ";
                     } else if (booking) {
-                      // Per permettere la visualizzazione della prenotazione
+                      // Cella con prenotazione - trasparente per visualizzare le strisce
                       cellClass += "bg-transparent ";
                     } else if (isBlocked) {
                       cellClass += "bg-red-50 ";
@@ -761,7 +792,6 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                         ref={isCurrentDay ? todayCellRef : null}
                         style={{ height: "60px", padding: "2px", position: "relative" }}
                       >
-                        {/* Contenuto della cella standard */}
                         <div className="text-center text-xs md:text-sm">
                           {!booking && !isBlocked && `${price}€`}
                         </div>
@@ -786,25 +816,6 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               }}
                               onClick={(e) => e.stopPropagation()}
                             />
-                          </div>
-                        )}
-                        
-                        {/* Visualizza la prenotazione all'inizio della prenotazione */}
-                        {bookingInfo && (
-                          <div 
-                            className="absolute top-0 left-0 h-full bg-green-100 border border-green-300 rounded-md flex flex-col justify-center px-2 text-xs overflow-hidden z-5 cursor-pointer"
-                            style={{
-                              width: `${(bookingInfo.endIdx - bookingInfo.startIdx + 1) * 100}%`,
-                              minWidth: `${(bookingInfo.endIdx - bookingInfo.startIdx + 1) * 75}px`,
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/bookings/${bookingInfo.booking.id}`);
-                            }}
-                          >
-                            <div className="font-semibold truncate">{bookingInfo.booking.guestName}</div>
-                            <div className="truncate">{bookingInfo.booking.numberOfGuests} ospiti</div>
-                            <div className="font-medium truncate">{bookingInfo.booking.totalPrice}€</div>
                           </div>
                         )}
                         
@@ -887,6 +898,43 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                           </div>
                         </div>
                       </td>
+                    );
+                  })}
+                  
+                  {/* Visualizzazione delle prenotazioni come strisce */}
+                  {processedBookings.map((processedBooking, bookingIndex) => {
+                    // Estrai i dati della prenotazione
+                    const { booking, cells, displayInfo } = processedBooking;
+                    
+                    if (cells.length === 0) return null;
+                    
+                    // Trova il primo e l'ultimo giorno della prenotazione nel calendario
+                    const firstCell = cells[0];
+                    const lastCell = cells[cells.length - 1];
+                    
+                    // Calcola la larghezza in base al numero di celle
+                    const width = (lastCell.dayIndex - firstCell.dayIndex + 1) * 100;
+                    
+                    // Crea una striscia di prenotazione per ogni cella
+                    return (
+                      <div 
+                        key={`${apartment.id}-booking-${booking.id}-${bookingIndex}`}
+                        className={`absolute z-5 bg-green-100 border border-green-300 rounded-md flex flex-col justify-center px-2 text-xs overflow-hidden cursor-pointer`}
+                        style={{
+                          height: "56px",
+                          top: "2px",
+                          left: `${firstCell.dayIndex * 80 + 180}px`, // 180px per la prima colonna + larghezza celle
+                          width: `${width}%`,
+                          minWidth: `${(lastCell.dayIndex - firstCell.dayIndex + 1) * 75}px`,
+                          borderLeft: displayInfo.isPartialStart ? "4px solid #22c55e" : "", // Bordo verde se continua dal mese precedente
+                          borderRight: displayInfo.isPartialEnd ? "4px solid #22c55e" : "",  // Bordo verde se continua nel mese successivo
+                        }}
+                        onClick={() => router.push(`/bookings/${booking.id}`)}
+                      >
+                        <div className="font-semibold truncate">{booking.guestName}</div>
+                        <div className="truncate">{booking.numberOfGuests} ospiti</div>
+                        <div className="font-medium truncate">{booking.totalPrice}€</div>
+                      </div>
                     );
                   })}
                 </tr>
@@ -1065,6 +1113,13 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
           </div>
         </Dialog>
       </Transition.Root>
+      
+      {/* Stili aggiuntivi per gestire i posizionamenti relativi */}
+      <style jsx>{`
+        .booking-row {
+          position: relative;
+        }
+      `}</style>
     </div>
   );
 }
