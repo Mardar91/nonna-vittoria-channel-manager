@@ -837,119 +837,127 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
         customMinStay={getMinStayForDate(newBookingStartDate)}
       />
 
-      {/* Modal Dettagli Prenotazione (Stile aggiornato) */}
+      {/* Modal Dettagli Prenotazione (CON CORREZIONE) */}
       <Transition.Root show={isBookingModalOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-30" onClose={() => setIsBookingModalOpen(false)}> {/* Aumentato z-index */}
+        <Dialog as="div" className="relative z-30" onClose={() => setIsBookingModalOpen(false)}>
           <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
-            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" /> {/* Sfondo più scuro */}
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
           </Transition.Child>
 
           <div className="fixed inset-0 z-40 overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-              <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" enterTo="opacity-100 translate-y-0 sm:scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 translate-y-0 sm:scale-100" leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                enterTo="opacity-100 translate-y-0 sm:scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              >
                 <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-                   <div className="absolute right-4 top-4">
-                     <button
-                       type="button"
-                       className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                       onClick={() => setIsBookingModalOpen(false)}
-                     >
-                       <span className="sr-only">Chiudi</span>
-                       <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                     </button>
-                   </div>
+                  <div className="absolute right-4 top-4">
+                    <button
+                      type="button"
+                      className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                      onClick={() => setIsBookingModalOpen(false)}
+                    >
+                      <span className="sr-only">Chiudi</span>
+                      <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                    </button>
+                  </div>
 
-                   {selectedBooking && (
-                     <div className="px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                  {/* Contenuto e pulsanti ora DENTRO la guardia */}
+                  {selectedBooking && (
+                    <> {/* Usa un Fragment per raggruppare contenuto e footer */}
+                      {/* Contenuto Principale */}
+                      <div className="px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                         <div className="sm:flex sm:items-start">
-                          {/* Icona opzionale */}
-                          {/* <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                             <EyeIcon className="h-6 w-6 text-blue-600" aria-hidden="true" />
-                           </div> */}
                           <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
                             <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900 mb-4">
                               Dettagli Prenotazione
                             </Dialog.Title>
-
                             <div className="space-y-4 bg-gray-50 p-4 rounded-md border border-gray-200">
-                               <p className="text-base font-medium text-gray-800">{selectedBooking.guestName}</p>
-                               <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                 <div>
-                                   <p className="font-medium text-gray-500">Check-in</p>
-                                   <p className="text-gray-900">{formatDate(new Date(selectedBooking.checkIn))}</p>
-                                 </div>
-                                 <div>
-                                   <p className="font-medium text-gray-500">Check-out</p>
-                                   <p className="text-gray-900">{formatDate(new Date(selectedBooking.checkOut))}</p>
-                                 </div>
-                                 <div>
-                                   <p className="font-medium text-gray-500">Ospiti</p>
-                                   <p className="text-gray-900">{selectedBooking.numberOfGuests}</p>
-                                 </div>
-                                 <div>
-                                   <p className="font-medium text-gray-500">Prezzo Tot.</p>
-                                   <p className="font-semibold text-gray-900">€{selectedBooking.totalPrice.toFixed(2)}</p>
-                                 </div>
-                                 {selectedBooking.guestEmail && (
-                                     <div className="col-span-2">
-                                        <p className="font-medium text-gray-500">Email</p>
-                                        <p className="text-gray-900 truncate">{selectedBooking.guestEmail}</p>
-                                     </div>
-                                 )}
-                                 {selectedBooking.guestPhone && (
-                                     <div className="col-span-2">
-                                        <p className="font-medium text-gray-500">Telefono</p>
-                                        <p className="text-gray-900">{selectedBooking.guestPhone}</p>
-                                     </div>
-                                 )}
-                                 {selectedBooking.source && (
-                                     <div className="col-span-2">
-                                        <p className="font-medium text-gray-500">Fonte</p>
-                                        <p className="text-gray-900 capitalize">
-                                           {selectedBooking.source === 'direct' ? 'Diretta' : selectedBooking.source}
-                                        </p>
-                                     </div>
-                                 )}
-                               </div>
-                             </div>
+                              <p className="text-base font-medium text-gray-800">{selectedBooking.guestName}</p>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                <div>
+                                  <p className="font-medium text-gray-500">Check-in</p>
+                                  <p className="text-gray-900">{formatDate(new Date(selectedBooking.checkIn))}</p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-500">Check-out</p>
+                                  <p className="text-gray-900">{formatDate(new Date(selectedBooking.checkOut))}</p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-500">Ospiti</p>
+                                  <p className="text-gray-900">{selectedBooking.numberOfGuests}</p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-500">Prezzo Tot.</p>
+                                  <p className="font-semibold text-gray-900">€{selectedBooking.totalPrice.toFixed(2)}</p>
+                                </div>
+                                {selectedBooking.guestEmail && (
+                                    <div className="col-span-2">
+                                      <p className="font-medium text-gray-500">Email</p>
+                                      <p className="text-gray-900 truncate">{selectedBooking.guestEmail}</p>
+                                    </div>
+                                )}
+                                {selectedBooking.guestPhone && (
+                                    <div className="col-span-2">
+                                      <p className="font-medium text-gray-500">Telefono</p>
+                                      <p className="text-gray-900">{selectedBooking.guestPhone}</p>
+                                    </div>
+                                )}
+                                {selectedBooking.source && (
+                                    <div className="col-span-2">
+                                      <p className="font-medium text-gray-500">Fonte</p>
+                                      <p className="text-gray-900 capitalize">
+                                         {selectedBooking.source === 'direct' ? 'Diretta' : selectedBooking.source}
+                                      </p>
+                                    </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                     </div>
-                   )}
-                   {/* Pulsanti Azioni Modal */}
-                   <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-3">
-                     <button
-                       type="button"
-                       onClick={() => router.push(`/bookings/${selectedBooking?.id}`)}
-                       className="inline-flex w-full justify-center items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:w-auto"
-                     >
-                       <EyeIcon className="h-4 w-4 mr-1.5" />
-                       Vedi
-                     </button>
-                     <button
-                       type="button"
-                       onClick={() => router.push(`/bookings/${selectedBooking?.id}/edit`)}
-                       className="mt-3 sm:mt-0 inline-flex w-full justify-center items-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:w-auto"
-                     >
-                       <PencilIcon className="h-4 w-4 mr-1.5" />
-                       Modifica
-                     </button>
-                     <button
-                       type="button"
-                       onClick={() => setDeleteConfirmOpen(true)}
-                       className="mt-3 sm:mt-0 inline-flex w-full justify-center items-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:w-auto"
-                     >
-                       <TrashIcon className="h-4 w-4 mr-1.5" />
-                       Elimina
-                     </button>
-                     <button
-                       type="button"
-                       className="mt-3 sm:mt-0 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto"
-                       onClick={() => setIsBookingModalOpen(false)}
-                     >
-                       Chiudi
-                     </button>
-                   </div>
+                      </div>
+
+                      {/* Pulsanti Azioni Modal (Footer) - ORA DENTRO la guardia */}
+                      <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/bookings/${selectedBooking.id}`)} // Tolto ?.id
+                          className="inline-flex w-full justify-center items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:w-auto"
+                        >
+                          <EyeIcon className="h-4 w-4 mr-1.5" />
+                          Vedi
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/bookings/${selectedBooking.id}/edit`)} // Tolto ?.id
+                          className="mt-3 sm:mt-0 inline-flex w-full justify-center items-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:w-auto"
+                        >
+                          <PencilIcon className="h-4 w-4 mr-1.5" />
+                          Modifica
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmOpen(true)}
+                          className="mt-3 sm:mt-0 inline-flex w-full justify-center items-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:w-auto"
+                        >
+                          <TrashIcon className="h-4 w-4 mr-1.5" />
+                          Elimina
+                        </button>
+                        <button
+                          type="button"
+                          className="mt-3 sm:mt-0 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto"
+                          onClick={() => setIsBookingModalOpen(false)}
+                        >
+                          Chiudi
+                        </button>
+                      </div>
+                    </>
+                  )} {/* Fine del Fragment e della guardia selectedBooking */}
                 </Dialog.Panel>
               </Transition.Child>
             </div>
