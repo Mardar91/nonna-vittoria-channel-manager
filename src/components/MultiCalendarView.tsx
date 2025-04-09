@@ -79,27 +79,29 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     }
   }, [currentMonth, currentYear]);
   
-  // Effetto per scorrere alla data di oggi quando il componente è montato inizialmente
+  // Effetto per scorrere al giorno appropriato quando cambia il mese
   useEffect(() => {
-    // Solo al primo caricamento, scorri alla data di oggi
-    if (calendarDays.length > 0 && isToday(calendarDays[0])) {
-      // Aspetta che il DOM sia completamente renderizzato
-      setTimeout(() => {
-        if (todayCellRef.current) {
-          todayCellRef.current.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-            inline: 'center'
-          });
-        }
-      }, 500);
-    } else if (firstDayOfMonthRef.current) {
-      // Per tutti gli altri cambi di mese, scorri al primo giorno
-      setTimeout(() => {
+    if (calendarDays.length === 0) return;
+    
+    // Controlla se stiamo visualizzando il mese corrente
+    const today = new Date();
+    const isCurrentMonthDisplayed = today.getMonth() === currentMonth && today.getFullYear() === currentYear;
+    
+    // Attendi che il DOM sia completamente renderizzato
+    setTimeout(() => {
+      if (isCurrentMonthDisplayed && todayCellRef.current) {
+        // Se è il mese corrente, scorri alla data odierna
+        todayCellRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'center'
+        });
+      } else if (firstDayOfMonthRef.current) {
+        // Per tutti gli altri mesi, scorri al primo giorno
         scrollToFirstDay();
-      }, 100);
-    }
-  }, [calendarDays]);
+      }
+    }, 200);
+  }, [calendarDays, currentMonth, currentYear]);
   
   // Funzione per scorrere al primo giorno del mese
   const scrollToFirstDay = () => {
