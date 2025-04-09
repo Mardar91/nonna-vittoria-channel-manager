@@ -761,8 +761,13 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                     const isSelected = isDateSelected(apartment.id, day);
                     const price = getPriceForDate(apartment, day);
                     
-                    // Trova se questa data è l'inizio di una prenotazione
-                    const bookingInfo = processedBookings.find(b => b.startIdx === dayIndex);
+                    // MODIFICATO: Trova se questa data fa parte di una prenotazione
+                    const bookingInfo = processedBookings.find(b => 
+                      dayIndex >= b.startIdx && dayIndex <= b.endIdx
+                    );
+                    
+                    // Determina se questa è la prima cella di una prenotazione
+                    const isFirstDayOfBooking = bookingInfo && bookingInfo.startIdx === dayIndex;
                     
                     // Determina la classe della cella
                     let cellClass = "border border-gray-200 relative ";
@@ -823,8 +828,8 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                           </div>
                         )}
                         
-                        {/* Visualizza la prenotazione all'inizio della prenotazione */}
-                        {bookingInfo && (
+                        {/* MODIFICATO: Visualizza la prenotazione solo all'inizio della prenotazione */}
+                        {isFirstDayOfBooking && bookingInfo && (
                           <div 
                             className="absolute top-0 left-0 h-full bg-green-100 border border-green-300 rounded-md flex flex-col justify-center px-2 text-xs overflow-hidden z-5 cursor-pointer"
                             style={{
