@@ -176,10 +176,13 @@ export default function BookingPage() {
   const getTotalPrice = (apartment: any): number => {
     if (!apartment || !apartment.nights) return 0;
     
-    // Usa la funzione di calcolo del prezzo
+    // Limita il numero di ospiti alla capacità massima dell'appartamento
+    const effectiveGuests = Math.min(search.adults + search.children, apartment.maxGuests);
+    
+    // Usa la funzione di calcolo del prezzo con il numero effettivo di ospiti
     return calculateTotalPrice(
       apartment,
-      search.adults + search.children,
+      effectiveGuests,
       apartment.nights
     );
   };
@@ -252,6 +255,9 @@ export default function BookingPage() {
       
       // Per prenotazione singola
       if (selectedApartment) {
+        // Limita il numero di ospiti alla capacità massima
+        const effectiveGuests = Math.min(search.adults + search.children, selectedApartment.maxGuests);
+        
         requestData = {
           apartmentId: selectedApartment._id,
           checkIn: search.checkIn,
@@ -259,7 +265,7 @@ export default function BookingPage() {
           guestName: bookingFormData.guestName,
           guestEmail: bookingFormData.guestEmail,
           guestPhone: bookingFormData.guestPhone,
-          numberOfGuests: search.adults + search.children,
+          numberOfGuests: effectiveGuests, // Limitato al massimo consentito
           notes: bookingFormData.notes,
           isGroupBooking: false
         };
@@ -505,18 +511,26 @@ export default function BookingPage() {
                         {/* Informazioni sul prezzo */}
                         <div className="mt-2 text-sm text-gray-600">
                           {apartment.priceType === 'per_person' ? (
-                            <p>€{apartment.price.toFixed(2)} per persona per notte</p>
+                            <p>€{apartment.price.toFixed(2)} per persona per notte (max {apartment.maxGuests} ospiti)</p>
                           ) : (
                             <>
                               <p>€{apartment.price.toFixed(2)} per notte (fino a {apartment.baseGuests} ospiti)</p>
-                              {apartment.extraGuestPrice > 0 && search.adults + search.children > apartment.baseGuests && (
+                              {apartment.extraGuestPrice > 0 && (
                                 <p className="text-xs text-gray-500">
                                   {apartment.extraGuestPriceType === 'fixed' 
-                                    ? `+€${apartment.extraGuestPrice.toFixed(2)} per ogni ospite extra`
-                                    : `+${apartment.extraGuestPrice}% per ogni ospite extra`}
+                                    ? `+€${apartment.extraGuestPrice.toFixed(2)} per ogni ospite extra (max ${apartment.maxGuests} ospiti)`
+                                    : `+${apartment.extraGuestPrice}% per ogni ospite extra (max ${apartment.maxGuests} ospiti)`}
                                 </p>
                               )}
                             </>
+                          )}
+                          
+                          {/* Avviso se il numero di ospiti totale è maggiore della capacità */}
+                          {search.adults + search.children > apartment.maxGuests && (
+                            <p className="mt-1 text-xs text-orange-600 font-semibold">
+                              Questo appartamento può ospitare al massimo {apartment.maxGuests} ospiti.
+                              Il prezzo mostrato è calcolato per {apartment.maxGuests} ospiti.
+                            </p>
                           )}
                         </div>
                         
@@ -524,6 +538,11 @@ export default function BookingPage() {
                           <div>
                             <div className="text-sm text-gray-500">Prezzo per {apartment.nights} notti</div>
                             <div className="text-2xl font-bold">€{getTotalPrice(apartment).toFixed(2)}</div>
+                            {search.adults + search.children > apartment.maxGuests && (
+                              <div className="text-xs text-gray-600">
+                                (per {apartment.maxGuests} ospiti)
+                              </div>
+                            )}
                           </div>
                           
                           <button
@@ -657,9 +676,18 @@ export default function BookingPage() {
                             <h4 className="font-medium text-gray-900 mb-2">Dettagli Prenotazione</h4>
                             <p><span className="font-medium">Check-in:</span> {formatDate(search.checkIn)}</p>
                             <p><span className="font-medium">Check-out:</span> {formatDate(search.checkOut)}</p>
-                            <p><span className="font-medium">Ospiti:</span> {search.adults} adulti
-                              {search.children > 0 ? `, ${search.children} bambini` : ''}
+                            <p>
+                              <span className="font-medium">Ospiti:</span> {
+                                selectedApartment ? 
+                                  `${Math.min(search.adults + search.children, selectedApartment.maxGuests)} (max ${selectedApartment.maxGuests})` :
+                                  `${search.adults} adulti${search.children > 0 ? `, ${search.children} bambini` : ''}`
+                              }
                             </p>
+                            {selectedApartment && search.adults + search.children > selectedApartment.maxGuests && (
+                              <p className="text-xs text-orange-600 mt-1">
+                                Nota: Questo appartamento può ospitare al massimo {selectedApartment.maxGuests} ospiti.
+                              </p>
+                            )}
                           </div>
                           
                           {/* Riepilogo appartamento */}
@@ -675,7 +703,7 @@ export default function BookingPage() {
                                 ) : (
                                   <>
                                     <p>€{selectedApartment.price.toFixed(2)} per notte (fino a {selectedApartment.baseGuests} ospiti)</p>
-                                    {selectedApartment.extraGuestPrice > 0 && search.adults + search.children > selectedApartment.baseGuests && (
+                                    {selectedApartment.extraGuestPrice > 0 && (
                                       <p className="text-xs text-gray-500">
                                         {selectedApartment.extraGuestPriceType === 'fixed' 
                                           ? `+€${selectedApartment.extraGuestPrice.toFixed(2)} per ogni ospite extra`
