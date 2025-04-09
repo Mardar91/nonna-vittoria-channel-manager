@@ -40,6 +40,8 @@ interface MultiCalendarViewProps {
 export default function MultiCalendarView({ apartments }: MultiCalendarViewProps) {
   const router = useRouter();
   const todayCellRef = useRef<HTMLTableCellElement>(null);
+  const firstDayOfMonthRef = useRef<HTMLTableCellElement>(null);
+  const calendarContainerRef = useRef<HTMLDivElement>(null);
   
   // Crea una data con il fuso orario italiano
   const currentDateItaly = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Rome'}));
@@ -77,19 +79,42 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     }
   }, [currentMonth, currentYear]);
   
-  // Effetto per scorrere alla data di oggi quando il componente è montato
+  // Effetto per scorrere alla data di oggi quando il componente è montato inizialmente
   useEffect(() => {
-    // Aspetta che il DOM sia completamente renderizzato
-    setTimeout(() => {
-      if (todayCellRef.current) {
-        todayCellRef.current.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-          inline: 'center'
-        });
-      }
-    }, 500);
+    // Solo al primo caricamento, scorri alla data di oggi
+    if (calendarDays.length > 0 && isToday(calendarDays[0])) {
+      // Aspetta che il DOM sia completamente renderizzato
+      setTimeout(() => {
+        if (todayCellRef.current) {
+          todayCellRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'center'
+          });
+        }
+      }, 500);
+    } else if (firstDayOfMonthRef.current) {
+      // Per tutti gli altri cambi di mese, scorri al primo giorno
+      setTimeout(() => {
+        scrollToFirstDay();
+      }, 100);
+    }
   }, [calendarDays]);
+  
+  // Funzione per scorrere al primo giorno del mese
+  const scrollToFirstDay = () => {
+    if (firstDayOfMonthRef.current && calendarContainerRef.current) {
+      // Calcola la posizione di scroll per il primo giorno
+      const containerRect = calendarContainerRef.current.getBoundingClientRect();
+      const cellRect = firstDayOfMonthRef.current.getBoundingClientRect();
+      
+      // Scorri al primo giorno del mese
+      calendarContainerRef.current.scrollTo({
+        left: cellRect.left - containerRect.left - 180, // Sottrai la larghezza della colonna dell'appartamento
+        behavior: 'smooth'
+      });
+    }
+  };
   
   // Funzione per passare al mese precedente
   const goToPreviousMonth = () => {
@@ -431,6 +456,11 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     }
   };
   
+  // Funzione per verificare se è il primo giorno del mese
+  const isFirstDayOfMonth = (date: Date): boolean => {
+    return date.getDate() === 1;
+  };
+  
   // Trova la prenotazione per una data specifica
   const getBookingForDate = (apartment: ApartmentWithBookings, date: Date): Booking | null => {
     try {
@@ -699,7 +729,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       </div>
       
       {/* Calendario principale */}
-      <div className="overflow-x-auto pb-4 md:pb-6">
+      <div ref={calendarContainerRef} className="overflow-x-auto pb-4 md:pb-6">
         <table className="min-w-full border-collapse">
           <thead className="bg-white sticky top-0 z-10">
             <tr>
@@ -773,6 +803,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                     const isBlocked = isDateBlocked(apartment, day);
                     const isSelected = isDateSelected(apartment.id, day);
                     const price = getPriceForDate(apartment, day);
+                    const isFirstDay = isFirstDayOfMonth(day);
                     
                     // Trova se questa data fa parte di una prenotazione
                     const bookingInfo = processedBookings.find(b => 
@@ -805,13 +836,16 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                     const dropdownId = `dropdown-${apartment.id}-${day.getTime()}`;
                     const isDropdownActive = activeDropdown === dropdownId;
                     
+                    // Se è la prima riga degli appartamenti e il primo giorno del mese, aggiungi il ref
+                    const shouldAddFirstDayRef = apartment.id === apartments[0]?.id && isFirstDay;
+                    
                     return (
                       <td 
                         key={dayIndex} 
                         className={cellClass}
                         onClick={(e) => handleDateClick(apartment.id, day, e, booking)}
                         onMouseLeave={handleCellMouseLeave}
-                        ref={isCurrentDay ? todayCellRef : null}
+                        ref={isCurrentDay ? todayCellRef : (shouldAddFirstDayRef ? firstDayOfMonthRef : null)}
                         style={{ height: "60px", padding: "2px", position: "relative" }}
                       >
                         {/* Contenuto della cella standard */}
@@ -863,7 +897,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                           </div>
                         )}
                         
-                        {/* MODIFICATO: Menu contestuale dropdown */}
+                        {/* Menu contestuale dropdown */}
                         <div 
                           id={dropdownId}
                           className={`fixed z-50 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-2 ${isDropdownActive ? '' : 'hidden'}`}
