@@ -2,22 +2,12 @@
 
 import { ArrowRightOnRectangleIcon, ArrowLeftOnRectangleIcon, ClockIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-
-interface Activity {
-  id: string;
-  guestName: string;
-  apartmentName: string;
-  time: Date;
-}
-
-interface TodayActivityProps {
-  checkIns: Activity[];
-  checkOuts: Activity[];
-}
+import type { TodayActivityProps, ActivityClient } from '@/types/dashboard.d'; // Importa tipi
 
 export default function TodayActivity({ checkIns, checkOuts }: TodayActivityProps) {
-  const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('it-IT', { 
+  // Funzione per formattare la stringa ISO in un orario leggibile
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('it-IT', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
