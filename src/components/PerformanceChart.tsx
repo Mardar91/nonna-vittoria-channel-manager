@@ -2,24 +2,26 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChartBarIcon } from '@heroicons/react/24/outline';
-
-interface PerformanceChartProps {
-  data: { date: string; revenue: number }[];
-}
+import type { PerformanceChartProps, DataPointClient } from '@/types/dashboard.d'; // Importa tipi
 
 export default function PerformanceChart({ data }: PerformanceChartProps) {
-  // Raggruppa i dati per settimana
+  // Raggruppa i dati per settimana usando le stringhe ISO ricevute
   const weeklyData = [];
-  for (let i = 0; i < data.length; i += 7) {
-    const weekData = data.slice(i, i + 7);
-    const weekRevenue = weekData.reduce((sum, day) => sum + day.revenue, 0);
-    const weekStart = new Date(weekData[0].date);
-    
-    weeklyData.push({
-      week: weekStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }),
-      revenue: weekRevenue,
-      daily: Math.round(weekRevenue / 7)
-    });
+  if (data.length > 0) {
+    for (let i = 0; i < data.length; i += 7) {
+      const weekData = data.slice(i, i + 7);
+      if (weekData.length > 0) {
+        const weekRevenue = weekData.reduce((sum, day) => sum + (day.revenue || 0), 0);
+        // Usa la prima data della settimana per l'etichetta
+        const weekStart = new Date(weekData[0].date);
+        
+        weeklyData.push({
+          week: weekStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }),
+          revenue: weekRevenue,
+          daily: Math.round(weekRevenue / weekData.length) // Usa la lunghezza effettiva della fetta
+        });
+      }
+    }
   }
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -91,12 +93,12 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
         <div>
           <p className="text-sm text-gray-500">Miglior settimana</p>
           <p className="text-xl font-semibold text-gray-900">
-            €{Math.max(...weeklyData.map(w => w.revenue)).toLocaleString('it-IT')}
+            €{weeklyData.length > 0 ? Math.max(...weeklyData.map(w => w.revenue)).toLocaleString('it-IT') : 0}
           </p>
         </div>
         <div className="text-right">
           <p className="text-sm text-gray-500">Crescita media</p>
-          <p className="text-xl font-semibold text-green-600">+12.5%</p>
+          <p className="text-xl font-semibold text-green-600">+12.5%</p> {/* Valore di esempio */}
         </div>
       </div>
     </div>
