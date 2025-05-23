@@ -1,23 +1,23 @@
 'use client';
 
-import { CurrencyEuroIcon, TrendingUpIcon } from '@heroicons/react/24/outline';
+import { CurrencyEuroIcon } from '@heroicons/react/24/outline';
+// --- MODIFICA CHIAVE QUI ---
+import { TrendingUpIcon } from '@heroicons/react/24/solid'; // Corretto!
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
-
-interface RevenueWidgetProps {
-  totalRevenue: number;
-  monthRevenue: number;
-  projectedRevenue: number;
-  performanceData: { date: string; revenue: number }[];
-}
+import type { RevenueWidgetProps, DataPointClient } from '@/types/dashboard.d'; // Importa tipi
 
 export default function RevenueWidget({
   totalRevenue,
   monthRevenue,
   projectedRevenue,
-  performanceData
+  performanceData // Ora questo è DataPointClient[]
 }: RevenueWidgetProps) {
-  // Mini grafico degli ultimi 7 giorni
-  const last7Days = performanceData.slice(-7);
+
+  // Formatta le date per il grafico SOLO QUI nel client component
+  const last7Days = performanceData.slice(-7).map(d => ({
+    date: new Date(d.date).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }),
+    revenue: d.revenue
+  }));
   
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -45,7 +45,6 @@ export default function RevenueWidget({
       </div>
       
       <div className="space-y-6">
-        {/* Ricavo Totale */}
         <div>
           <p className="text-sm text-blue-100">Ricavo Totale (sempre)</p>
           <p className="text-3xl font-bold mt-1">
@@ -53,7 +52,6 @@ export default function RevenueWidget({
           </p>
         </div>
         
-        {/* Grid con metriche */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white/10 rounded-xl p-4">
             <div className="flex items-center justify-between">
@@ -63,7 +61,8 @@ export default function RevenueWidget({
                   €{monthRevenue.toLocaleString('it-IT')}
                 </p>
               </div>
-              <TrendingUpIcon className="h-5 w-5 text-green-400" />
+              {/* Usa l'icona importata correttamente */}
+              <TrendingUpIcon className="h-5 w-5 text-green-400" /> 
             </div>
           </div>
           
@@ -76,18 +75,17 @@ export default function RevenueWidget({
                 </p>
               </div>
               <div className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">
-                +15%
+                +15% {/* Esempio */}
               </div>
             </div>
           </div>
         </div>
         
-        {/* Mini grafico */}
         <div>
           <p className="text-xs text-blue-100 mb-2">Ultimi 7 giorni</p>
           <div className="h-16">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={last7Days}>
+              <LineChart data={last7Days}> {/* Usa i dati con date formattate */}
                 <Tooltip content={<CustomTooltip />} />
                 <Line
                   type="monotone"
@@ -101,21 +99,20 @@ export default function RevenueWidget({
           </div>
         </div>
         
-        {/* Statistiche aggiuntive */}
         <div className="grid grid-cols-3 gap-2 pt-4 border-t border-white/20">
           <div>
             <p className="text-xs text-blue-100">Media/giorno</p>
             <p className="text-sm font-semibold">
-              €{Math.round(monthRevenue / 30).toLocaleString('it-IT')}
+              €{Math.round(monthRevenue / 30).toLocaleString('it-IT')} {/* Semplificazione */}
             </p>
           </div>
           <div>
             <p className="text-xs text-blue-100">RevPAR</p>
-            <p className="text-sm font-semibold">€85</p>
+            <p className="text-sm font-semibold">€85</p> {/* Esempio */}
           </div>
           <div>
             <p className="text-xs text-blue-100">ADR</p>
-            <p className="text-sm font-semibold">€120</p>
+            <p className="text-sm font-semibold">€120</p> {/* Esempio */}
           </div>
         </div>
       </div>
