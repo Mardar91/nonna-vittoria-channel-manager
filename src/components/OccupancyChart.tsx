@@ -1,21 +1,11 @@
 'use client';
 
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { CalendarDaysIcon } from '@heroicons/react/24/outline';
-
-interface OccupancyData {
-  date: string;
-  occupied: number;
-  available: number;
-  rate: number;
-}
-
-interface OccupancyChartProps {
-  data: OccupancyData[];
-}
+import type { OccupancyChartProps, DataPointClient } from '@/types/dashboard.d'; // Importa tipi
 
 export default function OccupancyChart({ data }: OccupancyChartProps) {
-  // Formatta i dati per il grafico
+  // Formatta i dati per il grafico QUI, convertendo le stringhe ISO
   const chartData = data.map(item => ({
     ...item,
     date: new Date(item.date).toLocaleDateString('it-IT', { 
@@ -75,11 +65,12 @@ export default function OccupancyChart({ data }: OccupancyChartProps) {
             margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
           >
             <defs>
-              <linearGradient id="colorOccupied" x1="0" y1="0" x2="0" y2="1">
+              {/* ID Unici per evitare conflitti SVG */}
+              <linearGradient id="colorOccupiedChart" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
                 <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
               </linearGradient>
-              <linearGradient id="colorAvailable" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="colorAvailableChart" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#E5E7EB" stopOpacity={0.8}/>
                 <stop offset="95%" stopColor="#E5E7EB" stopOpacity={0.1}/>
               </linearGradient>
@@ -104,14 +95,14 @@ export default function OccupancyChart({ data }: OccupancyChartProps) {
               dataKey="occupied"
               stackId="1"
               stroke="#3B82F6"
-              fill="url(#colorOccupied)"
+              fill="url(#colorOccupiedChart)"
             />
             <Area
               type="monotone"
               dataKey="available"
               stackId="1"
               stroke="#E5E7EB"
-              fill="url(#colorAvailable)"
+              fill="url(#colorAvailableChart)"
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -121,13 +112,13 @@ export default function OccupancyChart({ data }: OccupancyChartProps) {
         <div>
           <p className="text-sm text-gray-500">Media Occupazione</p>
           <p className="text-xl font-semibold text-gray-900">
-            {Math.round(data.reduce((sum, d) => sum + d.rate, 0) / data.length)}%
+            {data.length > 0 ? Math.round(data.reduce((sum, d) => sum + (d.rate || 0), 0) / data.length) : 0}%
           </p>
         </div>
         <div>
           <p className="text-sm text-gray-500">Picco Occupazione</p>
           <p className="text-xl font-semibold text-gray-900">
-            {Math.max(...data.map(d => d.rate))}%
+            {data.length > 0 ? Math.max(...data.map(d => d.rate || 0)) : 0}%
           </p>
         </div>
         <div>
