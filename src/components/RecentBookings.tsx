@@ -2,34 +2,22 @@
 
 import { CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-
-interface Booking {
-  id: string;
-  guestName: string;
-  apartmentName: string;
-  checkIn: Date;
-  checkOut: Date;
-  status: string;
-  totalPrice: number;
-  createdAt?: Date;
-}
-
-interface RecentBookingsProps {
-  bookings: Booking[];
-}
+import type { RecentBookingsProps, RecentBookingClient } from '@/types/dashboard.d'; // Importa tipi
 
 export default function RecentBookings({ bookings }: RecentBookingsProps) {
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('it-IT', {
+  // Funzione per formattare la stringa ISO in una data leggibile
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('it-IT', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
     });
   };
 
-  const formatTime = (date: Date | undefined) => {
-    if (!date) return '';
-    return new Date(date).toLocaleDateString('it-IT', {
+  // Funzione per formattare la stringa ISO in data e ora
+  const formatTime = (dateString?: string) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('it-IT', {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
