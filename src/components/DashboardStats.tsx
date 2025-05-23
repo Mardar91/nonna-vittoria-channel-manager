@@ -8,14 +8,7 @@ import {
   HomeIcon,
 } from '@heroicons/react/24/outline';
 import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/20/solid';
-
-interface DashboardStatsProps {
-  totalApartments: number;
-  occupiedToday: number;
-  occupancyRate: number;
-  monthRevenue: number;
-  pendingBookings: number;
-}
+import type { DashboardStatsProps } from '@/types/dashboard.d'; // Importa tipi
 
 export default function DashboardStats({
   totalApartments,
@@ -24,6 +17,7 @@ export default function DashboardStats({
   monthRevenue,
   pendingBookings,
 }: DashboardStatsProps) {
+  // La logica esistente va già bene
   const stats = [
     {
       id: 1,
