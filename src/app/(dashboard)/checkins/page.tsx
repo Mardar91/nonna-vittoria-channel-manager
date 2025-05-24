@@ -6,11 +6,9 @@ import CheckInModel from '@/models/CheckIn';
 import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import { ClipboardDocumentCheckIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import mongoose from 'mongoose'; // Importa mongoose per i tipi, se necessario
+import mongoose from 'mongoose';
 
-// Definiamo alcune interfacce per una maggiore type safety
-// Queste dovrebbero rispecchiare i tuoi schemi Mongoose
-
+// Interfacce (assicurati che corrispondano ai tuoi schemi Mongoose)
 interface GuestInCheckIn {
   isMainGuest: boolean;
   firstName: string;
@@ -26,7 +24,8 @@ interface CheckInDocumentForPage {
   checkInDate: Date | string;
   completedAt?: Date | string | null;
   completedBy?: 'guest' | string | null;
-  status?: string; // Aggiungi se 'status' è una proprietà del tuo modello CheckIn
+  status?: string;
+  createdAt: Date | string; // Aggiunto createdAt se lo usi per .sort() o altrove
   // ...altre proprietà del checkin
 }
 
@@ -53,48 +52,49 @@ export default async function CheckInsPage() {
   
   await connectDB();
   
-  // Ottieni tutti i check-in con informazioni correlate
-  // Tipizziamo il risultato per maggiore sicurezza
-  const checkIns: CheckInDocumentForPage[] = await CheckInModel.find({})
-    .sort({ createdAt: -1 })
+  const checkIns = await CheckInModel.find({})
+    .sort({ createdAt: -1 }) // Assicurati che createdAt sia nel tipo CheckInDocumentForPage se TypeScript si lamenta
     .limit(100)
-    .lean(); // Aggiungere .lean() è buona pratica per le letture
+    .lean<CheckInDocumentForPage[]>(); // <-- TIPO FORNITO A LEAN
   
-  // Ottieni le informazioni di booking e appartamenti
+  // Mongoose find().lean() generalmente restituisce un array vuoto se non trova documenti,
+  // quindi il controllo !checkIns potrebbe non essere necessario per null/undefined se il tipo è Array.
+  // Tuttavia, se per qualche motivo potesse essere null, il controllo è una buona pratica.
+  // if (!checkIns) {
+  //   // Gestisci questo caso, ad es.
+  //   return <p>Nessun check-in trovato.</p>; 
+  // }
+
   const bookingIds = checkIns.map(c => c.bookingId);
-  // Tipizziamo anche qui
-  const bookings: BookingDocumentForPage[] = await BookingModel.find({ _id: { $in: bookingIds } }).lean();
-  const bookingMap = new Map(bookings.map(b => [String(b._id), b])); // Usa String() per le chiavi della Map
+  const bookings = await BookingModel.find({ _id: { $in: bookingIds } })
+    .lean<BookingDocumentForPage[]>(); // <-- TIPO FORNITO A LEAN
+  const bookingMap = new Map(bookings.map(b => [String(b._id), b]));
   
-  // --- MODIFICA CHIAVE QUI ---
   const apartmentIds = Array.from(new Set(checkIns.map(c => String(c.apartmentId))));
-  // Tipizziamo
-  const apartments: ApartmentDocumentForPage[] = await ApartmentModel.find({ _id: { $in: apartmentIds } }).lean();
-  const apartmentMap = new Map(apartments.map(a => [String(a._id), a])); // Usa String() per le chiavi della Map
+  const apartments = await ApartmentModel.find({ _id: { $in: apartmentIds } })
+    .lean<ApartmentDocumentForPage[]>(); // <-- TIPO FORNITO A LEAN
+  const apartmentMap = new Map(apartments.map(a => [String(a._id), a]));
   
-  // Prepara i dati per la visualizzazione
   const checkInsWithDetails = checkIns.map(checkIn => {
-    // Usiamo String() per confrontare gli ID con le chiavi della Map
     const booking = bookingMap.get(String(checkIn.bookingId));
     const apartment = apartmentMap.get(String(checkIn.apartmentId));
     const mainGuest = checkIn.guests.find(g => g.isMainGuest);
     
     return {
-      id: String(checkIn._id), // Assicurati che l'ID sia una stringa
-      bookingId: String(checkIn.bookingId), // Anche qui, per coerenza
+      id: String(checkIn._id),
+      bookingId: String(checkIn.bookingId),
       apartmentName: apartment?.name || 'Sconosciuto',
       mainGuestName: mainGuest ? `${mainGuest.firstName} ${mainGuest.lastName}` : 'N/A',
       guestCount: checkIn.guests.length,
       checkInDate: checkIn.checkInDate,
       completedAt: checkIn.completedAt,
       completedBy: checkIn.completedBy,
-      status: checkIn.status, // Assicurati che 'status' esista nel tipo CheckInDocumentForPage
+      status: checkIn.status,
       bookingCheckIn: booking?.checkIn,
       bookingCheckOut: booking?.checkOut,
     };
   });
   
-  // Funzione per formattare le date
   const formatDate = (dateInput: Date | string | undefined | null): string => {
     if (!dateInput) return 'N/A';
     return new Date(dateInput).toLocaleDateString('it-IT', {
@@ -106,7 +106,6 @@ export default async function CheckInsPage() {
     });
   };
   
-  // Funzione per formattare chi ha completato il check-in
   const formatCompletedBy = (completedBy: 'guest' | string | undefined | null): string => {
     if (!completedBy) return 'N/A';
     return completedBy === 'guest' ? 'Ospite' : 'Manuale';
@@ -121,7 +120,6 @@ export default async function CheckInsPage() {
         </h1>
       </div>
       
-      {/* Statistiche */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500">Check-in Totali</h3>
@@ -140,13 +138,11 @@ export default async function CheckInsPage() {
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500">Check-in Manuali</h3>
           <p className="mt-2 text-3xl font-semibold text-green-600">
-            {checkInsWithDetails.filter(c => c.completedBy !== 'guest' && c.completedBy).length} 
-            {/* Aggiunto c.completedBy per essere sicuri che non sia null/undefined */}
+            {checkInsWithDetails.filter(c => c.completedBy !== 'guest' && c.completedBy).length}
           </p>
         </div>
       </div>
       
-      {/* Tabella check-ins */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:px-6">
           <h2 className="text-lg font-medium text-gray-900">Ultimi Check-ins</h2>
