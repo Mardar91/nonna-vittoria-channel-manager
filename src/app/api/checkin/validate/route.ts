@@ -5,7 +5,6 @@ import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import CheckInModel from '@/models/CheckIn';
 import { BookingValidationRequest, BookingValidationResponse } from '@/types/checkin';
-// Non serve mongoose qui se non per Types.ObjectId.isValid, ma non lo usiamo più per il reference
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,33 +21,37 @@ export async function POST(req: NextRequest) {
     }
 
     email = email.trim().toLowerCase();
-    bookingReference = bookingReference.trim(); // Non serve toLowerCase() per il reference se usiamo regex case-insensitive
+    bookingReference = bookingReference.trim();
 
-    // Validazione di base della lunghezza del bookingReference se necessario
-    // (es. se ti aspetti sempre 8 caratteri)
-    if (bookingReference.length < 6 || bookingReference.length > 12) { // Adatta questi limiti se necessario
+    // Validazione di base della lunghezza/formato del bookingReference
+    // Deve essere una stringa esadecimale
+    if (!/^[a-f0-9]+$/i.test(bookingReference) || bookingReference.length < 6 || bookingReference.length > 24) {
         return NextResponse.json({
             valid: false,
-            error: 'Formato numero prenotazione non valido.'
+            error: 'Formato numero prenotazione non valido (deve essere esadecimale).'
         } as BookingValidationResponse, { status: 400 });
     }
     
-    // Cerca la prenotazione il cui _id INIZIA con bookingReference
-    // e corrisponde all'email.
-    // La regex '^' indica l'inizio della stringa. 'i' per case-insensitive.
+    // Cerca la prenotazione usando $expr per confrontare l'inizio di _id (convertito in stringa)
+    // con bookingReference, e corrisponde all'email.
     const booking = await BookingModel.findOne({
-      _id: new RegExp('^' + bookingReference, 'i'), // CERCA _id CHE INIZIA CON bookingReference
+      $expr: {
+        $regexMatch: {
+          input: { $toString: "$_id" }, // Converte _id in stringa
+          regex: `^${bookingReference}`, // La tua regex per l'inizio stringa
+          options: "i" // Case-insensitive
+        }
+      },
       guestEmail: email,
       status: 'confirmed',
-      // paymentStatus: 'paid' // Riconsidera questa condizione come discusso prima
+      // paymentStatus: 'paid' // Riconsidera questa condizione
     });
     
     if (!booking) {
-      // Potrebbe essere utile loggare cosa è stato cercato se non si trova nulla
-      console.log(`Validazione fallita: _id LIKE '${bookingReference}%', email: '${email}'`);
+      console.log(`Validazione fallita per: ref: '${bookingReference}', email: '${email}'. Query: $expr $regexMatch input: $toString: "$_id", regex: '^${bookingReference}', options: "i"`);
       return NextResponse.json({
         valid: false,
-        error: 'Prenotazione non trovata o non valida per il check-in. Controlla i dati inseriti o lo stato della prenotazione.'
+        error: 'Prenotazione non trovata o non valida. Controlla i dati inseriti.'
       } as BookingValidationResponse, { status: 404 });
     }
     
@@ -112,7 +115,7 @@ export async function POST(req: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Errore interno del server';
     return NextResponse.json({
       valid: false,
-      error: `Errore server durante la validazione: ${errorMessage}`, // Per debugging
+      error: `Errore server durante la validazione: ${errorMessage}`, 
     } as BookingValidationResponse, { status: 500 });
   }
 }
