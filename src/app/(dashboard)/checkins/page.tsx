@@ -6,6 +6,43 @@ import CheckInModel from '@/models/CheckIn';
 import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import { ClipboardDocumentCheckIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import mongoose from 'mongoose'; // Importa mongoose per i tipi, se necessario
+
+// Definiamo alcune interfacce per una maggiore type safety
+// Queste dovrebbero rispecchiare i tuoi schemi Mongoose
+
+interface GuestInCheckIn {
+  isMainGuest: boolean;
+  firstName: string;
+  lastName: string;
+  // ...altre proprietà del guest se rilevanti qui
+}
+
+interface CheckInDocumentForPage {
+  _id: mongoose.Types.ObjectId | string;
+  bookingId: mongoose.Types.ObjectId | string;
+  apartmentId: mongoose.Types.ObjectId | string;
+  guests: GuestInCheckIn[];
+  checkInDate: Date | string;
+  completedAt?: Date | string | null;
+  completedBy?: 'guest' | string | null;
+  status?: string; // Aggiungi se 'status' è una proprietà del tuo modello CheckIn
+  // ...altre proprietà del checkin
+}
+
+interface BookingDocumentForPage {
+  _id: mongoose.Types.ObjectId | string;
+  checkIn: Date | string;
+  checkOut: Date | string;
+  // ...altre proprietà del booking
+}
+
+interface ApartmentDocumentForPage {
+  _id: mongoose.Types.ObjectId | string;
+  name: string;
+  // ...altre proprietà dell'appartamento
+}
+
 
 export default async function CheckInsPage() {
   const session = await getServerSession();
@@ -17,43 +54,50 @@ export default async function CheckInsPage() {
   await connectDB();
   
   // Ottieni tutti i check-in con informazioni correlate
-  const checkIns = await CheckInModel.find({})
+  // Tipizziamo il risultato per maggiore sicurezza
+  const checkIns: CheckInDocumentForPage[] = await CheckInModel.find({})
     .sort({ createdAt: -1 })
-    .limit(100);
+    .limit(100)
+    .lean(); // Aggiungere .lean() è buona pratica per le letture
   
   // Ottieni le informazioni di booking e appartamenti
   const bookingIds = checkIns.map(c => c.bookingId);
-  const bookings = await BookingModel.find({ _id: { $in: bookingIds } });
-  const bookingMap = new Map(bookings.map(b => [b._id.toString(), b]));
+  // Tipizziamo anche qui
+  const bookings: BookingDocumentForPage[] = await BookingModel.find({ _id: { $in: bookingIds } }).lean();
+  const bookingMap = new Map(bookings.map(b => [String(b._id), b])); // Usa String() per le chiavi della Map
   
-  const apartmentIds = [...new Set(checkIns.map(c => c.apartmentId))];
-  const apartments = await ApartmentModel.find({ _id: { $in: apartmentIds } });
-  const apartmentMap = new Map(apartments.map(a => [a._id.toString(), a]));
+  // --- MODIFICA CHIAVE QUI ---
+  const apartmentIds = Array.from(new Set(checkIns.map(c => String(c.apartmentId))));
+  // Tipizziamo
+  const apartments: ApartmentDocumentForPage[] = await ApartmentModel.find({ _id: { $in: apartmentIds } }).lean();
+  const apartmentMap = new Map(apartments.map(a => [String(a._id), a])); // Usa String() per le chiavi della Map
   
   // Prepara i dati per la visualizzazione
   const checkInsWithDetails = checkIns.map(checkIn => {
-    const booking = bookingMap.get(checkIn.bookingId);
-    const apartment = apartmentMap.get(checkIn.apartmentId);
+    // Usiamo String() per confrontare gli ID con le chiavi della Map
+    const booking = bookingMap.get(String(checkIn.bookingId));
+    const apartment = apartmentMap.get(String(checkIn.apartmentId));
     const mainGuest = checkIn.guests.find(g => g.isMainGuest);
     
     return {
-      id: checkIn._id.toString(),
-      bookingId: checkIn.bookingId,
+      id: String(checkIn._id), // Assicurati che l'ID sia una stringa
+      bookingId: String(checkIn.bookingId), // Anche qui, per coerenza
       apartmentName: apartment?.name || 'Sconosciuto',
       mainGuestName: mainGuest ? `${mainGuest.firstName} ${mainGuest.lastName}` : 'N/A',
       guestCount: checkIn.guests.length,
       checkInDate: checkIn.checkInDate,
       completedAt: checkIn.completedAt,
       completedBy: checkIn.completedBy,
-      status: checkIn.status,
+      status: checkIn.status, // Assicurati che 'status' esista nel tipo CheckInDocumentForPage
       bookingCheckIn: booking?.checkIn,
       bookingCheckOut: booking?.checkOut,
     };
   });
   
   // Funzione per formattare le date
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('it-IT', {
+  const formatDate = (dateInput: Date | string | undefined | null): string => {
+    if (!dateInput) return 'N/A';
+    return new Date(dateInput).toLocaleDateString('it-IT', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -63,7 +107,8 @@ export default async function CheckInsPage() {
   };
   
   // Funzione per formattare chi ha completato il check-in
-  const formatCompletedBy = (completedBy: string) => {
+  const formatCompletedBy = (completedBy: 'guest' | string | undefined | null): string => {
+    if (!completedBy) return 'N/A';
     return completedBy === 'guest' ? 'Ospite' : 'Manuale';
   };
   
@@ -95,7 +140,8 @@ export default async function CheckInsPage() {
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500">Check-in Manuali</h3>
           <p className="mt-2 text-3xl font-semibold text-green-600">
-            {checkInsWithDetails.filter(c => c.completedBy !== 'guest').length}
+            {checkInsWithDetails.filter(c => c.completedBy !== 'guest' && c.completedBy).length} 
+            {/* Aggiunto c.completedBy per essere sicuri che non sia null/undefined */}
           </p>
         </div>
       </div>
@@ -163,21 +209,21 @@ export default async function CheckInsPage() {
                       {checkIn.guestCount}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {checkIn.bookingCheckIn && checkIn.bookingCheckOut && (
+                      {checkIn.bookingCheckIn && checkIn.bookingCheckOut ? (
                         <>
                           {new Date(checkIn.bookingCheckIn).toLocaleDateString('it-IT')} - 
                           {new Date(checkIn.bookingCheckOut).toLocaleDateString('it-IT')}
                         </>
-                      )}
+                      ) : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {checkIn.completedAt && formatDate(checkIn.completedAt)}
+                      {checkIn.completedAt ? formatDate(checkIn.completedAt) : 'Non completato'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         checkIn.completedBy === 'guest' 
                           ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-green-100 text-green-800'
+                          : (checkIn.completedBy ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800')
                       }`}>
                         {formatCompletedBy(checkIn.completedBy)}
                       </span>
