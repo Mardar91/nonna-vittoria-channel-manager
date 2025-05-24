@@ -2,18 +2,19 @@ import { getServerSession } from 'next-auth/next';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import connectDB from '@/lib/db';
-import CheckInModel from '@/models/CheckIn';
-import BookingModel from '@/models/Booking';
-import ApartmentModel from '@/models/Apartment';
+import CheckInModel from '@/models/CheckIn'; // Assumi che CheckInModel sia un modello Mongoose
+import BookingModel from '@/models/Booking'; // Assumi che BookingModel sia un modello Mongoose
+import ApartmentModel from '@/models/Apartment'; // Assumi che ApartmentModel sia un modello Mongoose
 import { UserIcon, IdentificationIcon, CalendarIcon, HomeIcon, ClockIcon } from '@heroicons/react/24/outline';
+import mongoose from 'mongoose'; // Importa mongoose per Types.ObjectId se i tuoi ID sono ObjectId
 
 // Definisci il tipo per un singolo ospite
 interface GuestType {
   isMainGuest: boolean;
   firstName: string;
   lastName: string;
-  sex: 'M' | 'F' | string; // Puoi essere più specifico se conosci tutti i valori possibili
-  dateOfBirth: Date | string; // Mongoose potrebbe restituire stringa, new Date() la gestisce
+  sex: 'M' | 'F' | string;
+  dateOfBirth: Date | string;
   placeOfBirth: string;
   provinceOfBirth?: string;
   countryOfBirth: string;
@@ -25,23 +26,38 @@ interface GuestType {
   documentIssueCountry?: string;
 }
 
-// Interfaccia per il documento CheckIn (opzionale, ma buona pratica per il futuro)
-// Questo aiuta a tipizzare 'checkIn' stesso se lo desideri
-// interface CheckInDocument {
-//   _id: string; // o mongoose.Types.ObjectId
-//   bookingId: string; // o mongoose.Types.ObjectId
-//   apartmentId: string; // o mongoose.Types.ObjectId
-//   guests: GuestType[];
-//   checkInDate: Date | string;
-//   completedAt?: Date | string;
-//   completedBy?: string;
-//   ipAddress?: string;
-//   userAgent?: string;
-//   notes?: string;
-//   createdAt?: Date | string;
-//   updatedAt?: Date | string;
-//   // Aggiungi altre proprietà del CheckInModel se necessario
-// }
+// Definisci l'interfaccia per il documento CheckIn
+interface CheckInDocument {
+  _id: mongoose.Types.ObjectId | string; // O solo string se convertito da .lean()
+  bookingId: mongoose.Types.ObjectId | string; // O solo string
+  apartmentId: mongoose.Types.ObjectId | string; // O solo string
+  guests: GuestType[];
+  checkInDate: Date | string;
+  completedAt?: Date | string | null; // Può essere null se non completato
+  completedBy?: 'guest' | string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  notes?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  // Aggiungi qui altre proprietà del tuo CheckInModel se presenti
+  // ad esempio __v?: number; se vuoi includerlo
+}
+
+// Opzionale: definisci tipi simili per Booking e Apartment se vuoi maggiore type safety
+interface BookingDocument {
+  _id: mongoose.Types.ObjectId | string;
+  checkIn: Date | string;
+  checkOut: Date | string;
+  guestEmail: string;
+  // ...altre proprietà del booking
+}
+
+interface ApartmentDocument {
+  _id: mongoose.Types.ObjectId | string;
+  name: string;
+  // ...altre proprietà dell'appartamento
+}
 
 
 export default async function CheckInDetailPage({ params }: { params: { id: string } }) {
@@ -53,12 +69,8 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
   
   await connectDB();
   
-  // Ottieni i dettagli del check-in
-  // Idealmente, anche CheckInModel.findById dovrebbe restituire un tipo definito
-  // const checkIn = await CheckInModel.findById(params.id).lean<CheckInDocument | null>(); 
-  // Se usi .lean() con un tipo, assicurati che CheckInDocument sia corretto.
-  // Per ora, lasciamo che TypeScript inferisca 'checkIn' ma tipizziamo 'guest'
-  const checkIn = await CheckInModel.findById(params.id).lean(); // .lean() è buono per le prestazioni se non modifichi il doc
+  // Ottieni i dettagli del check-in specificando il tipo atteso con .lean()
+  const checkIn = await CheckInModel.findById(params.id).lean<CheckInDocument | null>();
   
   if (!checkIn) {
     return (
@@ -72,20 +84,23 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
   }
   
   // Ottieni informazioni correlate
-  const booking = await BookingModel.findById(checkIn.bookingId).lean();
-  const apartment = await ApartmentModel.findById(checkIn.apartmentId).lean();
+  // Ora checkIn.bookingId e checkIn.apartmentId dovrebbero essere riconosciuti
+  const booking = await BookingModel.findById(checkIn.bookingId).lean<BookingDocument | null>();
+  const apartment = await ApartmentModel.findById(checkIn.apartmentId).lean<ApartmentDocument | null>();
   
   // Funzione per formattare le date
-  const formatDate = (date: Date | string) => { // Accetta Date o string per flessibilità
-    return new Date(date).toLocaleDateString('it-IT', {
+  const formatDate = (dateInput: Date | string | undefined | null): string => {
+    if (!dateInput) return 'N/A';
+    return new Date(dateInput).toLocaleDateString('it-IT', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
     });
   };
   
-  const formatDateTime = (date: Date | string) => { // Accetta Date o string
-    return new Date(date).toLocaleDateString('it-IT', {
+  const formatDateTime = (dateInput: Date | string | undefined | null): string => {
+    if (!dateInput) return 'N/A';
+    return new Date(dateInput).toLocaleDateString('it-IT', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -95,21 +110,22 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
   };
   
   // Funzione per calcolare l'età
-  const calculateAge = (birthDate: Date | string) => { // Accetta Date o string
+  const calculateAge = (birthDateInput: Date | string | undefined | null): number | string => {
+    if (!birthDateInput) return 'N/A';
     const today = new Date();
-    const birth = new Date(birthDate);
+    const birth = new Date(birthDateInput);
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
     
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
       age--;
     }
-    
     return age;
   };
   
   // Funzione per formattare il tipo di documento
-  const formatDocumentType = (type: string) => {
+  const formatDocumentType = (type: string | undefined | null): string => {
+    if (!type) return 'Sconosciuto';
     const types: Record<string, string> = {
       'identity_card': 'Carta d\'Identità',
       'passport': 'Passaporto',
@@ -126,8 +142,9 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
           Dettagli Check-in
         </h1>
         <div className="flex space-x-4">
+          {/* Converto checkIn.bookingId a stringa esplicitamente per href se è ObjectId */}
           <Link 
-            href={`/bookings/${checkIn.bookingId}`}
+            href={`/bookings/${String(checkIn.bookingId)}`}
             className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
           >
             Vedi Prenotazione
@@ -169,7 +186,7 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
           <div>
             <p className="text-sm font-medium text-gray-500">Completato da</p>
             <p className="mt-1 text-lg">
-              {checkIn.completedBy === 'guest' ? 'Ospite (online)' : `Operatore: ${checkIn.completedBy}`}
+              {checkIn.completedBy === 'guest' ? 'Ospite (online)' : (checkIn.completedBy ? `Operatore: ${checkIn.completedBy}` : 'N/A')}
             </p>
           </div>
           
@@ -198,10 +215,12 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
               <div>
                 <span className="text-gray-500">IP Address:</span> {checkIn.ipAddress}
               </div>
-              <div>
-                <span className="text-gray-500">User Agent:</span> 
-                <span className="text-xs">{checkIn.userAgent?.substring(0, 50)}...</span>
-              </div>
+              {checkIn.userAgent && (
+                <div>
+                  <span className="text-gray-500">User Agent:</span> 
+                  <span className="text-xs">{checkIn.userAgent.substring(0, 50)}...</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -215,7 +234,6 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
         </h2>
         
         <div className="space-y-4">
-          {/* MODIFICA CHIAVE QUI SOTTO */}
           {checkIn.guests.map((guest: GuestType, index: number) => (
             <div 
               key={index} 
@@ -239,7 +257,7 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
                   
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <span className="text-gray-500">Sesso:</span> {guest.sex === 'M' ? 'Maschio' : 'Femmina'}
+                      <span className="text-gray-500">Sesso:</span> {guest.sex === 'M' ? 'Maschio' : (guest.sex === 'F' ? 'Femmina' : 'N/D')}
                     </div>
                     <div>
                       <span className="text-gray-500">Età:</span> {calculateAge(guest.dateOfBirth)} anni
@@ -331,7 +349,7 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-900">Check-in completato</p>
                 <p className="text-sm text-gray-500">
-                  {formatDateTime(checkIn.completedAt)} da {checkIn.completedBy === 'guest' ? 'ospite' : checkIn.completedBy}
+                  {formatDateTime(checkIn.completedAt)} da {checkIn.completedBy === 'guest' ? 'ospite' : (checkIn.completedBy || 'N/D')}
                 </p>
               </div>
             </div>
