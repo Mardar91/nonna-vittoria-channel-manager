@@ -34,11 +34,12 @@ export const isValidItalianTaxCode = (code: string): boolean => {
 };
 
 // Validazione numero documento
-export const isValidDocumentNumber = (type: string, number: string): boolean => {
+export const isValidDocumentNumber = (
+  type: 'identity_card' | 'passport' | 'driving_license' | 'other', // Tipo ristretto, non include ''
+  number: string
+): boolean => {
   if (!number || number.trim() === '') return false;
-  // Se type è '', la validazione del numero potrebbe non avere senso o fallire,
-  // ma la logica di validazione generale dovrebbe prima assicurare che type non sia ''.
-  if (type === '') return false; // Un numero di documento non ha senso senza un tipo
+  // type qui non sarà mai '', quindi non serve il controllo type === ''
 
   switch (type) {
     case 'identity_card':
@@ -50,13 +51,9 @@ export const isValidDocumentNumber = (type: string, number: string): boolean => 
     case 'driving_license':
       return /^[A-Z0-9]{5,20}$/.test(number.toUpperCase());
     
-    case 'other': // Aggiunto caso 'other'
-      return /^[A-Z0-9]{5,20}$/.test(number.toUpperCase()); // Tratta 'other' come generico
-
-    default:
-      // Questo caso non dovrebbe essere raggiunto se 'type' è uno dei valori definiti o ''
-      // Se type fosse un valore inaspettato, consideralo invalido.
-      return false; 
+    case 'other':
+      return /^[A-Z0-9]{5,20}$/.test(number.toUpperCase());
+    // Non serve un default perché il tipo di 'type' è limitato ai casi sopra.
   }
 };
 
@@ -103,7 +100,6 @@ export const validateCheckInForm = (data: CheckInFormData): ValidationError[] =>
     errors.push({ field: 'mainGuest.citizenship', message: 'La cittadinanza è obbligatoria' });
   }
   
-  // --- MODIFICA CHIAVE QUI ---
   // @ts-expect-error TS crede che questo confronto non sia necessario, ma lo è per il nostro tipo unione che include ''
   if (!mainGuest.documentType || mainGuest.documentType === '') {
     errors.push({ field: 'mainGuest.documentType', message: 'Il tipo di documento è obbligatorio' });
@@ -111,8 +107,8 @@ export const validateCheckInForm = (data: CheckInFormData): ValidationError[] =>
   
   if (!mainGuest.documentNumber || mainGuest.documentNumber.trim() === '') {
     errors.push({ field: 'mainGuest.documentNumber', message: 'Il numero del documento è obbligatorio' });
+  // @ts-expect-error TS segnala un "no overlap" qui per mainGuest.documentType !== '', ma il controllo è intenzionale per il nostro tipo unione.
   } else if (mainGuest.documentType && mainGuest.documentType !== '' && !isValidDocumentNumber(mainGuest.documentType, mainGuest.documentNumber)) {
-    // Chiamiamo isValidDocumentNumber solo se documentType è valido e non vuoto
     errors.push({ field: 'mainGuest.documentNumber', message: 'Numero documento non valido per il tipo selezionato' });
   }
   
