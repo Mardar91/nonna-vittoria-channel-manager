@@ -5,6 +5,7 @@ import { IBooking } from '@/models/Booking';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import CheckInStatusBadge from './CheckInStatusBadge';
 
 interface BookingInquiriesProps {
   inquiries: (IBooking & { apartmentName: string })[];
@@ -129,6 +130,12 @@ export default function BookingInquiries({ inquiries }: BookingInquiriesProps) {
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
+                Check-in
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Prezzo
               </th>
               <th
@@ -184,6 +191,13 @@ export default function BookingInquiries({ inquiries }: BookingInquiriesProps) {
                      inquiry.paymentStatus === 'refunded' ? 'Rimborsato' : 
                      'Sconosciuto'}
                   </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <CheckInStatusBadge 
+                    hasCheckedIn={inquiry.hasCheckedIn || false}
+                    checkInDate={inquiry.checkInDate}
+                    size="sm"
+                  />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   €{inquiry.totalPrice.toFixed(2)}
