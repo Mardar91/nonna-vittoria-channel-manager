@@ -16,6 +16,8 @@ export interface IBooking {
   source: 'direct' | 'airbnb' | 'booking' | 'other';
   externalId?: string;
   notes?: string;
+  hasCheckedIn?: boolean;
+  checkInDate?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -48,11 +50,15 @@ const BookingSchema = new Schema<IBooking>(
     },
     externalId: { type: String },
     notes: { type: String },
+    hasCheckedIn: { type: Boolean, default: false },
+    checkInDate: { type: Date },
   },
   { timestamps: true }
 );
 
 // Indice per ricerche efficienti per date
 BookingSchema.index({ apartmentId: 1, checkIn: 1, checkOut: 1 });
+// Indice per ricerca tramite email per check-in
+BookingSchema.index({ guestEmail: 1, status: 1 });
 
 export default mongoose.models.Booking || mongoose.model<IBooking>('Booking', BookingSchema);
