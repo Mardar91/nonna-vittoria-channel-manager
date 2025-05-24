@@ -5,8 +5,12 @@ import Link from 'next/link';
 import connectDB from '@/lib/db';
 import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
+import CheckInModel from '@/models/CheckIn';
 import DeleteBookingButton from '@/components/DeleteBookingButton';
 import PaymentButton from '@/components/PaymentButton';
+import CheckInStatusBadge from '@/components/CheckInStatusBadge';
+import CheckInDetails from '@/components/CheckInDetails';
+import ManualCheckInButton from '@/components/ManualCheckInButton';
 
 export default async function BookingDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession();
@@ -33,6 +37,12 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
   
   // Ottieni le informazioni dell'appartamento
   const apartment = await ApartmentModel.findById(booking.apartmentId);
+  
+  // Verifica se esiste un check-in per questa prenotazione
+  const checkIn = await CheckInModel.findOne({ 
+    bookingId: params.id,
+    status: 'completed'
+  });
   
   // Helper per formattare le date
   const formatDate = (date: Date) => {
@@ -117,6 +127,27 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
             </div>
             {booking.paymentStatus === 'pending' && (
               <PaymentButton bookingId={params.id} />
+            )}
+          </div>
+          
+          {/* Stato Check-in */}
+          <div className="mb-4">
+            <CheckInStatusBadge 
+              hasCheckedIn={booking.hasCheckedIn || false}
+              checkInDate={booking.checkInDate}
+              size="md"
+            />
+            {booking.status === 'confirmed' && booking.paymentStatus === 'paid' && !booking.hasCheckedIn && (
+              <div className="mt-2">
+                <ManualCheckInButton 
+                  bookingId={params.id}
+                  bookingDetails={{
+                    guestName: booking.guestName,
+                    numberOfGuests: booking.numberOfGuests,
+                    apartmentName: apartment?.name || 'Appartamento'
+                  }}
+                />
+              </div>
             )}
           </div>
           
@@ -209,6 +240,22 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
                 </div>
               </div>
               
+              {booking.hasCheckedIn && booking.checkInDate && (
+                <div className="flex items-start">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">
+                      Check-in effettuato il {new Date(booking.checkInDate).toLocaleDateString('it-IT', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
               {booking.updatedAt && booking.updatedAt !== booking.createdAt && (
                 <div className="flex items-start">
                   <div className="min-w-0 flex-1">
@@ -264,6 +311,11 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
           )}
         </div>
       </div>
+      
+      {/* Sezione Check-in se disponibile */}
+      {checkIn && (
+        <CheckInDetails bookingId={params.id} />
+      )}
     </div>
   );
 }
