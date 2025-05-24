@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, Fragment, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, AdjustmentsHorizontalIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 import { Dialog, Transition } from '@headlessui/react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import CheckInModal from './CheckInModal';
 
 interface Booking {
   id: string;
@@ -15,6 +16,7 @@ interface Booking {
   status: string;
   numberOfGuests: number;
   totalPrice: number;
+  hasCheckedIn?: boolean;
 }
 
 interface Rate {
@@ -58,6 +60,11 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   const [bulkEditPrice, setBulkEditPrice] = useState<number | ''>('');
   const [bulkEditMinStay, setBulkEditMinStay] = useState<number | ''>('');
   const [bulkEditIsBlocked, setBulkEditIsBlocked] = useState<boolean | null>(null);
+  
+  // Stato per il modal di check-in
+  const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
+  const [checkInBookingId, setCheckInBookingId] = useState<string | null>(null);
+  const [checkInBookingDetails, setCheckInBookingDetails] = useState<any>(null);
   
   // Genera i giorni del calendario per il mese corrente
   useEffect(() => {
@@ -190,7 +197,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       if (dropdown) {
         const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
         const viewportHeight = window.innerHeight;
-        const dropdownHeight = 170; // Altezza stimata del dropdown in pixel
+        const dropdownHeight = 200; // Altezza stimata del dropdown in pixel (aumentata per check-in)
         
         // Verifica se il dropdown andrebbe fuori dallo schermo nella parte inferiore
         const isNearBottom = rect.bottom + dropdownHeight > viewportHeight;
@@ -400,7 +407,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     }
   };
   
-  const handleQuickAction = async (apartmentId: string, date: Date, action: 'block' | 'unblock' | 'book') => {
+  const handleQuickAction = async (apartmentId: string, date: Date, action: 'block' | 'unblock' | 'book' | 'checkin', booking?: Booking) => {
     setLoading(true);
     
     try {
@@ -426,6 +433,16 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         // Naviga alla pagina di creazione prenotazione
         router.push(`/bookings/new?apartmentId=${apartmentId}&checkIn=${date.toISOString().split('T')[0]}`);
         return;
+      } else if (action === 'checkin' && booking) {
+        // Apri il modal di check-in
+        const apartment = apartments.find(a => a.id === apartmentId);
+        setCheckInBookingId(booking.id);
+        setCheckInBookingDetails({
+          guestName: booking.guestName,
+          numberOfGuests: booking.numberOfGuests,
+          apartmentName: apartment?.data?.name || 'Appartamento'
+        });
+        setIsCheckInModalOpen(true);
       }
       
       // Chiudi il dropdown attivo
@@ -562,7 +579,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     }
   };
   
-  // FUNZIONE MODIFICATA: Raggruppa le prenotazioni per appartamento considerando il cambio di mese
+  // Raggruppa le prenotazioni per appartamento considerando il cambio di mese
   const processBookings = (apartment: ApartmentWithBookings) => {
     const result: Array<{
       booking: Booking;
@@ -727,6 +744,10 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         <div className="flex items-center">
           <div className="w-4 h-4 bg-indigo-100 border border-indigo-300 mr-2"></div>
           <span>Selezionato</span>
+        </div>
+        <div className="flex items-center">
+          <ClipboardDocumentCheckIcon className="w-4 h-4 text-green-600 mr-1" />
+          <span>Check-in effettuato</span>
         </div>
       </div>
       
@@ -893,7 +914,12 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                               router.push(`/bookings/${bookingInfo.booking.id}`);
                             }}
                           >
-                            <div className="font-semibold truncate">{bookingInfo.booking.guestName}</div>
+                            <div className="font-semibold truncate flex items-center">
+                              {bookingInfo.booking.guestName}
+                              {bookingInfo.booking.hasCheckedIn && (
+                                <ClipboardDocumentCheckIcon className="h-3 w-3 ml-1 text-green-600" />
+                              )}
+                            </div>
                             <div className="truncate">{bookingInfo.booking.numberOfGuests} ospiti</div>
                             <div className="font-medium truncate">{bookingInfo.booking.totalPrice}€</div>
                           </div>
@@ -930,27 +956,39 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                             
                             {/* Opzioni per celle con prenotazione */}
                             {booking && (
-                              <button
-                                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
-                                onClick={() => {
-                                  setActiveDropdown(null);
-                                  router.push(`/bookings/${booking.id}`);
-                                }}
-                              >
-                                <span className="mr-2">👁️</span> Dettagli
-                              </button>
-                            )}
-                            
-                            {booking && (
-                              <button
-                                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
-                                onClick={() => {
-                                  setActiveDropdown(null);
-                                  router.push(`/bookings/${booking.id}/edit`);
-                                }}
-                              >
-                                <span className="mr-2">✏️</span> Modifica
-                              </button>
+                              <>
+                                <button
+                                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                                  onClick={() => {
+                                    setActiveDropdown(null);
+                                    router.push(`/bookings/${booking.id}`);
+                                  }}
+                                >
+                                  <span className="mr-2">👁️</span> Dettagli
+                                </button>
+                                
+                                <button
+                                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                                  onClick={() => {
+                                    setActiveDropdown(null);
+                                    router.push(`/bookings/${booking.id}/edit`);
+                                  }}
+                                >
+                                  <span className="mr-2">✏️</span> Modifica
+                                </button>
+                                
+                                {!booking.hasCheckedIn && booking.status === 'confirmed' && (
+                                  <button
+                                    className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
+                                    onClick={() => {
+                                      setActiveDropdown(null);
+                                      handleQuickAction(apartment.id, day, 'checkin', booking);
+                                    }}
+                                  >
+                                    <span className="mr-2">✓</span> Check-in
+                                  </button>
+                                )}
+                              </>
                             )}
                             
                             {/* Opzioni per celle disponibili (non mostrare per date passate) */}
@@ -1169,6 +1207,20 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
           </div>
         </Dialog>
       </Transition.Root>
+      
+      {/* Modal per check-in manuale */}
+      {checkInBookingId && checkInBookingDetails && (
+        <CheckInModal
+          isOpen={isCheckInModalOpen}
+          onClose={() => {
+            setIsCheckInModalOpen(false);
+            setCheckInBookingId(null);
+            setCheckInBookingDetails(null);
+          }}
+          bookingId={checkInBookingId}
+          bookingDetails={checkInBookingDetails}
+        />
+      )}
     </div>
   );
 }
