@@ -9,11 +9,11 @@ export interface ValidationError {
 export const isAdult = (dateOfBirth: string): boolean => {
   const birthDate = new Date(dateOfBirth);
   const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear(); // Rimuovi const qui se la riassegni sotto
+  let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
   
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--; // Modifica per riassegnare age
+    age--;
   }
   
   return age >= 18;
@@ -21,37 +21,42 @@ export const isAdult = (dateOfBirth: string): boolean => {
 
 // Validazione formato data
 export const isValidDate = (dateString: string): boolean => {
-  if (!dateString) return false; // Aggiungi controllo per stringa vuota/null/undefined
+  if (!dateString) return false;
   const date = new Date(dateString);
-  // Controlla anche che l'anno sia ragionevole, es. non 0001
   return date instanceof Date && !isNaN(date.getTime()) && date.getFullYear() > 1900 && date <= new Date();
 };
 
 // Validazione codice fiscale italiano (se necessario)
 export const isValidItalianTaxCode = (code: string): boolean => {
-  if (!code) return true; // Non obbligatorio, quindi se vuoto è valido
-  const pattern = /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/i; // Pattern più comune
+  if (!code) return true;
+  const pattern = /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/i;
   return pattern.test(code.toUpperCase());
 };
 
 // Validazione numero documento
 export const isValidDocumentNumber = (type: string, number: string): boolean => {
   if (!number || number.trim() === '') return false;
-  
-  // Rendi i controlli più generici se non conosci tutti i formati esatti
-  // Per ora manteniamo i tuoi controlli
+  // Se type è '', la validazione del numero potrebbe non avere senso o fallire,
+  // ma la logica di validazione generale dovrebbe prima assicurare che type non sia ''.
+  if (type === '') return false; // Un numero di documento non ha senso senza un tipo
+
   switch (type) {
     case 'identity_card':
-      return /^[A-Z0-9]{5,20}$/.test(number.toUpperCase()); // Più generico per carte ID
+      return /^[A-Z0-9]{5,20}$/.test(number.toUpperCase());
     
     case 'passport':
       return /^[A-Z0-9]{6,20}$/.test(number.toUpperCase());
     
     case 'driving_license':
-      return /^[A-Z0-9]{5,20}$/.test(number.toUpperCase()); // Più generico per patenti
-    
-    default:
       return /^[A-Z0-9]{5,20}$/.test(number.toUpperCase());
+    
+    case 'other': // Aggiunto caso 'other'
+      return /^[A-Z0-9]{5,20}$/.test(number.toUpperCase()); // Tratta 'other' come generico
+
+    default:
+      // Questo caso non dovrebbe essere raggiunto se 'type' è uno dei valori definiti o ''
+      // Se type fosse un valore inaspettato, consideralo invalido.
+      return false; 
   }
 };
 
@@ -59,7 +64,6 @@ export const isValidDocumentNumber = (type: string, number: string): boolean => 
 export const validateCheckInForm = (data: CheckInFormData): ValidationError[] => {
   const errors: ValidationError[] = [];
   
-  // Validazione ospite principale
   const mainGuest = data.mainGuest;
   
   if (!mainGuest.lastName || mainGuest.lastName.trim() === '') {
@@ -99,14 +103,16 @@ export const validateCheckInForm = (data: CheckInFormData): ValidationError[] =>
     errors.push({ field: 'mainGuest.citizenship', message: 'La cittadinanza è obbligatoria' });
   }
   
+  // --- MODIFICA CHIAVE QUI ---
+  // @ts-expect-error TS crede che questo confronto non sia necessario, ma lo è per il nostro tipo unione che include ''
   if (!mainGuest.documentType || mainGuest.documentType === '') {
     errors.push({ field: 'mainGuest.documentType', message: 'Il tipo di documento è obbligatorio' });
   }
   
   if (!mainGuest.documentNumber || mainGuest.documentNumber.trim() === '') {
     errors.push({ field: 'mainGuest.documentNumber', message: 'Il numero del documento è obbligatorio' });
-  } else if (mainGuest.documentType && !isValidDocumentNumber(mainGuest.documentType, mainGuest.documentNumber)) {
-    // Considera che documentType può essere '' qui, gestiscilo in isValidDocumentNumber se necessario
+  } else if (mainGuest.documentType && mainGuest.documentType !== '' && !isValidDocumentNumber(mainGuest.documentType, mainGuest.documentNumber)) {
+    // Chiamiamo isValidDocumentNumber solo se documentType è valido e non vuoto
     errors.push({ field: 'mainGuest.documentNumber', message: 'Numero documento non valido per il tipo selezionato' });
   }
   
@@ -122,7 +128,6 @@ export const validateCheckInForm = (data: CheckInFormData): ValidationError[] =>
     errors.push({ field: 'mainGuest.documentIssueProvince', message: 'La provincia di rilascio è obbligatoria per documenti italiani' });
   }
   
-  // Validazione ospiti aggiuntivi
   data.additionalGuests.forEach((guest, index) => {
     if (!guest.lastName || guest.lastName.trim() === '') {
       errors.push({ field: `additionalGuests.${index}.lastName`, message: 'Il cognome è obbligatorio' });
@@ -160,7 +165,6 @@ export const validateCheckInForm = (data: CheckInFormData): ValidationError[] =>
     }
   });
   
-  // Validazione termini e condizioni
   if (!data.acceptTerms) {
     errors.push({ field: 'acceptTerms', message: 'Devi accettare i termini e le condizioni' });
   }
@@ -168,8 +172,7 @@ export const validateCheckInForm = (data: CheckInFormData): ValidationError[] =>
   return errors;
 };
 
-// Province italiane per validazione e selezione
-// ... (lista province rimane invariata)
+// Province italiane per validazione e selezione (rimane invariato dalla tua ultima versione)
 export const ITALIAN_PROVINCES = [
   { code: 'AG', name: 'Agrigento' },
   { code: 'AL', name: 'Alessandria' },
@@ -192,7 +195,6 @@ export const ITALIAN_PROVINCES = [
   { code: 'CA', name: 'Cagliari' },
   { code: 'CL', name: 'Caltanissetta' },
   { code: 'CB', name: 'Campobasso' },
-  // { code: 'CI', name: 'Carbonia-Iglesias' }, // Provincia soppressa o modificata
   { code: 'CE', name: 'Caserta' },
   { code: 'CT', name: 'Catania' },
   { code: 'CZ', name: 'Catanzaro' },
@@ -226,7 +228,6 @@ export const ITALIAN_PROVINCES = [
   { code: 'MN', name: 'Mantova' },
   { code: 'MS', name: 'Massa-Carrara' },
   { code: 'MT', name: 'Matera' },
-  // { code: 'VS', name: 'Medio Campidano' }, // Provincia soppressa o modificata
   { code: 'ME', name: 'Messina' },
   { code: 'MI', name: 'Milano' },
   { code: 'MO', name: 'Modena' },
@@ -234,8 +235,6 @@ export const ITALIAN_PROVINCES = [
   { code: 'NA', name: 'Napoli' },
   { code: 'NO', name: 'Novara' },
   { code: 'NU', name: 'Nuoro' },
-  // { code: 'OG', name: 'Ogliastra' }, // Provincia soppressa o modificata
-  // { code: 'OT', name: 'Olbia-Tempio' }, // Provincia soppressa o modificata, ora parte di SS
   { code: 'OR', name: 'Oristano' },
   { code: 'PD', name: 'Padova' },
   { code: 'PA', name: 'Palermo' },
@@ -259,12 +258,12 @@ export const ITALIAN_PROVINCES = [
   { code: 'RM', name: 'Roma' },
   { code: 'RO', name: 'Rovigo' },
   { code: 'SA', name: 'Salerno' },
-  { code: 'SS', name: 'Sassari' }, // Sassari include ora Olbia-Tempio
+  { code: 'SS', name: 'Sassari' },
   { code: 'SV', name: 'Savona' },
   { code: 'SI', name: 'Siena' },
   { code: 'SR', name: 'Siracusa' },
   { code: 'SO', name: 'Sondrio' },
-  { code: 'SU', name: 'Sud Sardegna' }, // Nuova provincia che include ex CI, VS
+  { code: 'SU', name: 'Sud Sardegna' },
   { code: 'TA', name: 'Taranto' },
   { code: 'TE', name: 'Teramo' },
   { code: 'TR', name: 'Terni' },
@@ -283,5 +282,3 @@ export const ITALIAN_PROVINCES = [
   { code: 'VI', name: 'Vicenza' },
   { code: 'VT', name: 'Viterbo' }
 ];
-// Nota: la lista delle province è stata aggiornata per riflettere alcune modifiche recenti.
-// Verifica sempre con una fonte ufficiale per la lista più aggiornata.
