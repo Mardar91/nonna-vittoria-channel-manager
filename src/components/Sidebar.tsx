@@ -10,7 +10,8 @@ import {
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
   ViewColumnsIcon,
-  GlobeAltIcon, // Nuova icona per Profilo Online
+  GlobeAltIcon,
+  ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/outline';
 import { signOut } from 'next-auth/react';
 
@@ -37,6 +38,11 @@ const Sidebar = () => {
       name: 'Prenotazioni',
       href: '/bookings',
       icon: CalendarIcon,
+    },
+    {
+      name: 'Check-ins',
+      href: '/checkins',
+      icon: ClipboardDocumentCheckIcon,
     },
     {
       name: 'Profilo Online',
