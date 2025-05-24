@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition, Disclosure } from '@headlessui/react';
-import { ChevronUpIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+// --- MODIFICA CHIAVE QUI ---
+import { ChevronUpIcon, CreditCardIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import toast from 'react-hot-toast';
