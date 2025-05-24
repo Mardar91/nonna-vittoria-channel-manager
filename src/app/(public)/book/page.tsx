@@ -685,22 +685,34 @@ export default function BookingPage() {
         </div>
       </main>
       
-      {/* Footer */}
+{/* Footer */}
       <footer className="py-4 px-4 sm:px-6 lg:px-8 bg-gray-800 text-white">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center">
-          <div className="mb-4 sm:mb-0">
-            <h2 className="text-lg font-semibold">{profile.name}</h2>
-            {profile.address && <p className="text-sm text-gray-300">{profile.address}</p>}
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
+            <div className="mb-4 sm:mb-0">
+              <h2 className="text-lg font-semibold">{profile.name}</h2>
+              {profile.address && <p className="text-sm text-gray-300">{profile.address}</p>}
+            </div>
+            
+            <div className="text-sm">
+              {profile.contactEmail && (
+                <p>Email: <a href={`mailto:${profile.contactEmail}`} className="hover:underline">{profile.contactEmail}</a></p>
+              )}
+              {profile.contactPhone && (
+                <p>Tel: <a href={`tel:${profile.contactPhone}`} className="hover:underline">{profile.contactPhone}</a></p>
+              )}
+            </div>
           </div>
           
-          <div className="text-sm">
-            {profile.contactEmail && (
-              <p>Email: <a href={`mailto:${profile.contactEmail}`} className="hover:underline">{profile.contactEmail}</a></p>
-            )}
-            {profile.contactPhone && (
-              <p>Tel: <a href={`tel:${profile.contactPhone}`} className="hover:underline">{profile.contactPhone}</a></p>
-            )}
-          </div>
+          {/* Link Check-in Online */}
+          {profile.enableOnlineCheckIn && (
+            <div className="border-t border-gray-700 pt-4 text-center">
+              <Link href="/checkin" className="inline-flex items-center text-sm text-gray-300 hover:text-white">
+                <ClipboardDocumentCheckIcon className="h-5 w-5 mr-2" />
+                Hai già una prenotazione? Effettua il check-in online
+              </Link>
+            </div>
+          )}
         </div>
       </footer>
       
