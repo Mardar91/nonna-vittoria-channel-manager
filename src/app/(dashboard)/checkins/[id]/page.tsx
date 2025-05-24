@@ -7,6 +7,43 @@ import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import { UserIcon, IdentificationIcon, CalendarIcon, HomeIcon, ClockIcon } from '@heroicons/react/24/outline';
 
+// Definisci il tipo per un singolo ospite
+interface GuestType {
+  isMainGuest: boolean;
+  firstName: string;
+  lastName: string;
+  sex: 'M' | 'F' | string; // Puoi essere più specifico se conosci tutti i valori possibili
+  dateOfBirth: Date | string; // Mongoose potrebbe restituire stringa, new Date() la gestisce
+  placeOfBirth: string;
+  provinceOfBirth?: string;
+  countryOfBirth: string;
+  citizenship: string;
+  documentType?: string;
+  documentNumber?: string;
+  documentIssuePlace?: string;
+  documentIssueProvince?: string;
+  documentIssueCountry?: string;
+}
+
+// Interfaccia per il documento CheckIn (opzionale, ma buona pratica per il futuro)
+// Questo aiuta a tipizzare 'checkIn' stesso se lo desideri
+// interface CheckInDocument {
+//   _id: string; // o mongoose.Types.ObjectId
+//   bookingId: string; // o mongoose.Types.ObjectId
+//   apartmentId: string; // o mongoose.Types.ObjectId
+//   guests: GuestType[];
+//   checkInDate: Date | string;
+//   completedAt?: Date | string;
+//   completedBy?: string;
+//   ipAddress?: string;
+//   userAgent?: string;
+//   notes?: string;
+//   createdAt?: Date | string;
+//   updatedAt?: Date | string;
+//   // Aggiungi altre proprietà del CheckInModel se necessario
+// }
+
+
 export default async function CheckInDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession();
   
@@ -17,7 +54,11 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
   await connectDB();
   
   // Ottieni i dettagli del check-in
-  const checkIn = await CheckInModel.findById(params.id);
+  // Idealmente, anche CheckInModel.findById dovrebbe restituire un tipo definito
+  // const checkIn = await CheckInModel.findById(params.id).lean<CheckInDocument | null>(); 
+  // Se usi .lean() con un tipo, assicurati che CheckInDocument sia corretto.
+  // Per ora, lasciamo che TypeScript inferisca 'checkIn' ma tipizziamo 'guest'
+  const checkIn = await CheckInModel.findById(params.id).lean(); // .lean() è buono per le prestazioni se non modifichi il doc
   
   if (!checkIn) {
     return (
@@ -31,11 +72,11 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
   }
   
   // Ottieni informazioni correlate
-  const booking = await BookingModel.findById(checkIn.bookingId);
-  const apartment = await ApartmentModel.findById(checkIn.apartmentId);
+  const booking = await BookingModel.findById(checkIn.bookingId).lean();
+  const apartment = await ApartmentModel.findById(checkIn.apartmentId).lean();
   
   // Funzione per formattare le date
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date | string) => { // Accetta Date o string per flessibilità
     return new Date(date).toLocaleDateString('it-IT', {
       day: '2-digit',
       month: '2-digit',
@@ -43,7 +84,7 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
     });
   };
   
-  const formatDateTime = (date: Date) => {
+  const formatDateTime = (date: Date | string) => { // Accetta Date o string
     return new Date(date).toLocaleDateString('it-IT', {
       day: '2-digit',
       month: '2-digit',
@@ -54,7 +95,7 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
   };
   
   // Funzione per calcolare l'età
-  const calculateAge = (birthDate: Date) => {
+  const calculateAge = (birthDate: Date | string) => { // Accetta Date o string
     const today = new Date();
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
@@ -174,7 +215,8 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
         </h2>
         
         <div className="space-y-4">
-          {checkIn.guests.map((guest, index) => (
+          {/* MODIFICA CHIAVE QUI SOTTO */}
+          {checkIn.guests.map((guest: GuestType, index: number) => (
             <div 
               key={index} 
               className={`p-4 rounded-lg ${
@@ -226,14 +268,18 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
                       <div>
                         <span className="text-gray-500">Tipo:</span> {formatDocumentType(guest.documentType)}
                       </div>
-                      <div>
-                        <span className="text-gray-500">Numero:</span> {guest.documentNumber}
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Rilasciato a:</span> {guest.documentIssuePlace}
-                        {guest.documentIssueProvince && ` (${guest.documentIssueProvince})`}
-                        {guest.documentIssueCountry && `, ${guest.documentIssueCountry}`}
-                      </div>
+                      {guest.documentNumber && (
+                        <div>
+                          <span className="text-gray-500">Numero:</span> {guest.documentNumber}
+                        </div>
+                      )}
+                      {guest.documentIssuePlace && (
+                         <div>
+                           <span className="text-gray-500">Rilasciato a:</span> {guest.documentIssuePlace}
+                           {guest.documentIssueProvince && ` (${guest.documentIssueProvince})`}
+                           {guest.documentIssueCountry && `, ${guest.documentIssueCountry}`}
+                         </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -259,19 +305,21 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
         </h2>
         
         <div className="space-y-4">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                <div className="h-2 w-2 bg-green-600 rounded-full"></div>
+          {checkIn.createdAt && (
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <div className="h-2 w-2 bg-green-600 rounded-full"></div>
+                </div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-900">Check-in creato</p>
+                <p className="text-sm text-gray-500">
+                  {formatDateTime(checkIn.createdAt)}
+                </p>
               </div>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-900">Check-in creato</p>
-              <p className="text-sm text-gray-500">
-                {formatDateTime(checkIn.createdAt!)}
-              </p>
-            </div>
-          </div>
+          )}
           
           {checkIn.completedAt && (
             <div className="flex items-start">
@@ -289,7 +337,7 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
             </div>
           )}
           
-          {checkIn.updatedAt && checkIn.updatedAt !== checkIn.createdAt && (
+          {checkIn.updatedAt && checkIn.createdAt && new Date(checkIn.updatedAt).getTime() !== new Date(checkIn.createdAt).getTime() && (
             <div className="flex items-start">
               <div className="flex-shrink-0">
                 <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center">
