@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircleIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 
 // Componente che utilizza useSearchParams
 function ConfirmationContent() {
@@ -117,10 +117,10 @@ function ConfirmationContent() {
                     <span className="font-medium">Numero di prenotazione:</span> {bookingDetails.referenceId || 'N/A'}
                   </p>
                   <p className="text-gray-700">
-                    <span className="font-medium">Check-in:</span> {bookingDetails.checkIn || 'N/A'}
+                    <span className="font-medium">Check-in:</span> {bookingDetails.checkIn ? new Date(bookingDetails.checkIn).toLocaleDateString('it-IT') : 'N/A'}
                   </p>
                   <p className="text-gray-700">
-                    <span className="font-medium">Check-out:</span> {bookingDetails.checkOut || 'N/A'}
+                    <span className="font-medium">Check-out:</span> {bookingDetails.checkOut ? new Date(bookingDetails.checkOut).toLocaleDateString('it-IT') : 'N/A'}
                   </p>
                   {bookingDetails.isGroupBooking ? (
                     <p className="text-gray-700">
@@ -156,7 +156,7 @@ function ConfirmationContent() {
                         Ti invieremo un link via email quando sarà disponibile.
                       </p>
                       <Link 
-                        href="/checkin" 
+                        href="/checkin" // Assicurati che questo percorso esista e sia corretto
                         className="inline-flex items-center text-sm font-medium text-green-800 hover:text-green-900"
                       >
                         Vai al check-in online →
