@@ -2,6 +2,7 @@
 
 import { IBooking } from '@/models/Booking';
 import Link from 'next/link';
+import CheckInStatusBadge from './CheckInStatusBadge';
 
 interface BookingListProps {
   bookings: (IBooking & { apartmentName: string })[];
@@ -93,6 +94,12 @@ export default function BookingList({ bookings }: BookingListProps) {
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
+                Check-in
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Prezzo
               </th>
               <th
@@ -141,6 +148,13 @@ export default function BookingList({ bookings }: BookingListProps) {
                   >
                     {translateStatus(booking.status)}
                   </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <CheckInStatusBadge 
+                    hasCheckedIn={booking.hasCheckedIn || false}
+                    checkInDate={booking.checkInDate}
+                    size="sm"
+                  />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   €{booking.totalPrice.toFixed(2)}
