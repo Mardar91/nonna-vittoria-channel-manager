@@ -48,6 +48,7 @@ export default async function MultiCalendarPage() {
       status: booking.status,
       numberOfGuests: booking.numberOfGuests,
       totalPrice: booking.totalPrice,
+      hasCheckedIn: booking.hasCheckedIn || false,
     }));
     
     // Filtra le tariffe giornaliere per questo appartamento
