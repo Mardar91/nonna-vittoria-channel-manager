@@ -144,6 +144,26 @@ function ConfirmationContent() {
                     Ti contatteremo prima del tuo arrivo con istruzioni dettagliate per il check-in.
                   </p>
                   
+                  {/* Check-in Online */}
+                  {publicProfile?.enableOnlineCheckIn && (
+                    <div className="bg-green-50 p-4 rounded-md mb-4">
+                      <h3 className="font-medium text-green-800 mb-2 flex items-center">
+                        <ClipboardDocumentCheckIcon className="h-5 w-5 mr-2" />
+                        Check-in Online Disponibile
+                      </h3>
+                      <p className="text-sm text-green-700 mb-3">
+                        Risparmia tempo! Puoi effettuare il check-in online fino a 7 giorni prima del tuo arrivo.
+                        Ti invieremo un link via email quando sarà disponibile.
+                      </p>
+                      <Link 
+                        href="/checkin" 
+                        className="inline-flex items-center text-sm font-medium text-green-800 hover:text-green-900"
+                      >
+                        Vai al check-in online →
+                      </Link>
+                    </div>
+                  )}
+                  
                   <div className="bg-blue-50 p-4 rounded-md">
                     <h3 className="font-medium text-blue-800 mb-2">Informazioni Importanti</h3>
                     <ul className="list-disc list-inside text-blue-700 space-y-1">
