@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { Switch } from '@headlessui/react';
-import { GlobeAltIcon, QrCodeIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { GlobeAltIcon, QrCodeIcon, PencilIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { IPublicProfile } from '@/models/PublicProfile';
 import CopyToClipboardButton from '@/components/CopyToClipboardButton';
@@ -18,9 +18,12 @@ export default function OnlineProfilePage() {
     name: 'Nonna Vittoria Apartments',
     allowGroupBooking: true,
     description: '',
+    enableOnlineCheckIn: false,
+    checkInTerms: '',
   });
   
   const [publicUrl, setPublicUrl] = useState('');
+  const [checkInUrl, setCheckInUrl] = useState('');
   
   useEffect(() => {
     const loadProfile = async () => {
@@ -41,9 +44,10 @@ export default function OnlineProfilePage() {
     
     loadProfile();
     
-    // Imposta l'URL pubblico
+    // Imposta gli URL pubblici
     const baseUrl = window.location.origin;
     setPublicUrl(`${baseUrl}/book`);
+    setCheckInUrl(`${baseUrl}/checkin`);
   }, []);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -62,6 +66,10 @@ export default function OnlineProfilePage() {
   
   const handleToggleGroupBooking = (allowGroupBooking: boolean) => {
     setProfile({ ...profile, allowGroupBooking });
+  };
+  
+  const handleToggleOnlineCheckIn = (enableOnlineCheckIn: boolean) => {
+    setProfile({ ...profile, enableOnlineCheckIn });
   };
   
   const handleSave = async () => {
@@ -139,7 +147,7 @@ export default function OnlineProfilePage() {
             
             <div className="mt-6 space-y-4">
               <div>
-                <p className="text-sm font-medium text-gray-700">Link Pubblico:</p>
+                <p className="text-sm font-medium text-gray-700">Link Pubblico Prenotazioni:</p>
                 <div className="mt-1 flex items-center">
                   <input
                     type="text"
@@ -173,6 +181,106 @@ export default function OnlineProfilePage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Sezione Check-in Online */}
+      <div className="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
+        <div className="md:grid md:grid-cols-3 md:gap-6">
+          <div className="md:col-span-1">
+            <h3 className="text-lg font-medium leading-6 text-gray-900">
+              Check-in Online
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Permetti ai tuoi ospiti di effettuare il check-in online prima dell'arrivo.
+            </p>
+          </div>
+          
+          <div className="mt-5 md:mt-0 md:col-span-2">
+            <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+              <div className="flex items-center">
+                <ClipboardDocumentCheckIcon className="h-8 w-8 text-green-600 mr-3" />
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Check-in Online</div>
+                  <div className="text-sm text-gray-500">
+                    {profile.enableOnlineCheckIn 
+                      ? 'Attivo - gli ospiti possono fare il check-in online' 
+                      : 'Non attivo - check-in solo di persona'}
+                  </div>
+                </div>
+              </div>
+              
+              <Switch
+                checked={profile.enableOnlineCheckIn || false}
+                onChange={handleToggleOnlineCheckIn}
+                className={`${
+                  profile.enableOnlineCheckIn ? 'bg-green-600' : 'bg-gray-200'
+                } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2`}
+              >
+                <span
+                  className={`${
+                    profile.enableOnlineCheckIn ? 'translate-x-6' : 'translate-x-1'
+                  } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                />
+              </Switch>
+            </div>
+            
+            {profile.enableOnlineCheckIn && (
+              <div className="mt-6 space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Link Check-in Online:</p>
+                  <div className="mt-1 flex items-center">
+                    <input
+                      type="text"
+                      readOnly
+                      value={checkInUrl}
+                      className="flex-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    />
+                    <CopyToClipboardButton
+                      textToCopy={checkInUrl}
+                      className="ml-2 inline-flex justify-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label htmlFor="checkInTerms" className="block text-sm font-medium text-gray-700">
+                    Termini e Condizioni Check-in
+                  </label>
+                  <textarea
+                    id="checkInTerms"
+                    name="checkInTerms"
+                    rows={4}
+                    value={profile.checkInTerms || ''}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="Inserisci i termini e le condizioni che gli ospiti devono accettare durante il check-in online..."
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Questi termini verranno mostrati agli ospiti durante il processo di check-in online.
+                  </p>
+                </div>
+                
+                <div className="flex space-x-4">
+                  <Link
+                    href="/checkin"
+                    target="_blank"
+                    className="inline-flex justify-center rounded-md border border-transparent bg-green-100 py-2 px-4 text-sm font-medium text-green-700 shadow-sm hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                  >
+                    <ClipboardDocumentCheckIcon className="mr-1.5 h-5 w-5 text-green-600" />
+                    Test Check-in
+                  </Link>
+                  
+                  <Link
+                    href="/checkins"
+                    className="inline-flex justify-center rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    Vedi Check-ins
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
