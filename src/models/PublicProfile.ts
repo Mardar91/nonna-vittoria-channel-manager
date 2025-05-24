@@ -17,6 +17,8 @@ export interface IPublicProfile {
   allowGroupBooking: boolean;
   minDaysInAdvance?: number;
   maxDaysInAdvance?: number;
+  enableOnlineCheckIn?: boolean;
+  checkInTerms?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -38,6 +40,8 @@ const PublicProfileSchema = new Schema<IPublicProfile>(
     allowGroupBooking: { type: Boolean, default: true },
     minDaysInAdvance: { type: Number, default: 1 },
     maxDaysInAdvance: { type: Number, default: 365 },
+    enableOnlineCheckIn: { type: Boolean, default: false },
+    checkInTerms: { type: String },
   },
   { timestamps: true }
 );
