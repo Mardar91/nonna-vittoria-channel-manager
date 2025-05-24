@@ -3,72 +3,83 @@
 import {
   BuildingOffice2Icon,
   CalendarIcon,
-  ClockIcon,
+  CurrencyEuroIcon,
+  HomeIcon,
 } from '@heroicons/react/24/outline';
 
 interface DashboardStatsProps {
   apartmentCount: number;
-  bookingCount: number;
-  pendingBookings: number;
+  totalBookings: number;
+  activeToday: number;
+  monthlyRevenue: number;
 }
 
 export default function DashboardStats({
   apartmentCount,
-  bookingCount,
-  pendingBookings,
+  totalBookings,
+  activeToday,
+  monthlyRevenue,
 }: DashboardStatsProps) {
   const stats = [
     {
-      name: 'Appartamenti Totali',
+      name: 'Appartamenti',
       value: apartmentCount,
       icon: BuildingOffice2Icon,
-      change: '+4%',
-      changeType: 'positive',
+      bgColor: 'bg-blue-50',
+      iconColor: 'text-blue-600',
+      change: null,
     },
     {
       name: 'Prenotazioni Totali',
-      value: bookingCount,
+      value: totalBookings,
       icon: CalendarIcon,
-      change: '+12%',
-      changeType: 'positive',
+      bgColor: 'bg-green-50',
+      iconColor: 'text-green-600',
+      change: null,
     },
     {
-      name: 'Prenotazioni in Attesa',
-      value: pendingBookings,
-      icon: ClockIcon,
-      change: '0',
-      changeType: 'neutral',
+      name: 'Occupati Oggi',
+      value: activeToday,
+      icon: HomeIcon,
+      bgColor: 'bg-purple-50',
+      iconColor: 'text-purple-600',
+      suffix: `/${apartmentCount}`,
+    },
+    {
+      name: 'Ricavi del Mese',
+      value: `€${monthlyRevenue.toFixed(2)}`,
+      icon: CurrencyEuroIcon,
+      bgColor: 'bg-yellow-50',
+      iconColor: 'text-yellow-600',
+      change: null,
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat) => (
         <div
           key={stat.name}
-          className="relative overflow-hidden rounded-lg bg-white px-4 pt-5 pb-12 shadow sm:px-6 sm:pt-6"
+          className="relative bg-white overflow-hidden rounded-lg shadow hover:shadow-md transition-shadow"
         >
-          <dt>
-            <div className="absolute rounded-md bg-blue-600 p-3">
-              <stat.icon className="h-6 w-6 text-white" aria-hidden="true" />
-            </div>
-            <p className="ml-16 truncate text-sm font-medium text-gray-500">
-              {stat.name}
-            </p>
-          </dt>
-          <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
-            <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-            <div className="absolute inset-x-0 bottom-0 bg-gray-50 px-4 py-4 sm:px-6">
-              <div className="text-sm">
-                <a
-                  href="#"
-                  className="font-medium text-blue-600 hover:text-blue-500"
-                >
-                  Vedi dettagli
-                </a>
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className={`flex-shrink-0 ${stat.bgColor} rounded-md p-3`}>
+                <stat.icon className={`h-6 w-6 ${stat.iconColor}`} aria-hidden="true" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <p className="text-sm font-medium text-gray-500 truncate">{stat.name}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stat.value}
+                  {stat.suffix && (
+                    <span className="text-sm font-normal text-gray-500 ml-1">
+                      {stat.suffix}
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
-          </dd>
+          </div>
         </div>
       ))}
     </div>
