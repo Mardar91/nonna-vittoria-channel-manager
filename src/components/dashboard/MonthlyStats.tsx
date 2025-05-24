@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { TrendingUpIcon, TrendingDownIcon, MinusIcon } from '@heroicons/react/24/outline';
+import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, MinusIcon } from '@heroicons/react/24/outline';
 
 interface MonthlyStatsProps {
   bookings: Array<{
@@ -81,8 +81,8 @@ export default function MonthlyStats({ bookings }: MonthlyStatsProps) {
   }, [bookings]);
 
   const getChangeIcon = (change: number) => {
-    if (change > 0) return <TrendingUpIcon className="w-4 h-4 text-green-600" />;
-    if (change < 0) return <TrendingDownIcon className="w-4 h-4 text-red-600" />;
+    if (change > 0) return <ArrowTrendingUpIcon className="w-4 h-4 text-green-600" />;
+    if (change < 0) return <ArrowTrendingDownIcon className="w-4 h-4 text-red-600" />;
     return <MinusIcon className="w-4 h-4 text-gray-400" />;
   };
 
