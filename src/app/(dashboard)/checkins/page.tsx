@@ -1,0 +1,210 @@
+import { getServerSession } from 'next-auth/next';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import connectDB from '@/lib/db';
+import CheckInModel from '@/models/CheckIn';
+import BookingModel from '@/models/Booking';
+import ApartmentModel from '@/models/Apartment';
+import { ClipboardDocumentCheckIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+
+export default async function CheckInsPage() {
+  const session = await getServerSession();
+  
+  if (!session) {
+    redirect('/login');
+  }
+  
+  await connectDB();
+  
+  // Ottieni tutti i check-in con informazioni correlate
+  const checkIns = await CheckInModel.find({})
+    .sort({ createdAt: -1 })
+    .limit(100);
+  
+  // Ottieni le informazioni di booking e appartamenti
+  const bookingIds = checkIns.map(c => c.bookingId);
+  const bookings = await BookingModel.find({ _id: { $in: bookingIds } });
+  const bookingMap = new Map(bookings.map(b => [b._id.toString(), b]));
+  
+  const apartmentIds = [...new Set(checkIns.map(c => c.apartmentId))];
+  const apartments = await ApartmentModel.find({ _id: { $in: apartmentIds } });
+  const apartmentMap = new Map(apartments.map(a => [a._id.toString(), a]));
+  
+  // Prepara i dati per la visualizzazione
+  const checkInsWithDetails = checkIns.map(checkIn => {
+    const booking = bookingMap.get(checkIn.bookingId);
+    const apartment = apartmentMap.get(checkIn.apartmentId);
+    const mainGuest = checkIn.guests.find(g => g.isMainGuest);
+    
+    return {
+      id: checkIn._id.toString(),
+      bookingId: checkIn.bookingId,
+      apartmentName: apartment?.name || 'Sconosciuto',
+      mainGuestName: mainGuest ? `${mainGuest.firstName} ${mainGuest.lastName}` : 'N/A',
+      guestCount: checkIn.guests.length,
+      checkInDate: checkIn.checkInDate,
+      completedAt: checkIn.completedAt,
+      completedBy: checkIn.completedBy,
+      status: checkIn.status,
+      bookingCheckIn: booking?.checkIn,
+      bookingCheckOut: booking?.checkOut,
+    };
+  });
+  
+  // Funzione per formattare le date
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+  
+  // Funzione per formattare chi ha completato il check-in
+  const formatCompletedBy = (completedBy: string) => {
+    return completedBy === 'guest' ? 'Ospite' : 'Manuale';
+  };
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold flex items-center">
+          <ClipboardDocumentCheckIcon className="h-8 w-8 mr-2 text-blue-600" />
+          Check-ins
+        </h1>
+      </div>
+      
+      {/* Statistiche */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-sm font-medium text-gray-500">Check-in Totali</h3>
+          <p className="mt-2 text-3xl font-semibold text-gray-900">
+            {checkInsWithDetails.length}
+          </p>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-sm font-medium text-gray-500">Check-in Online</h3>
+          <p className="mt-2 text-3xl font-semibold text-blue-600">
+            {checkInsWithDetails.filter(c => c.completedBy === 'guest').length}
+          </p>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-sm font-medium text-gray-500">Check-in Manuali</h3>
+          <p className="mt-2 text-3xl font-semibold text-green-600">
+            {checkInsWithDetails.filter(c => c.completedBy !== 'guest').length}
+          </p>
+        </div>
+      </div>
+      
+      {/* Tabella check-ins */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-4 py-5 sm:px-6">
+          <h2 className="text-lg font-medium text-gray-900">Ultimi Check-ins</h2>
+        </div>
+        
+        <div className="overflow-x-auto">
+          {checkInsWithDetails.length === 0 ? (
+            <div className="text-center py-12">
+              <ClipboardDocumentCheckIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Nessun check-in</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Non ci sono ancora check-in registrati.
+              </p>
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Data Check-in
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ospite Principale
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Appartamento
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    N° Ospiti
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Periodo Soggiorno
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Completato
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tipo
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Azioni
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {checkInsWithDetails.map((checkIn) => (
+                  <tr key={checkIn.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatDate(checkIn.checkInDate)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {checkIn.mainGuestName}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {checkIn.apartmentName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {checkIn.guestCount}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {checkIn.bookingCheckIn && checkIn.bookingCheckOut && (
+                        <>
+                          {new Date(checkIn.bookingCheckIn).toLocaleDateString('it-IT')} - 
+                          {new Date(checkIn.bookingCheckOut).toLocaleDateString('it-IT')}
+                        </>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {checkIn.completedAt && formatDate(checkIn.completedAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        checkIn.completedBy === 'guest' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {formatCompletedBy(checkIn.completedBy)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <Link
+                          href={`/checkins/${checkIn.id}`}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          <MagnifyingGlassIcon className="h-5 w-5" />
+                        </Link>
+                        <Link
+                          href={`/bookings/${checkIn.bookingId}`}
+                          className="text-gray-600 hover:text-gray-900"
+                        >
+                          Prenotazione
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
