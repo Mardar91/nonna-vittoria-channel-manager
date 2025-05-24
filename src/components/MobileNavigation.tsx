@@ -7,10 +7,10 @@ import {
   ViewColumnsIcon, 
   BuildingOffice2Icon, 
   PlusIcon, 
-  CreditCardIcon, 
+  ClipboardDocumentCheckIcon, 
   Bars3Icon,
   XMarkIcon,
-  GlobeAltIcon // Nuova icona per Profilo Online
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
 import { signOut } from 'next-auth/react';
 
@@ -48,9 +48,9 @@ export default function MobileNavigation({ apartments = [] }: MobileNavigationPr
       isCenter: true,
     },
     {
-      name: 'Profilo Online',
-      href: '/online-profile',
-      icon: GlobeAltIcon,
+      name: 'Check-ins',
+      href: '/checkins',
+      icon: ClipboardDocumentCheckIcon,
     },
     {
       name: 'Menu',
@@ -141,6 +141,13 @@ export default function MobileNavigation({ apartments = [] }: MobileNavigationPr
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Prenotazioni
+                </Link>
+                <Link
+                  href="/checkins"
+                  className="block py-2 text-base font-medium text-gray-900"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Check-ins
                 </Link>
                 <Link
                   href="/online-profile"
