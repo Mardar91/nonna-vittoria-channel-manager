@@ -7,7 +7,7 @@ interface ApartmentWithStatus {
   _id: string;
   name: string;
   address: string;
-  isOccupied: boolean;
+  status: 'available' | 'freeing_soon' | 'reserved';
   currentBooking?: {
     guestName: string;
     checkOut: Date;
@@ -46,8 +46,10 @@ export default function ApartmentStatusGrid({ apartments }: ApartmentStatusGridP
               key={apartment._id}
               href={`/apartments/${apartment._id}`}
               className={`relative rounded-lg border-2 p-4 hover:shadow-md transition-all ${
-                apartment.isOccupied 
-                  ? 'border-green-200 bg-green-50' 
+                apartment.status === 'reserved'
+                  ? 'border-green-200 bg-green-50'
+                  : apartment.status === 'freeing_soon'
+                  ? 'border-yellow-200 bg-yellow-50'
                   : 'border-gray-200 bg-gray-50'
               }`}
             >
@@ -56,7 +58,8 @@ export default function ApartmentStatusGrid({ apartments }: ApartmentStatusGridP
                   <h4 className="font-semibold text-gray-900">{apartment.name}</h4>
                   <p className="text-sm text-gray-500 mt-1">{apartment.address}</p>
                   
-                  {apartment.isOccupied && apartment.currentBooking ? (
+                  {/* Reserved Status */}
+                  {apartment.status === 'reserved' && apartment.currentBooking && (
                     <div className="mt-3 space-y-1">
                       <div className="flex items-center text-sm text-green-700">
                         <UserIcon className="w-4 h-4 mr-1" />
@@ -67,11 +70,37 @@ export default function ApartmentStatusGrid({ apartments }: ApartmentStatusGridP
                         <span>Check-out: {formatDate(apartment.currentBooking.checkOut)}</span>
                       </div>
                     </div>
-                  ) : (
+                  )}
+                  
+                  {/* Available Status */}
+                  {apartment.status === 'available' && (
                     <div className="mt-3">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                         Disponibile
                       </span>
+                    </div>
+                  )}
+                  
+                  {/* Freeing Soon Status */}
+                  {apartment.status === 'freeing_soon' && (
+                    <div className="mt-3 space-y-1">
+                      <div>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mb-1">
+                          In uscita
+                        </span>
+                      </div>
+                      {apartment.currentBooking && (
+                        <>
+                          <div className="flex items-center text-sm text-yellow-700">
+                            <UserIcon className="w-4 h-4 mr-1" />
+                            <span className="font-medium">{apartment.currentBooking.guestName}</span>
+                          </div>
+                          <div className="flex items-center text-xs text-yellow-600">
+                            <CalendarDaysIcon className="w-4 h-4 mr-1" />
+                            <span>Check-out: {formatDate(apartment.currentBooking.checkOut)}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                   
@@ -86,10 +115,18 @@ export default function ApartmentStatusGrid({ apartments }: ApartmentStatusGridP
                 </div>
                 
                 <div className={`ml-4 rounded-full p-2 ${
-                  apartment.isOccupied ? 'bg-green-100' : 'bg-gray-100'
+                  apartment.status === 'reserved'
+                    ? 'bg-green-100'
+                    : apartment.status === 'freeing_soon'
+                    ? 'bg-yellow-100'
+                    : 'bg-gray-100'
                 }`}>
                   <HomeIcon className={`w-6 h-6 ${
-                    apartment.isOccupied ? 'text-green-600' : 'text-gray-400'
+                    apartment.status === 'reserved'
+                      ? 'text-green-600'
+                      : apartment.status === 'freeing_soon'
+                      ? 'text-yellow-600'
+                      : 'text-gray-400'
                   }`} />
                 </div>
               </div>
