@@ -35,7 +35,7 @@ export const isValidItalianTaxCode = (code: string): boolean => {
 
 // Validazione numero documento
 export const isValidDocumentNumber = (
-  type: 'identity_card' | 'passport' | 'driving_license' | 'other', // Tipo ristretto, non include ''
+  type: 'identity_card' | 'passport' | 'driving_license' | 'other', 
   number: string
 ): boolean => {
   if (!number || number.trim() === '') return false;
@@ -82,7 +82,7 @@ export const validateCheckInForm = (
     errors.push({ field: 'mainGuest.firstName', message: 'Il nome è obbligatorio' });
   }
   
-  // @ts-expect-error (Potrebbe essere necessario se il tipo di sex è definito come 'M' | 'F' | '' senza undefined)
+  // @ts-expect-error
   if (!mainGuest.sex || mainGuest.sex === '') {
     errors.push({ field: 'mainGuest.sex', message: 'Il sesso è obbligatorio' });
   }
@@ -112,14 +112,18 @@ export const validateCheckInForm = (
   }
   
   // Validazione Documento Ospite Principale
-  if (!mainGuestDocType) { // Copre undefined e ''
+  if (!mainGuestDocType) { 
     errors.push({ field: 'mainGuest.documentType', message: 'Il tipo di documento è obbligatorio' });
   }
   
   if (!mainGuest.documentNumber || mainGuest.documentNumber.trim() === '') {
     errors.push({ field: 'mainGuest.documentNumber', message: 'Il numero del documento è obbligatorio' });
-  } else {
-    if (mainGuestDocType && mainGuestDocType !== '') { 
+  } else { 
+    // Qui documentNumber è presente e non vuoto.
+    // mainGuestDocType può essere SpecificDocType | '' | undefined.
+    // La riga 122 dell'errore era qui dentro.
+    if (typeof mainGuestDocType === 'string' && mainGuestDocType !== '') { 
+      // Ora mainGuestDocType è sicuramente uno dei tipi specifici del documento.
       if (!isValidDocumentNumber(mainGuestDocType, mainGuest.documentNumber)) {
         errors.push({ field: 'mainGuest.documentNumber', message: 'Numero documento non valido per il tipo selezionato' });
       }
@@ -150,7 +154,7 @@ export const validateCheckInForm = (
       errors.push({ field: `additionalGuests.${index}.firstName`, message: 'Il nome è obbligatorio' });
     }
     
-    // @ts-expect-error (Potrebbe essere necessario se il tipo di sex è 'M' | 'F' | '' senza undefined)
+    // @ts-expect-error
     if (!guest.sex || guest.sex === '') {
       errors.push({ field: `additionalGuests.${index}.sex`, message: 'Il sesso è obbligatorio' });
     }
@@ -181,14 +185,15 @@ export const validateCheckInForm = (
 
     if (!isDocumentOptional) {
       // Documento Obbligatorio per Ospite Aggiuntivo
-      if (!guestDocType) { // Copre undefined e ''
+      if (!guestDocType) { 
         errors.push({ field: `additionalGuests.${index}.documentType`, message: 'Il tipo di documento è obbligatorio' });
       }
       
       if (!guest.documentNumber || guest.documentNumber.trim() === '') {
         errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Il numero del documento è obbligatorio' });
-      } else {
-        if (guestDocType && guestDocType !== '') {
+      } else { 
+        // Numero presente. Controlla tipo per validazione incrociata.
+        if (typeof guestDocType === 'string' && guestDocType !== '') {
           if (!isValidDocumentNumber(guestDocType, guest.documentNumber)) {
             errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Numero documento non valido per il tipo selezionato' });
           }
@@ -208,13 +213,15 @@ export const validateCheckInForm = (
       }
     } else {
       // Documento Opzionale per Ospite Aggiuntivo, ma se il tipo è fornito, il resto diventa condizionatamente obbligatorio.
-      if (guestDocType && guestDocType !== '') { 
+      if (typeof guestDocType === 'string' && guestDocType !== '') { 
+        // Tipo fornito (ed è uno SpecificType). Il numero diventa obbligatorio.
         if (!guest.documentNumber || guest.documentNumber.trim() === '') {
           errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Il numero del documento è richiesto se si specifica il tipo' });
-        } else if (!isValidDocumentNumber(guestDocType, guest.documentNumber)) {
+        } else if (!isValidDocumentNumber(guestDocType, guest.documentNumber)) { 
           errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Numero documento non valido per il tipo selezionato' });
         }
         
+        // Se numero e tipo sono forniti e validi, anche luogo/paese/provincia di rilascio diventano richiesti.
         if (guest.documentNumber && guest.documentNumber.trim() !== '' && isValidDocumentNumber(guestDocType, guest.documentNumber)) {
             if (!guest.documentIssuePlace || guest.documentIssuePlace.trim() === '') {
                 errors.push({ field: `additionalGuests.${index}.documentIssuePlace`, message: 'Luogo di rilascio richiesto se tipo/numero sono forniti' });
