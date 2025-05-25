@@ -2,13 +2,12 @@ import { getServerSession } from 'next-auth/next';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import connectDB from '@/lib/db';
-import CheckInModel from '@/models/CheckIn'; // Assumi che CheckInModel sia un modello Mongoose
-import BookingModel from '@/models/Booking'; // Assumi che BookingModel sia un modello Mongoose
-import ApartmentModel from '@/models/Apartment'; // Assumi che ApartmentModel sia un modello Mongoose
-import { UserIcon, IdentificationIcon, CalendarIcon, HomeIcon, ClockIcon } from '@heroicons/react/24/outline';
-import mongoose from 'mongoose'; // Importa mongoose per Types.ObjectId se i tuoi ID sono ObjectId
+import CheckInModel from '@/models/CheckIn';
+import BookingModel from '@/models/Booking';
+import ApartmentModel from '@/models/Apartment';
+import { UserIcon, IdentificationIcon, CalendarIcon, HomeIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import mongoose from 'mongoose';
 
-// Definisci il tipo per un singolo ospite
 interface GuestType {
   isMainGuest: boolean;
   firstName: string;
@@ -26,39 +25,35 @@ interface GuestType {
   documentIssueCountry?: string;
 }
 
-// Definisci l'interfaccia per il documento CheckIn
 interface CheckInDocument {
-  _id: mongoose.Types.ObjectId | string; // O solo string se convertito da .lean()
-  bookingId: mongoose.Types.ObjectId | string; // O solo string
-  apartmentId: mongoose.Types.ObjectId | string; // O solo string
+  _id: mongoose.Types.ObjectId | string;
+  bookingId: mongoose.Types.ObjectId | string;
+  apartmentId: mongoose.Types.ObjectId | string;
   guests: GuestType[];
   checkInDate: Date | string;
-  completedAt?: Date | string | null; // Può essere null se non completato
+  completedAt?: Date | string | null;
   completedBy?: 'guest' | string | null;
   ipAddress?: string | null;
   userAgent?: string | null;
   notes?: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
-  // Aggiungi qui altre proprietà del tuo CheckInModel se presenti
-  // ad esempio __v?: number; se vuoi includerlo
+  status?: string;
+  requestedCheckIn?: Date | string;
+  requestedCheckOut?: Date | string;
 }
 
-// Opzionale: definisci tipi simili per Booking e Apartment se vuoi maggiore type safety
 interface BookingDocument {
   _id: mongoose.Types.ObjectId | string;
   checkIn: Date | string;
   checkOut: Date | string;
   guestEmail: string;
-  // ...altre proprietà del booking
 }
 
 interface ApartmentDocument {
   _id: mongoose.Types.ObjectId | string;
   name: string;
-  // ...altre proprietà dell'appartamento
 }
-
 
 export default async function CheckInDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession();
@@ -69,7 +64,6 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
   
   await connectDB();
   
-  // Ottieni i dettagli del check-in specificando il tipo atteso con .lean()
   const checkIn = await CheckInModel.findById(params.id).lean<CheckInDocument | null>();
   
   if (!checkIn) {
@@ -84,9 +78,8 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
   }
   
   // Ottieni informazioni correlate
-  // Ora checkIn.bookingId e checkIn.apartmentId dovrebbero essere riconosciuti
-  const booking = await BookingModel.findById(checkIn.bookingId).lean<BookingDocument | null>();
-  const apartment = await ApartmentModel.findById(checkIn.apartmentId).lean<ApartmentDocument | null>();
+  const booking = checkIn.bookingId ? await BookingModel.findById(checkIn.bookingId).lean<BookingDocument | null>() : null;
+  const apartment = checkIn.apartmentId ? await ApartmentModel.findById(checkIn.apartmentId).lean<ApartmentDocument | null>() : null;
   
   // Funzione per formattare le date
   const formatDate = (dateInput: Date | string | undefined | null): string => {
@@ -109,7 +102,6 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
     });
   };
   
-  // Funzione per calcolare l'età
   const calculateAge = (birthDateInput: Date | string | undefined | null): number | string => {
     if (!birthDateInput) return 'N/A';
     const today = new Date();
@@ -123,7 +115,6 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
     return age;
   };
   
-  // Funzione per formattare il tipo di documento
   const formatDocumentType = (type: string | undefined | null): string => {
     if (!type) return 'Sconosciuto';
     const types: Record<string, string> = {
@@ -135,20 +126,62 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
     return types[type] || type;
   };
   
+  // Determina se è un check-in da smistare
+  const isPendingAssignment = checkIn.status === 'pending_assignment';
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">
           Dettagli Check-in
+          {isPendingAssignment && (
+            <span className="ml-2 text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+              Da Smistare
+            </span>
+          )}
         </h1>
         <div className="flex space-x-4">
-          {/* Converto checkIn.bookingId a stringa esplicitamente per href se è ObjectId */}
-          <Link 
-            href={`/bookings/${String(checkIn.bookingId)}`}
-            className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
-          >
-            Vedi Prenotazione
-          </Link>
+          {isPendingAssignment ? (
+            <>
+              <Link 
+                href={`/checkins?action=assign&checkInId=${String(checkIn._id)}`}
+                className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 flex items-center"
+              >
+                <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
+                Smista Prenotazione
+              </Link>
+              <button
+                onClick={async () => {
+                  if (confirm('Sei sicuro di voler eliminare questo check-in?')) {
+                    try {
+                      const response = await fetch(`/api/checkin/${String(checkIn._id)}`, {
+                        method: 'DELETE',
+                      });
+                      if (response.ok) {
+                        window.location.href = '/checkins';
+                      } else {
+                        alert('Errore durante l\'eliminazione del check-in');
+                      }
+                    } catch (error) {
+                      alert('Errore durante l\'eliminazione del check-in');
+                    }
+                  }
+                }}
+                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+              >
+                Elimina Check-in
+              </button>
+            </>
+          ) : (
+            checkIn.bookingId && (
+              <Link 
+                href={`/bookings/${String(checkIn.bookingId)}`}
+                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
+              >
+                Vedi Prenotazione
+              </Link>
+            )
+          )}
           <Link 
             href="/checkins"
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
@@ -157,6 +190,27 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
           </Link>
         </div>
       </div>
+      
+      {/* Alert per check-in da smistare */}
+      {isPendingAssignment && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" aria-hidden="true" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                Questo check-in deve essere assegnato a una prenotazione esistente.
+                {checkIn.requestedCheckIn && checkIn.requestedCheckOut && (
+                  <span className="block mt-1">
+                    Date richieste: {formatDate(checkIn.requestedCheckIn)} - {formatDate(checkIn.requestedCheckOut)}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Informazioni generali */}
       <div className="bg-white shadow rounded-lg p-6">
@@ -168,13 +222,27 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <p className="text-sm font-medium text-gray-500">Appartamento</p>
-            <p className="mt-1 text-lg">{apartment?.name || 'Sconosciuto'}</p>
+            <p className="mt-1 text-lg">{apartment?.name || 'Da Assegnare'}</p>
           </div>
           
           <div>
             <p className="text-sm font-medium text-gray-500">Data Check-in</p>
             <p className="mt-1 text-lg">{formatDateTime(checkIn.checkInDate)}</p>
           </div>
+          
+          {isPendingAssignment && checkIn.requestedCheckIn && (
+            <>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Check-in Richiesto</p>
+                <p className="mt-1 text-lg">{formatDate(checkIn.requestedCheckIn)}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm font-medium text-gray-500">Check-out Richiesto</p>
+                <p className="mt-1 text-lg">{formatDate(checkIn.requestedCheckOut)}</p>
+              </div>
+            </>
+          )}
           
           <div>
             <p className="text-sm font-medium text-gray-500">Completato il</p>
