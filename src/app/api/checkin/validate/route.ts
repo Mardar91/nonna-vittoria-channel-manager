@@ -1,4 +1,4 @@
-// src/app/api/checkin/validate/route.ts
+      // src/app/api/checkin/validate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import BookingModel from '@/models/Booking';
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         },
         guestEmail: email, // Email must match for this search
         status: 'confirmed',
-      }).lean(); // Use lean if not modifying here, but we might update email
+      }).lean(); // .lean() qui può rimanere se booking non viene modificato e salvato direttamente
     }
 
     // Attempt 2: If not found by _id prefix, try by externalId
@@ -45,12 +45,16 @@ export async function POST(req: NextRequest) {
       const externalBooking = await BookingModel.findOne({
         externalId: { $regex: new RegExp(`^${bookingReference}$`, 'i') },
         status: 'confirmed',
-      }).lean(); // Use lean if not modifying here, but we might update email
+      }).lean(); // .lean() qui può rimanere se booking non viene modificato e salvato direttamente
 
       if (externalBooking) {
         booking = { ...externalBooking }; // Clone to make it modifiable
-        if (booking.guestEmail.toLowerCase() !== email) {
-          booking.guestEmail = email; // Update email on the cloned object
+        // Se l'email è diversa, la aggiorniamo nell'oggetto 'booking' in memoria.
+        // Questa modifica non viene salvata nel DB qui, ma usata per la risposta.
+        if (booking.guestEmail.toLowerCase() !== email) { 
+          // Assumendo che guestEmail esista sempre su externalBooking.
+          // Se guestEmail fosse opzionale, servirebbero più controlli.
+          booking.guestEmail = email; 
         }
       }
     }
@@ -59,7 +63,7 @@ export async function POST(req: NextRequest) {
     if (booking) {
       // Booking found by ID or externalId, proceed with standard validation
       const existingCheckIn = await CheckInModel.findOne({
-        bookingId: booking._id.toString(),
+        bookingId: booking._id.toString(), // booking._id qui è ok perché se .lean() è usato sopra, _id è comunque presente
       });
       
       if (existingCheckIn && existingCheckIn.status === 'completed') {
@@ -105,11 +109,11 @@ export async function POST(req: NextRequest) {
           apartmentId: String(booking.apartmentId),
           apartmentName: apartment?.name || 'Appartamento',
           guestName: booking.guestName,
-          guestEmail: booking.guestEmail, // Ensure updated email is included
-          checkIn: booking.checkIn.toISOString(),
-          checkOut: booking.checkOut.toISOString(),
+          guestEmail: booking.guestEmail, // Include l'email (potenzialmente aggiornata)
+          checkIn: booking.checkIn.toISOString(), // Assicurati che checkIn sia una data valida
+          checkOut: booking.checkOut.toISOString(), // Assicurati che checkOut sia una data valida
           numberOfGuests: booking.numberOfGuests,
-          hasCheckedIn: !!existingCheckIn, // Will be false or undefined if no pending/completed
+          hasCheckedIn: !!existingCheckIn, 
         }
       } as BookingValidationResponse);
 
@@ -138,11 +142,12 @@ export async function POST(req: NextRequest) {
         } as BookingValidationResponse, { status: 400 });
       }
 
+      // Rimozione di .lean() da questa query per risolvere l'errore di tipo
       const potentialBookings = await BookingModel.find({
         status: 'confirmed',
         checkIn: { $gte: startDate, $lt: new Date(startDate.getTime() + 24 * 60 * 60 * 1000) },
         checkOut: { $gte: endDate, $lt: new Date(endDate.getTime() + 24 * 60 * 60 * 1000) },
-      }).lean();
+      }); // <-- .lean() rimosso da qui
 
       if (!potentialBookings.length) {
         console.log(`Nessuna prenotazione trovata per le date: ${requestedCheckIn} - ${requestedCheckOut}`);
@@ -153,9 +158,9 @@ export async function POST(req: NextRequest) {
       }
 
       const availableBookings = [];
-      for (const pBooking of potentialBookings) {
+      for (const pBooking of potentialBookings) { // Ora pBooking è un documento Mongoose completo
         const existingCheckIn = await CheckInModel.findOne({
-          bookingId: pBooking._id.toString(),
+          bookingId: pBooking._id.toString(), // pBooking._id.toString() ora è valido
           status: 'completed'
         });
         if (!existingCheckIn) {
@@ -171,7 +176,6 @@ export async function POST(req: NextRequest) {
         } as BookingValidationResponse, { status: 400 });
       }
       
-      // At least one booking available for "unassigned check-in"
       console.log(`Trovate ${availableBookings.length} prenotazioni disponibili per le date ${requestedCheckIn} - ${requestedCheckOut}. Modalità 'unassigned_checkin'.`);
       return NextResponse.json({
         valid: true,
@@ -184,27 +188,6 @@ export async function POST(req: NextRequest) {
         bookingReference: bookingReference 
       } as BookingValidationResponse);
     }
-    // --- End of new logic flow ---
-
-    // The following old logic for "if (!booking)" and subsequent processing is now handled above.
-    // So, it should be removed or ensured it's unreachable if the new flow is complete.
-    // For safety, I am commenting out the old "if (!booking)" block and its direct aftermath,
-    // as the new logic should cover all scenarios.
-
-    /*
-    if (!booking) {
-      console.log(`Validazione fallita per: ref: '${bookingReference}', email: '${email}'. Non trovata né come ID interno né come externalId.`);
-      return NextResponse.json({
-        valid: false,
-        error: 'Prenotazione non trovata o non valida. Controlla i dati inseriti.'
-      } as BookingValidationResponse, { status: 404 });
-    }
-    */
-    
-    // --- Il resto della logica rimane uguale --- (This part is now inside the "if (booking)" block above)
-    // The code from this point was part of the old structure and has been integrated into the new if/else flow.
-    // It's effectively unreachable if the new logic is correct.
-    // No further processing should happen here.
     
   } catch (error) {
     console.error('Error validating booking:', error);
