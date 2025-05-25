@@ -19,6 +19,12 @@ export default function CheckInPage() {
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // New states for conditional date fields
+  const [requestedCheckIn, setRequestedCheckIn] = useState('');
+  const [requestedCheckOut, setRequestedCheckOut] = useState('');
+  const [showDateFields, setShowDateFields] = useState(false);
+  const [isSecondAttempt, setIsSecondAttempt] = useState(false);
   
   useEffect(() => {
     loadProfile();
@@ -47,8 +53,20 @@ export default function CheckInPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Rimuovi l'errore quando l'utente modifica il campo
+
+    if (name === 'bookingReference' || name === 'email') {
+      setShowDateFields(false);
+      setIsSecondAttempt(false);
+      setRequestedCheckIn('');
+      setRequestedCheckOut('');
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.requestedCheckIn;
+        delete newErrors.requestedCheckOut;
+        return newErrors;
+      });
+    }
+
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -70,6 +88,18 @@ export default function CheckInPage() {
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Inserisci un indirizzo email valido';
     }
+
+    if (isSecondAttempt) {
+      if (!requestedCheckIn) {
+        newErrors.requestedCheckIn = 'La data di check-in è richiesta';
+      }
+      if (!requestedCheckOut) {
+        newErrors.requestedCheckOut = 'La data di check-out è richiesta';
+      }
+      if (requestedCheckIn && requestedCheckOut && new Date(requestedCheckIn) >= new Date(requestedCheckOut)) {
+        newErrors.requestedCheckOut = 'La data di check-out deve essere successiva a quella di check-in';
+      }
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -78,40 +108,66 @@ export default function CheckInPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    if (!validateForm()) { // validateForm now also handles date fields if isSecondAttempt is true
       return;
     }
     
     setValidating(true);
     
     try {
+      const body: any = {
+        bookingReference: formData.bookingReference.trim(),
+        email: formData.email.trim().toLowerCase()
+      };
+
+      if (isSecondAttempt) {
+        body.requestedCheckIn = requestedCheckIn;
+        body.requestedCheckOut = requestedCheckOut;
+      }
+
       const response = await fetch('/api/checkin/validate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          bookingReference: formData.bookingReference.trim(),
-          email: formData.email.trim().toLowerCase()
-        }),
+        body: JSON.stringify(body),
       });
       
       const data = await response.json();
       
       if (!response.ok || !data.valid) {
-        toast.error(data.error || 'Prenotazione non trovata');
+        if (data.errorCode === 'BOOKING_NOT_FOUND_ASK_DATES') {
+          setShowDateFields(true);
+          setIsSecondAttempt(true);
+          toast.error("Prenotazione non trovata. Inserisci le date del tuo soggiorno per una ricerca più precisa.");
+          setValidating(false);
+          return;
+        }
+        toast.error(data.error || 'Prenotazione non trovata o non valida.');
+        setValidating(false); // Ensure validating is set to false on error
         return;
       }
       
-      // Salva i dati della prenotazione nel sessionStorage
-      sessionStorage.setItem('checkInBooking', JSON.stringify(data.booking));
+      // Successful validation
+      if (data.mode === 'unassigned_checkin') {
+        sessionStorage.setItem('checkInContext', JSON.stringify({ 
+          mode: 'unassigned_checkin', 
+          requestedDates: {
+            checkIn: requestedCheckIn, // Use the state values
+            checkOut: requestedCheckOut, // Use the state values
+          }, 
+          email: formData.email.trim().toLowerCase(),
+          bookingReference: formData.bookingReference.trim() // Include booking reference
+        }));
+      } else {
+        sessionStorage.setItem('checkInBooking', JSON.stringify(data.booking));
+      }
       
-      // Naviga al form di check-in
       router.push('/checkin/form');
       
     } catch (error) {
       console.error('Error validating booking:', error);
-      toast.error('Si è verificato un errore. Riprova più tardi.');
+      toast.error('Si è verificato un errore durante la validazione. Riprova più tardi.');
     } finally {
       setValidating(false);
     }
@@ -224,6 +280,60 @@ export default function CheckInPage() {
                 )}
               </div>
             </div>
+
+            {showDateFields && (
+              <div className="rounded-md shadow-sm -space-y-px mt-4 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600 mb-2 text-center">
+                  La prenotazione non è stata trovata. Inserisci le date del soggiorno per una ricerca più precisa.
+                </p>
+                <div>
+                  <label htmlFor="requestedCheckIn" className="sr-only">
+                    Data di Check-in
+                  </label>
+                  <input
+                    id="requestedCheckIn"
+                    name="requestedCheckIn"
+                    type="date"
+                    required={isSecondAttempt}
+                    value={requestedCheckIn}
+                    onChange={(e) => {
+                      setRequestedCheckIn(e.target.value);
+                      if (errors.requestedCheckIn) setErrors(prev => ({...prev, requestedCheckIn: undefined}));
+                    }}
+                    className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
+                      errors.requestedCheckIn ? 'border-red-300' : 'border-gray-300'
+                    } placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                    placeholder="Data di Check-in"
+                  />
+                  {errors.requestedCheckIn && (
+                    <p className="mt-1 text-xs text-red-600">{errors.requestedCheckIn}</p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="requestedCheckOut" className="sr-only">
+                    Data di Check-out
+                  </label>
+                  <input
+                    id="requestedCheckOut"
+                    name="requestedCheckOut"
+                    type="date"
+                    required={isSecondAttempt}
+                    value={requestedCheckOut}
+                    onChange={(e) => {
+                      setRequestedCheckOut(e.target.value);
+                      if (errors.requestedCheckOut) setErrors(prev => ({...prev, requestedCheckOut: undefined}));
+                    }}
+                    className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
+                      errors.requestedCheckOut ? 'border-red-300' : 'border-gray-300'
+                    } placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                    placeholder="Data di Check-out"
+                  />
+                  {errors.requestedCheckOut && (
+                    <p className="mt-1 text-xs text-red-600">{errors.requestedCheckOut}</p>
+                  )}
+                </div>
+              </div>
+            )}
             
             <div>
               <button
@@ -232,7 +342,7 @@ export default function CheckInPage() {
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                 style={primaryButtonStyle}
               >
-                {validating ? 'Verifica in corso...' : 'Continua'}
+                {validating ? 'Verifica in corso...' : (isSecondAttempt ? 'Cerca per Date' : 'Continua')}
               </button>
             </div>
             
