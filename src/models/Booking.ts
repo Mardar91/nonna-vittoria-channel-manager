@@ -13,7 +13,8 @@ export interface IBooking {
   status: 'inquiry' | 'pending' | 'confirmed' | 'cancelled' | 'completed';
   paymentStatus: 'pending' | 'paid' | 'refunded' | 'failed';
   paymentId?: string;
-  source: 'direct' | 'airbnb' | 'booking' | 'other';
+  source: string;
+  manualTotalPrice?: number;
   externalId?: string;
   notes?: string;
   hasCheckedIn?: boolean;
@@ -45,9 +46,9 @@ const BookingSchema = new Schema<IBooking>(
     paymentId: { type: String },
     source: {
       type: String,
-      enum: ['direct', 'airbnb', 'booking', 'other'],
       default: 'direct',
     },
+    manualTotalPrice: { type: Number, required: false },
     externalId: { type: String },
     notes: { type: String },
     hasCheckedIn: { type: Boolean, default: false },

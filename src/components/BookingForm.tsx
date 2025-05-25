@@ -19,8 +19,19 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedApartmentId = searchParams.get('apartmentId');
+
+  // Source options - base
+  const baseSourceOptions = [
+    { label: 'Diretta', value: 'direct' },
+    { label: 'Airbnb', value: 'airbnb' },
+    { label: 'Booking.com', value: 'booking' },
+    { label: 'Altro', value: 'other' },
+  ];
   
   const [loading, setLoading] = useState(false);
+  const [isIcalBookingEditMode, setIsIcalBookingEditMode] = useState(false);
+  const [displaySourceOptions, setDisplaySourceOptions] = useState(baseSourceOptions);
+
   const [formData, setFormData] = useState<Partial<IBooking>>({
     apartmentId: preselectedApartmentId || '',
     guestName: '',
@@ -29,6 +40,7 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
     checkIn: new Date(),
     checkOut: new Date(new Date().setDate(new Date().getDate() + 1)),
     totalPrice: 0,
+    manualTotalPrice: undefined, // Initialize manualTotalPrice
     numberOfGuests: 1,
     status: 'pending',
     paymentStatus: 'pending',
@@ -41,6 +53,8 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
 
   // Calcola il prezzo totale quando cambia l'appartamento, le date o il numero di ospiti
   useEffect(() => {
+    if (isIcalBookingEditMode) return; // Skip auto-calculation for iCal edits
+
     if (formData.apartmentId && formData.checkIn && formData.checkOut && formData.numberOfGuests !== undefined) {
       const apartment = apartments.find(a => a._id === formData.apartmentId);
       
@@ -64,6 +78,16 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
   // Popola il form se stiamo modificando una prenotazione esistente
   useEffect(() => {
     if (booking && isEdit) {
+      const isIcal = booking.source !== 'direct'; // Determine if it's an iCal booking
+      setIsIcalBookingEditMode(isIcal);
+
+      let currentSourceOptions = [...baseSourceOptions];
+      const sourceExists = baseSourceOptions.some(opt => opt.value === booking.source);
+      if (!sourceExists && booking.source) { // Add booking.source to dropdown if not standard
+        currentSourceOptions = [{ label: booking.source, value: booking.source }, ...baseSourceOptions];
+      }
+      setDisplaySourceOptions(currentSourceOptions);
+      
       setFormData({
         apartmentId: booking.apartmentId,
         guestName: booking.guestName,
@@ -72,12 +96,22 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
         checkIn: new Date(booking.checkIn),
         checkOut: new Date(booking.checkOut),
         totalPrice: booking.totalPrice,
+        manualTotalPrice: booking.manualTotalPrice, // Populate manualTotalPrice
         numberOfGuests: booking.numberOfGuests,
         status: booking.status,
         paymentStatus: booking.paymentStatus,
         source: booking.source,
         notes: booking.notes || '',
       });
+    } else {
+      // For new bookings, reset to base options and direct source
+      setDisplaySourceOptions(baseSourceOptions);
+      setIsIcalBookingEditMode(false);
+      setFormData(prev => ({
+        ...prev,
+        source: 'direct', // Default for new bookings
+        manualTotalPrice: undefined
+      }));
     }
   }, [booking, isEdit]);
 
@@ -101,9 +135,15 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
     e.preventDefault();
     setLoading(true);
 
+    const dataToSubmit = { ...formData };
+
+    if (isIcalBookingEditMode && dataToSubmit.manualTotalPrice !== undefined) {
+      dataToSubmit.totalPrice = dataToSubmit.manualTotalPrice;
+    }
+
     try {
       // Assicurati che le date siano valide
-      if (new Date(formData.checkIn!) >= new Date(formData.checkOut!)) {
+      if (new Date(dataToSubmit.checkIn!) >= new Date(dataToSubmit.checkOut!)) {
         throw new Error('La data di check-out deve essere successiva al check-in');
       }
 
@@ -115,7 +155,7 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSubmit), // Send dataToSubmit
       });
 
       if (!response.ok) {
@@ -154,11 +194,11 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
 
   // Source options
   const sourceOptions = [
-    { label: 'Diretta', value: 'direct' },
-    { label: 'Airbnb', value: 'airbnb' },
-    { label: 'Booking.com', value: 'booking' },
-    { label: 'Altro', value: 'other' },
-  ];
+    // { label: 'Diretta', value: 'direct' }, // Now managed by displaySourceOptions
+    // { label: 'Airbnb', value: 'airbnb' },
+    // { label: 'Booking.com', value: 'booking' },
+    // { label: 'Altro', value: 'other' },
+  ]; // This const sourceOptions is no longer directly used for rendering
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -204,9 +244,10 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
                   value={formData.source}
                   onChange={handleChange}
                   required
+                  disabled={isIcalBookingEditMode} // Make read-only if iCal booking
                   className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
-                  {sourceOptions.map((option) => (
+                  {displaySourceOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -271,35 +312,57 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
                 <label htmlFor="totalPrice" className="block text-sm font-medium text-gray-700">
                   Prezzo Totale (€)
                 </label>
-                <input
-                  type="number"
-                  name="totalPrice"
-                  id="totalPrice"
-                  min="0"
-                  step="0.01"
-                  value={formData.totalPrice}
-                  onChange={handleChange}
-                  required
-                  className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                />
-                {selectedApartment && (
-                  <div className="mt-1 text-xs text-gray-500">
-                    {selectedApartment.priceType === 'per_person' ? (
-                      <p>Calcolato in base a {formData.numberOfGuests} ospiti a €{selectedApartment.price} per persona per notte.</p>
-                    ) : (
-                      <>
-                        <p>Prezzo base: €{selectedApartment.price} per notte</p>
-                        {formData.numberOfGuests !== undefined && formData.numberOfGuests > selectedApartment.baseGuests && (
-                          <p>
-                            {formData.numberOfGuests - selectedApartment.baseGuests} ospiti extra a{' '}
-                            {selectedApartment.extraGuestPriceType === 'fixed' 
-                              ? `€${selectedApartment.extraGuestPrice} per notte ciascuno`
-                              : `${selectedApartment.extraGuestPrice}% di supplemento ciascuno`}
-                          </p>
+                {isIcalBookingEditMode ? (
+                  <>
+                    <input
+                      type="number"
+                      name="manualTotalPrice"
+                      id="manualTotalPrice"
+                      min="0"
+                      step="0.01"
+                      value={formData.manualTotalPrice || ''}
+                      onChange={handleChange}
+                      className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                      placeholder="Inserisci prezzo manuale"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Prezzo per prenotazione importata da iCal (es. {formData.source}).
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="number"
+                      name="totalPrice"
+                      id="totalPrice"
+                      min="0"
+                      step="0.01"
+                      value={formData.totalPrice}
+                      onChange={handleChange}
+                      required
+                      readOnly // Price is auto-calculated for direct bookings
+                      className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md bg-gray-50"
+                    />
+                    {selectedApartment && (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {selectedApartment.priceType === 'per_person' ? (
+                          <p>Calcolato in base a {formData.numberOfGuests} ospiti a €{selectedApartment.price} per persona per notte.</p>
+                        ) : (
+                          <>
+                            <p>Prezzo base: €{selectedApartment.price} per notte</p>
+                            {formData.numberOfGuests !== undefined && formData.numberOfGuests > selectedApartment.baseGuests && (
+                              <p>
+                                {formData.numberOfGuests - selectedApartment.baseGuests} ospiti extra a{' '}
+                                {selectedApartment.extraGuestPriceType === 'fixed' 
+                                  ? `€${selectedApartment.extraGuestPrice} per notte ciascuno`
+                                  : `${selectedApartment.extraGuestPrice}% di supplemento ciascuno`}
+                              </p>
+                            )}
+                          </>
                         )}
-                      </>
+                      </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
 

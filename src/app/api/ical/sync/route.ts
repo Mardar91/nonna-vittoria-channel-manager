@@ -6,24 +6,6 @@ import BookingModel from '@/models/Booking';
 import { importICalEvents, extractGuestInfoFromEvent } from '@/lib/ical';
 import { v4 as uuidv4 } from 'uuid';
 
-// Funzione di utility per mappare la fonte iCal a un valore valido per il modello
-const mapSourceToEnumValue = (source: string): string => {
-  // Rimuovi .com e normalizza
-  const normalizedSource = source.toLowerCase().replace(/\.com$/i, '');
-  
-  // Mappa le fonti alle opzioni valide dell'enum
-  switch (normalizedSource) {
-    case 'booking':
-      return 'booking';
-    case 'airbnb':
-      return 'airbnb';
-    case 'direct':
-      return 'direct';
-    default:
-      return 'other';
-  }
-};
-
 // POST: Sincronizzare le prenotazioni da un feed iCal esterno
 export async function POST(req: NextRequest) {
   try {
@@ -113,26 +95,27 @@ export async function POST(req: NextRequest) {
         // Estrai informazioni dell'ospite dall'evento
         const guestInfo = extractGuestInfoFromEvent(event);
         
-        // Calcola un prezzo approssimativo basato sul prezzo dell'appartamento e la durata
-        const nights = Math.max(1, Math.round((event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60 * 24)));
-        const totalPrice = apartment.price * nights;
+        // Set totalPrice to 0 for iCal imports
+        const totalPrice = 0;
+        // const nights = Math.max(1, Math.round((event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60 * 24)));
+        // const totalPrice = apartment.price * nights;
         
-        // Mappa correttamente la fonte all'enum valido
-        const validSource = mapSourceToEnumValue(source);
+        // const validSource = mapSourceToEnumValue(source); // No longer needed
         
         // Crea una nuova prenotazione - NON valida il soggiorno minimo per prenotazioni importate
         const booking = await BookingModel.create({
           apartmentId,
           guestName: guestInfo.name || 'Guest',
-          guestEmail: guestInfo.email || `${validSource}_${uuidv4().slice(0, 8)}@example.com`,
+          // Use the original source string for email generation if guestInfo.email is null
+          guestEmail: guestInfo.email || `${source.replace(/[^a-zA-Z0-9]/g, '')}_${uuidv4().slice(0, 8)}@example.com`,
           guestPhone: guestInfo.phone || undefined,
           checkIn: event.start,
           checkOut: event.end,
-          totalPrice,
+          totalPrice, // Should be 0
           numberOfGuests: 1, // Default, non potendo sapere il numero esatto
           status: 'confirmed',
-          paymentStatus: 'paid',
-          source: validSource, // Usa il valore mappato
+          paymentStatus: 'paid', // Consider changing this if totalPrice is 0
+          source: source, // Use the original source string
           externalId: event.extractedExternalId || event.uid, // Usa extractedExternalId se disponibile
           notes: guestInfo.notes || `Importato da ${source} iCal feed`,
         });
