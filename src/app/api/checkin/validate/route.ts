@@ -21,34 +21,49 @@ export async function POST(req: NextRequest) {
     }
 
     email = email.trim().toLowerCase();
-    bookingReference = bookingReference.trim();
+    email = email.trim().toLowerCase();
+    bookingReference = bookingReference.trim(); // Trim, but don't lowercase if external IDs can be case-sensitive
 
-    // Validazione di base della lunghezza/formato del bookingReference
-    // Deve essere una stringa esadecimale
-    if (!/^[a-f0-9]+$/i.test(bookingReference) || bookingReference.length < 6 || bookingReference.length > 24) {
-        return NextResponse.json({
-            valid: false,
-            error: 'Formato numero prenotazione non valido (deve essere esadecimale).'
-        } as BookingValidationResponse, { status: 400 });
+    let booking = null;
+
+    // Attempt 1: Search by _id prefix (if bookingReference looks like a MongoDB ID prefix)
+    if (/^[a-f0-9]{6,24}$/i.test(bookingReference)) { // Check for hex and typical mongo ID prefix length
+      booking = await BookingModel.findOne({
+        $expr: {
+          $regexMatch: {
+            input: { $toString: "$_id" },
+            regex: `^${bookingReference}`,
+            options: "i"
+          }
+        },
+        guestEmail: email, // Email must match for this search
+        status: 'confirmed',
+      });
+    }
+
+    // Attempt 2: If not found by _id prefix, try by externalId
+    if (!booking) {
+      const externalBooking = await BookingModel.findOne({
+        // Use case-insensitive regex for externalId.
+        // Anchor with ^ and $ to ensure the whole string matches.
+        externalId: { $regex: new RegExp(`^${bookingReference}$`, 'i') },
+        status: 'confirmed',
+        // No email constraint here initially
+      });
+
+      if (externalBooking) {
+        booking = externalBooking;
+        // Update guestEmail on the booking object if the provided one is different.
+        // This change is not saved to DB here, but reflected in the response.
+        // Actual save should occur upon final check-in submission.
+        if (booking.guestEmail.toLowerCase() !== email) {
+          booking.guestEmail = email; 
+        }
+      }
     }
     
-    // Cerca la prenotazione usando $expr per confrontare l'inizio di _id (convertito in stringa)
-    // con bookingReference, e corrisponde all'email.
-    const booking = await BookingModel.findOne({
-      $expr: {
-        $regexMatch: {
-          input: { $toString: "$_id" }, // Converte _id in stringa
-          regex: `^${bookingReference}`, // La tua regex per l'inizio stringa
-          options: "i" // Case-insensitive
-        }
-      },
-      guestEmail: email,
-      status: 'confirmed',
-      // paymentStatus: 'paid' // Riconsidera questa condizione
-    });
-    
     if (!booking) {
-      console.log(`Validazione fallita per: ref: '${bookingReference}', email: '${email}'. Query: $expr $regexMatch input: $toString: "$_id", regex: '^${bookingReference}', options: "i"`);
+      console.log(`Validazione fallita per: ref: '${bookingReference}', email: '${email}'. Non trovata né come ID interno né come externalId.`);
       return NextResponse.json({
         valid: false,
         error: 'Prenotazione non trovata o non valida. Controlla i dati inseriti.'
@@ -103,6 +118,7 @@ export async function POST(req: NextRequest) {
         apartmentId: String(booking.apartmentId),
         apartmentName: apartment?.name || 'Appartamento',
         guestName: booking.guestName,
+        guestEmail: booking.guestEmail, // Ensure updated email is included
         checkIn: booking.checkIn.toISOString(),
         checkOut: booking.checkOut.toISOString(),
         numberOfGuests: booking.numberOfGuests,
