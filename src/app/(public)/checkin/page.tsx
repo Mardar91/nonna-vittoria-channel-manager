@@ -298,7 +298,13 @@ export default function CheckInPage() {
                     value={requestedCheckIn}
                     onChange={(e) => {
                       setRequestedCheckIn(e.target.value);
-                      if (errors.requestedCheckIn) setErrors(prev => ({...prev, requestedCheckIn: undefined}));
+                      if (errors.requestedCheckIn) {
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.requestedCheckIn;
+                          return newErrors;
+                        });
+                      }
                     }}
                     className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
                       errors.requestedCheckIn ? 'border-red-300' : 'border-gray-300'
@@ -321,7 +327,13 @@ export default function CheckInPage() {
                     value={requestedCheckOut}
                     onChange={(e) => {
                       setRequestedCheckOut(e.target.value);
-                      if (errors.requestedCheckOut) setErrors(prev => ({...prev, requestedCheckOut: undefined}));
+                      if (errors.requestedCheckOut) {
+                        setErrors(prev => {
+                          const newErrors = { ...prev };
+                          delete newErrors.requestedCheckOut;
+                          return newErrors;
+                        });
+                      }
                     }}
                     className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
                       errors.requestedCheckOut ? 'border-red-300' : 'border-gray-300'
@@ -359,7 +371,7 @@ export default function CheckInPage() {
       <footer className="py-4 px-4 sm:px-6 lg:px-8 bg-gray-800 text-white">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-sm">
-            © {new Date().getFullYear()} {profile.name}. Tutti i diritti riservati.
+            © {new Date().getFullYear()} {profile?.name || 'La tua Attività'}. Tutti i diritti riservati.
           </p>
         </div>
       </footer>
