@@ -3,7 +3,7 @@
 import React, { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import CheckInForm from './CheckInForm';
+import CheckInForm, { CheckInFormProps } from './CheckInForm'; // Importa anche CheckInFormProps se necessario per bookingSource
 import { CheckInFormData } from '@/types/checkin';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -16,6 +16,8 @@ interface CheckInModalProps {
     guestName: string;
     numberOfGuests: number;
     apartmentName: string;
+    // Aggiungi bookingSource qui se CheckInForm ne ha bisogno e se è disponibile
+    // bookingSource?: string; 
   };
 }
 
@@ -45,16 +47,25 @@ export default function CheckInModal({
         }))
       ];
       
-      const response = await fetch('/api/checkin/manual', {
+      // Nota: l'endpoint /api/checkin/manual potrebbe dover essere aggiornato
+      // per accettare 'mode' e altri campi se il backend se li aspetta
+      // in modo coerente con CheckInSubmitRequest.
+      const payload = {
+        bookingId,
+        guests,
+        notes,
+        mode: 'normal', // Aggiunto mode per coerenza, anche se l'API manuale potrebbe non usarlo
+        acceptTerms: true, // Per il check-in manuale, i termini si considerano accettati
+        // apartmentId: ... // Se necessario, recuperalo da bookingDetails o altro
+        numberOfGuests: formData.numberOfGuests // Passa il numero di ospiti dal form
+      };
+
+      const response = await fetch('/api/checkin/manual', { // Assicurati che questo endpoint esista e gestisca il payload
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          bookingId,
-          guests,
-          notes
-        }),
+        body: JSON.stringify(payload),
       });
       
       if (!response.ok) {
@@ -62,7 +73,7 @@ export default function CheckInModal({
         throw new Error(error.error || 'Errore nel check-in');
       }
       
-      const result = await response.json();
+      // const result = await response.json(); // Non usato, puoi rimuoverlo se non serve
       
       toast.success('Check-in completato con successo!');
       onClose();
@@ -133,13 +144,13 @@ export default function CheckInModal({
                           </p>
                         </div>
                         
-                        {/* Campo note aggiuntive */}
                         <div className="mb-4">
                           <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
                             Note (opzionale)
                           </label>
                           <textarea
                             id="notes"
+                            name="notes" // Aggiunto name per coerenza
                             rows={3}
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
@@ -148,10 +159,12 @@ export default function CheckInModal({
                           />
                         </div>
                         
-                        {/* Form di check-in */}
                         <div className="max-h-[60vh] overflow-y-auto">
                           <CheckInForm
-                            numberOfGuests={bookingDetails.numberOfGuests}
+                            mode="normal" // <-- MODIFICA APPLICATA
+                            // bookingSource={bookingDetails.bookingSource || 'direct'} // Esempio se bookingSource fosse richiesto
+                            // initialNumberOfGuests={bookingDetails.numberOfGuests} // Se CheckInForm gestisce questo diversamente
+                            numberOfGuests={bookingDetails.numberOfGuests} // Questa prop sembra già esistere e dovrebbe funzionare
                             onSubmit={handleSubmit}
                             isSubmitting={isSubmitting}
                           />
@@ -160,6 +173,7 @@ export default function CheckInModal({
                     </div>
                   </div>
                 </div>
+                {/* Potrebbe essere necessario un pulsante di submit qui, se non è dentro CheckInForm */}
               </Dialog.Panel>
             </Transition.Child>
           </div>
