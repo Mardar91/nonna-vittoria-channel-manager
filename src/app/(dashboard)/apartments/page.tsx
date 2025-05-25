@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import ApartmentModel from '@/models/Apartment';
 import Link from 'next/link';
+import ApartmentCardItem from '@/components/ApartmentCardItem';
 
 export default async function ApartmentsPage() {
   const session = await getServerSession();
@@ -27,66 +28,30 @@ export default async function ApartmentsPage() {
         </Link>
       </div>
       
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        {apartments.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">
-            Nessun appartamento trovato. Crea il tuo primo appartamento!
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nome
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Indirizzo
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Prezzo
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ospiti
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Azioni
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {apartments.map((apt) => (
-                  <tr key={apt._id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{apt.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{apt.address}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">€{apt.price.toFixed(2)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">Max {apt.maxGuests}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <Link href={`/apartments/${apt._id}`} className="text-blue-600 hover:text-blue-900 mr-4">
-                        Dettagli
-                      </Link>
-                      <Link href={`/apartments/${apt._id}/edit`} className="text-blue-600 hover:text-blue-900 mr-4">
-                        Modifica
-                      </Link>
-                      <Link href={`/apartments/${apt._id}/calendar`} className="text-blue-600 hover:text-blue-900">
-                        Calendario
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {apartments.length === 0 ? (
+        <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+          Nessun appartamento trovato. Crea il tuo primo appartamento!
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {apartments.map((apt) => {
+            // Ensure all necessary props are passed and apt is a plain object
+            const apartmentData = {
+              _id: apt._id.toString(), // Convert ObjectId to string
+              name: apt.name,
+              address: apt.address,
+              price: apt.price,
+              priceType: apt.priceType,
+              baseGuests: apt.baseGuests,
+              maxGuests: apt.maxGuests,
+              bedrooms: apt.bedrooms,
+              // Ensure any other fields expected by ApartmentCardItemProps are included
+              // For example, if amenities or description were part of the card, they'd be here.
+            };
+            return <ApartmentCardItem key={apartmentData._id} apartment={apartmentData} />;
+          })}
+        </div>
+      )}
     </div>
   );
 }

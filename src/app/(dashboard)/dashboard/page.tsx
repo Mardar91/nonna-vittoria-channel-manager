@@ -30,12 +30,12 @@ export default async function DashboardPage() {
   const apartmentCount = await ApartmentModel.countDocuments();
   const totalBookings = await BookingModel.countDocuments();
   
-  // Prenotazioni attive oggi
-  const activeBookingsToday = await BookingModel.countDocuments({
-    status: 'confirmed',
-    checkIn: { $lte: today },
-    checkOut: { $gt: today }
-  });
+  // Prenotazioni attive oggi - This will be recalculated later
+  // const activeBookingsToday = await BookingModel.countDocuments({
+  //   status: 'confirmed',
+  //   checkIn: { $lte: today },
+  //   checkOut: { $gt: today }
+  // });
   
   // Check-in e check-out di oggi
   const checkInsToday = await BookingModel.find({
@@ -79,30 +79,83 @@ export default async function DashboardPage() {
   
   // Appartamenti con il loro stato attuale
   const apartments = await ApartmentModel.find({});
+  const now = new Date(); // Current date and time
+  
   const apartmentsWithStatus = await Promise.all(
     apartments.map(async (apartment) => {
-      const currentBooking = await BookingModel.findOne({
+      const today_date_only = new Date();
+      today_date_only.setHours(0, 0, 0, 0);
+
+      const today_end_of_day = new Date(today_date_only);
+      today_end_of_day.setHours(23, 59, 59, 999);
+
+      // Booking active at any point during the current calendar day
+      const currentBookingOnDateModel = await BookingModel.findOne({
         apartmentId: apartment._id,
         status: 'confirmed',
-        checkIn: { $lte: today },
-        checkOut: { $gt: today }
+        checkIn: { $lte: today_end_of_day }, // Active if checkIn is anytime today or before
+        checkOut: { $gt: today_date_only }    // And checkOut is after the start of today
       });
       
-      const nextBooking = await BookingModel.findOne({
+      let determinedStatus: 'available' | 'occupied' | 'freeing_soon' | 'reserved' = 'available';
+      let bookingToDisplay = null;
+
+      if (currentBookingOnDateModel) {
+        const currentBookingOnDate = currentBookingOnDateModel.toObject();
+        const bookingCheckInDate = new Date(currentBookingOnDate.checkIn);
+        const bookingCheckOutDate = new Date(currentBookingOnDate.checkOut);
+
+        const checkInDateOnly = new Date(bookingCheckInDate);
+        checkInDateOnly.setHours(0, 0, 0, 0);
+
+        const checkOutDateOnly = new Date(bookingCheckOutDate);
+        checkOutDateOnly.setHours(0, 0, 0, 0);
+
+        // Reserved (due to check-in today or ongoing multi-day booking)
+        if (checkInDateOnly.getTime() === today_date_only.getTime() || 
+            (now >= bookingCheckInDate && now < bookingCheckOutDate && checkOutDateOnly.getTime() !== today_date_only.getTime())) {
+          determinedStatus = 'reserved';
+          bookingToDisplay = currentBookingOnDate;
+        } 
+        // Freeing Soon (due to check-out today before 10 AM)
+        else if (checkOutDateOnly.getTime() === today_date_only.getTime() && now < bookingCheckOutDate && now.getHours() < 10) {
+          determinedStatus = 'freeing_soon';
+          bookingToDisplay = currentBookingOnDate;
+        } 
+        // Available (due to check-out today at/after 10 AM)
+        else if (checkOutDateOnly.getTime() === today_date_only.getTime() && (now >= bookingCheckOutDate || now.getHours() >= 10)) {
+          determinedStatus = 'available';
+          bookingToDisplay = null;
+        }
+        // Still Reserved (edge case: booking is active today, not freeing_soon or made available by checkout time)
+        // This condition catches cases where now is between check-in and check-out, 
+        // and it's not a checkout day or it is a checkout day but before the 10am rule has made it available.
+        else if (now >= bookingCheckInDate && now < bookingCheckOutDate) {
+          determinedStatus = 'reserved';
+          bookingToDisplay = currentBookingOnDate;
+        }
+      }
+      
+      const nextBookingModel = await BookingModel.findOne({
         apartmentId: apartment._id,
         status: 'confirmed',
-        checkIn: { $gt: today }
+        checkIn: { $gt: now } // Next booking starts after the current time
       }).sort({ checkIn: 1 });
       
       return {
         ...apartment.toObject(),
-        currentBooking: currentBooking ? currentBooking.toObject() : null,
-        nextBooking: nextBooking ? nextBooking.toObject() : null,
-        isOccupied: !!currentBooking
+        status: determinedStatus,
+        currentBooking: bookingToDisplay, // Already an object or null
+        nextBooking: nextBookingModel ? nextBookingModel.toObject() : null,
       };
     })
   );
   
+  // Calculate active bookings based on refined statuses
+  const newActiveBookingsToday = apartmentsWithStatus.filter(
+    apt => apt.status === 'reserved' || apt.status === 'freeing_soon'
+  ).length;
+
   // Prenotazioni recenti per il widget
   const recentBookings = await BookingModel.find({})
     .sort({ createdAt: -1 })
@@ -116,7 +169,7 @@ export default async function DashboardPage() {
     stats: {
       apartmentCount,
       totalBookings,
-      activeBookingsToday,
+      activeBookingsToday: newActiveBookingsToday, // Use the new count
       monthlyRevenue: monthlyRevenue[0]?.total || 0
     },
     todayActivity: {
