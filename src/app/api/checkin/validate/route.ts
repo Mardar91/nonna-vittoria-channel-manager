@@ -1,16 +1,15 @@
 // src/app/api/checkin/validate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import BookingModel, { IBooking } from '@/models/Booking'; // Importa IBooking
+import BookingModel, { IBooking } from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import CheckInModel from '@/models/CheckIn';
 import { BookingValidationRequest, BookingValidationResponse } from '@/types/checkin';
+// Non serve mongoose qui se non usiamo più mongoose.Types.ObjectId.isValid() per la reference iniziale
 
 // Funzione helper per cercare di estrarre un codice Airbnb da una stringa
-// Questa funzione non è usata direttamente nella query MongoDB ma può essere utile per logica futura
 function extractAirbnbCodeFromString(text?: string): string | null {
   if (!text) return null;
-  // Regex per cercare un codice alfanumerico maiuscolo dopo specifici segmenti URL di Airbnb
   const match = text.match(/airbnb\.com\/(?:hosting\/reservations\/details|reservation\/itinerary)\/([A-Z0-9]{8,12})/i);
   return match && match[1] ? match[1].toUpperCase() : null;
 }
@@ -31,24 +30,17 @@ export async function POST(req: NextRequest) {
     }
 
     email = email.trim().toLowerCase();
-    const rawBookingReference = bookingReference.trim(); // Manteniamo l'originale per il log e la ricerca _id
+    const rawBookingReference = bookingReference.trim();
     
     let booking: IBooking | null = null; 
     let searchStrategyInfo = "Nessuna strategia applicabile";
 
-    // --- Inizio Logica di Ricerca Biforcata ---
-
-    // Strategia 1: Prova a cercare come codice Airbnb
-    // I codici Airbnb sono tipicamente alfanumerici, lunghezza 8-12, spesso con lettere non-hex.
-    const potentialAirbnbCode = rawBookingReference.toUpperCase(); // Normalizza per il confronto e regex
+    const potentialAirbnbCode = rawBookingReference.toUpperCase();
     const isTypicalAirbnbFormat = /^[A-Z0-9]{8,12}$/.test(potentialAirbnbCode);
-    const containsNonHexChars = /[G-Z]/i.test(potentialAirbnbCode); // Controlla se ci sono lettere G-Z
+    const containsNonHexChars = /[G-Z]/i.test(potentialAirbnbCode);
 
-    if (isTypicalAirbnbFormat || containsNonHexChars) { // Diamo priorità se il formato è tipico Airbnb o contiene lettere non-hex
+    if (isTypicalAirbnbFormat || containsNonHexChars) {
       searchStrategyInfo = `Tentativo ricerca Airbnb con codice: ${potentialAirbnbCode}`;
-      // Regex per trovare il codice specifico all'interno dell'URL nelle note
-      // (?:...) è un gruppo non catturante.
-      // Assicurati che il codice sia seguito da un delimitatore come /, ?, #, o fine stringa/spazio.
       const airbnbNoteRegex = new RegExp(
         `airbnb\\.com\\/(?:hosting\\/reservations\\/details|reservation\\/itinerary)\\/(${potentialAirbnbCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(\\/|\\?|#|\\s|$)`, 
         "i"
@@ -59,8 +51,7 @@ export async function POST(req: NextRequest) {
         guestEmail: email,
         notes: { $regex: airbnbNoteRegex },
         status: 'confirmed',
-        // paymentStatus: 'paid' // Riconsidera questa condizione se necessario
-      }).lean<IBooking>();
+      }).lean<IBooking | null>(); // Specificare null per chiarezza
 
       if (booking) {
         searchStrategyInfo = `Trovato con Airbnb (codice nelle note): ${potentialAirbnbCode}`;
@@ -69,10 +60,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Strategia 2: Se non trovato come Airbnb, o se il formato non era chiaramente Airbnb, prova come porzione di _id
     if (!booking) {
-      const referenceForObjectIdSearch = rawBookingReference.toLowerCase(); // Per _id, case-insensitive è gestito da 'i' nella regex
-      // Valido formato esadecimale per ricerca _id (almeno 6 caratteri)
+      const referenceForObjectIdSearch = rawBookingReference.toLowerCase();
       if (/^[a-f0-9]{6,24}$/i.test(referenceForObjectIdSearch)) {
         const oldSearchStrategy = searchStrategyInfo;
         searchStrategyInfo = `${oldSearchStrategy} / Tentativo ricerca _id parziale: ${referenceForObjectIdSearch}`;
@@ -81,29 +70,23 @@ export async function POST(req: NextRequest) {
           $expr: {
             $regexMatch: {
               input: { $toString: "$_id" },
-              regex: `^${referenceForObjectIdSearch}`, // Ricerca all'inizio
+              regex: `^${referenceForObjectIdSearch}`,
               options: "i"
             }
           },
           guestEmail: email,
           status: 'confirmed',
-          // paymentStatus: 'paid' // Riconsidera
-          // Non filtriamo per source qui, così da poter trovare anche prenotazioni dirette/booking.com
-          // o Airbnb che non sono state trovate tramite il codice nelle note (fallback).
-        }).lean<IBooking>();
+        }).lean<IBooking | null>(); // Specificare null
 
         if (booking) {
           searchStrategyInfo = `Trovato con _id parziale: ${referenceForObjectIdSearch}`;
         } else {
            searchStrategyInfo = `${oldSearchStrategy} / Non trovato con _id parziale: ${referenceForObjectIdSearch}`;
         }
-
       } else if (!isTypicalAirbnbFormat && !containsNonHexChars) { 
-        // Se non era tipico Airbnb e non è neanche un formato esadecimale valido per la ricerca _id parziale
         searchStrategyInfo = `Formato non valido per ricerca Airbnb o _id: ${rawBookingReference}`;
       }
     }
-    // --- Fine Logica di Ricerca Biforcata ---
     
     if (!booking) {
       console.log(`Validazione Check-in Fallita. Dati: ref='${rawBookingReference}', email='${email}'. Log strategia: ${searchStrategyInfo}`);
@@ -113,17 +96,34 @@ export async function POST(req: NextRequest) {
       } as BookingValidationResponse, { status: 404 });
     }
     
-    // --- Il resto della logica rimane per lo più uguale ---
-    // Assicurati che booking._id sia una stringa o convertilo
-    const bookingObjectId = typeof booking._id === 'string' ? booking._id : booking._id?.toString();
+    // --- Correzione per bookingObjectId ---
+    let bookingObjectId: string | undefined;
+
+    if (booking._id) {
+      if (typeof booking._id === 'string') {
+        bookingObjectId = booking._id;
+      } else if (booking._id && typeof (booking._id as any).toString === 'function') { 
+        // Se è un ObjectId (o qualcosa con un metodo toString), convertilo
+        // Usiamo 'as any' per superare il controllo di tipo se _id è solo 'string' nell'interfaccia
+        // ma sappiamo che da Mongoose potrebbe essere ObjectId.
+        bookingObjectId = (booking._id as any).toString();
+      } else {
+        console.error("Tipo di booking._id inatteso:", booking._id);
+        bookingObjectId = undefined;
+      }
+    } else {
+      console.error("Booking trovato ma booking._id è undefined.");
+      bookingObjectId = undefined;
+    }
+    // --- Fine Correzione ---
+    
     if (!bookingObjectId) {
-        // Questo non dovrebbe accadere se il booking è stato trovato
-        console.error("Booking ID mancante dopo aver trovato la prenotazione.");
-        return NextResponse.json({ valid: false, error: 'Errore interno: ID prenotazione mancante.' }, { status: 500 });
+        console.error("Booking ID non determinato dopo aver trovato la prenotazione.");
+        return NextResponse.json({ valid: false, error: 'Errore interno: ID prenotazione non determinato.' }, { status: 500 });
     }
 
     const existingCheckIn = await CheckInModel.findOne({
-      bookingId: bookingObjectId, // Usa l'ID della prenotazione trovata
+      bookingId: bookingObjectId,
     });
     
     if (existingCheckIn && existingCheckIn.status === 'completed') {
@@ -141,14 +141,15 @@ export async function POST(req: NextRequest) {
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const checkInDate = new Date(booking.checkIn); // booking.checkIn dovrebbe essere una Date
+    // Assicurati che booking.checkIn sia una Date. .lean() dovrebbe restituire stringhe ISO per le date.
+    const checkInDate = new Date(booking.checkIn); 
     checkInDate.setHours(0, 0, 0, 0);
 
     const sevenDaysBefore = new Date(checkInDate);
     sevenDaysBefore.setDate(checkInDate.getDate() - 7);
 
     const oneDayAfter = new Date(checkInDate);
-    oneDayAfter.setDate(checkInDate.getDate() + 1); // Permetti check-in fino al giorno dopo l'arrivo incluso
+    oneDayAfter.setDate(checkInDate.getDate() + 1);
 
     if (today < sevenDaysBefore || today > oneDayAfter) {
       const formattedCheckInDate = checkInDate.toLocaleDateString('it-IT');
@@ -160,21 +161,19 @@ export async function POST(req: NextRequest) {
       } as BookingValidationResponse, { status: 400 });
     }
     
-    const apartment = await ApartmentModel.findById(booking.apartmentId).lean(); // Aggiunto .lean()
+    const apartment = await ApartmentModel.findById(booking.apartmentId).lean();
     
-    // L'oggetto `booking` restituito qui è quello che viene salvato in sessionStorage
-    // e usato da `/checkin/form/page.tsx`.
     return NextResponse.json({
       valid: true,
       booking: {
         id: bookingObjectId,
-        apartmentId: String(booking.apartmentId), // Assicura sia stringa
+        apartmentId: String(booking.apartmentId),
         apartmentName: apartment?.name || 'Appartamento',
         guestName: booking.guestName,
-        checkIn: typeof booking.checkIn === 'string' ? booking.checkIn : booking.checkIn.toISOString(),
-        checkOut: typeof booking.checkOut === 'string' ? booking.checkOut : booking.checkOut.toISOString(),
+        checkIn: (typeof booking.checkIn === 'string' ? booking.checkIn : new Date(booking.checkIn).toISOString()),
+        checkOut: (typeof booking.checkOut === 'string' ? booking.checkOut : new Date(booking.checkOut).toISOString()),
         numberOfGuests: booking.numberOfGuests,
-        hasCheckedIn: !!existingCheckIn, // True se esiste un checkin, indipendentemente dallo stato per questa logica
+        hasCheckedIn: !!existingCheckIn,
       }
     } as BookingValidationResponse);
     
