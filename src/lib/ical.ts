@@ -11,6 +11,7 @@ interface ICalEvent {
   summary: string;
   description?: string;
   uid: string;
+  extractedExternalId?: string;
   source?: string;
   location?: string;
   organizer?: string;
@@ -64,6 +65,20 @@ export async function importICalEvents(url: string): Promise<ICalEvent[]> {
         }
       }
 
+      // Extract external booking ID
+      let extractedExternalId: string | undefined = undefined;
+      const descriptionOrUrl = event.description || (event.url && typeof event.url === 'string' ? event.url : '');
+      if (descriptionOrUrl) {
+        const match = descriptionOrUrl.match(/(?:reservations\/(?:details\/)?)([A-Z0-9]+)/i); // Case-insensitive match
+        if (match && match[1]) {
+          extractedExternalId = match[1];
+        }
+      }
+
+      if (!extractedExternalId && event.uid && /^[A-Z0-9]{6,}$/i.test(event.uid.split('@')[0])) {
+        extractedExternalId = event.uid.split('@')[0];
+      }
+
       bookings.push({
         start: startDate,
         end: endDate,
@@ -72,7 +87,8 @@ export async function importICalEvents(url: string): Promise<ICalEvent[]> {
         uid: event.uid || uuidv4(),
         location: event.location || '',
         organizer,
-        contact
+        contact,
+        extractedExternalId
       });
     }
 
