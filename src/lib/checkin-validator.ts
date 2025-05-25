@@ -65,6 +65,7 @@ export const validateCheckInForm = (
   const errors: ValidationError[] = [];
   
   const mainGuest = data.mainGuest;
+  const mainGuestDocType = mainGuest.documentType; // Variabile per mainGuest.documentType
 
   // Validate numberOfGuests
   if (typeof data.numberOfGuests !== 'number' || !Number.isInteger(data.numberOfGuests)) {
@@ -83,7 +84,10 @@ export const validateCheckInForm = (
     errors.push({ field: 'mainGuest.firstName', message: 'Il nome è obbligatorio' });
   }
   
-  // @ts-expect-error TS crede che questo confronto non sia necessario, ma lo è per il nostro tipo 'M' | 'F' | ''
+  // Se mainGuest.sex è di tipo Something | '', allora `!mainGuest.sex` è true per ''
+  // e `mainGuest.sex === ''` è ridondante. Se il tipo è Something | '' | undefined, allora è corretto.
+  // Lascio il @ts-expect-error se il tipo specifico di sex è solo 'M' | 'F' | '' senza undefined.
+  // @ts-expect-error 
   if (!mainGuest.sex || mainGuest.sex === '') {
     errors.push({ field: 'mainGuest.sex', message: 'Il sesso è obbligatorio' });
   }
@@ -112,15 +116,16 @@ export const validateCheckInForm = (
     errors.push({ field: 'mainGuest.citizenship', message: 'La cittadinanza è obbligatoria' });
   }
   
-  // @ts-expect-error TS crede che questo confronto non sia necessario, ma lo è per il nostro tipo unione che include ''
-  if (!mainGuest.documentType || mainGuest.documentType === '') {
+  // Se mainGuestDocType è Something | '' | undefined, '!mainGuestDocType' copre '' e undefined.
+  // La parte '|| mainGuestDocType === ""' è ridondante. Simplificato a '!mainGuestDocType'.
+  if (!mainGuestDocType) {
     errors.push({ field: 'mainGuest.documentType', message: 'Il tipo di documento è obbligatorio' });
   }
   
   if (!mainGuest.documentNumber || mainGuest.documentNumber.trim() === '') {
     errors.push({ field: 'mainGuest.documentNumber', message: 'Il numero del documento è obbligatorio' });
-  // @ts-expect-error TS segnala un "no overlap" qui per mainGuest.documentType !== '', ma il controllo è intenzionale per il nostro tipo unione.
-  } else if (mainGuest.documentType && mainGuest.documentType !== '' && !isValidDocumentNumber(mainGuest.documentType, mainGuest.documentNumber)) {
+  } else if (mainGuestDocType && mainGuestDocType !== '' && !isValidDocumentNumber(mainGuestDocType, mainGuest.documentNumber)) {
+    // Usare mainGuestDocType qui, e il controllo esplicito 'mainGuestDocType !== ""'
     errors.push({ field: 'mainGuest.documentNumber', message: 'Numero documento non valido per il tipo selezionato' });
   }
   
@@ -137,6 +142,8 @@ export const validateCheckInForm = (
   }
   
   data.additionalGuests.forEach((guest, index) => {
+    const guestDocType = guest.documentType; // Variabile per guest.documentType
+
     if (!guest.lastName || guest.lastName.trim() === '') {
       errors.push({ field: `additionalGuests.${index}.lastName`, message: 'Il cognome è obbligatorio' });
     }
@@ -145,7 +152,7 @@ export const validateCheckInForm = (
       errors.push({ field: `additionalGuests.${index}.firstName`, message: 'Il nome è obbligatorio' });
     }
     
-    // @ts-expect-error TS crede che questo confronto non sia necessario, ma lo è per il nostro tipo 'M' | 'F' | ''
+    // @ts-expect-error (vedi commento analogo per mainGuest.sex)
     if (!guest.sex || guest.sex === '') {
       errors.push({ field: `additionalGuests.${index}.sex`, message: 'Il sesso è obbligatorio' });
     }
@@ -172,19 +179,17 @@ export const validateCheckInForm = (
       errors.push({ field: `additionalGuests.${index}.citizenship`, message: 'La cittadinanza è obbligatoria' });
     }
 
-    // Document fields for additional guests: optional if context is 'airbnb' or 'booking'
     const isDocumentOptional = context === 'airbnb' || context === 'booking';
 
     if (!isDocumentOptional) {
-      // @ts-expect-error TS crede che questo confronto non sia necessario, ma lo è per il nostro tipo unione che include ''
-      if (!guest.documentType || guest.documentType === '') {
+      // Se guestDocType è Something | '' | undefined, '!guestDocType' copre '' e undefined.
+      if (!guestDocType) { 
         errors.push({ field: `additionalGuests.${index}.documentType`, message: 'Il tipo di documento è obbligatorio' });
       }
       
       if (!guest.documentNumber || guest.documentNumber.trim() === '') {
         errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Il numero del documento è obbligatorio' });
-      // @ts-expect-error TS segnala un "no overlap" qui per guest.documentType !== '', ma il controllo è intenzionale per il nostro tipo unione.
-      } else if (guest.documentType && guest.documentType !== '' && !isValidDocumentNumber(guest.documentType, guest.documentNumber)) {
+      } else if (guestDocType && guestDocType !== '' && !isValidDocumentNumber(guestDocType, guest.documentNumber)) {
         errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Numero documento non valido per il tipo selezionato' });
       }
       
@@ -201,10 +206,11 @@ export const validateCheckInForm = (
       }
     } else {
       // Even if optional, if documentType is provided, then number should also be provided and valid
-      if (guest.documentType && guest.documentType !== '') {
+      // Questa era la riga 204 che causava l'errore di build
+      if (guestDocType && guestDocType !== '') { 
         if (!guest.documentNumber || guest.documentNumber.trim() === '') {
           errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Il numero del documento è richiesto se si specifica il tipo' });
-        } else if (!isValidDocumentNumber(guest.documentType, guest.documentNumber)) {
+        } else if (!isValidDocumentNumber(guestDocType, guest.documentNumber)) { // Usare guestDocType
           errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Numero documento non valido per il tipo selezionato' });
         }
         // Similar checks for issue place/country/province if type and number are present
