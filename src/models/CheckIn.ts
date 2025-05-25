@@ -19,13 +19,15 @@ export interface IGuest {
 
 export interface ICheckIn {
   _id?: string;
-  bookingId: string;
-  apartmentId: string;
+  bookingId?: string;
+  apartmentId?: string;
   checkInDate: Date;
   guests: IGuest[];
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'pending' | 'completed' | 'cancelled' | 'pending_assignment';
   completedAt?: Date;
   completedBy?: string; // 'guest' o userId se fatto manualmente
+  requestedCheckIn?: Date;
+  requestedCheckOut?: Date;
   ipAddress?: string;
   userAgent?: string;
   notes?: string;
@@ -55,15 +57,17 @@ const GuestSchema = new Schema<IGuest>({
 
 const CheckInSchema = new Schema<ICheckIn>(
   {
-    bookingId: { type: String, required: true, ref: 'Booking' },
-    apartmentId: { type: String, required: true, ref: 'Apartment' },
+    bookingId: { type: String, ref: 'Booking' }, // Rimosso required: true
+    apartmentId: { type: String, ref: 'Apartment' }, // Rimosso required: true
     checkInDate: { type: Date, required: true },
     guests: { type: [GuestSchema], required: true },
     status: {
       type: String,
-      enum: ['pending', 'completed', 'cancelled'],
+      enum: ['pending', 'completed', 'cancelled', 'pending_assignment'], // Aggiunto 'pending_assignment'
       default: 'pending',
     },
+    requestedCheckIn: { type: Date },
+    requestedCheckOut: { type: Date },
     completedAt: { type: Date },
     completedBy: { type: String },
     ipAddress: { type: String },
@@ -79,3 +83,4 @@ CheckInSchema.index({ apartmentId: 1, checkInDate: 1 });
 CheckInSchema.index({ status: 1, createdAt: -1 });
 
 export default mongoose.models.CheckIn || mongoose.model<ICheckIn>('CheckIn', CheckInSchema);
+
