@@ -91,9 +91,13 @@ async function handleRequest(req: NextRequest) {
             for (const event of events) {
               try {
                 // Verifica se la prenotazione esiste già
+                // Check against extractedExternalId if available, otherwise fall back to uid
+                const idToCheck = event.extractedExternalId || event.uid;
                 const existingBooking = await BookingModel.findOne({
                   apartmentId: apartment._id,
                   $or: [
+                    { externalId: idToCheck },
+                    // Fallback for older bookings that might have used full UID before specific extraction logic
                     { externalId: event.uid },
                     {
                       checkIn: { $eq: event.start },
@@ -103,7 +107,12 @@ async function handleRequest(req: NextRequest) {
                 });
                 
                 if (existingBooking) {
-                  // Prenotazione già esistente, salta
+                  // If booking exists, check if we need to update its externalId
+                  if (event.extractedExternalId && existingBooking.externalId !== event.extractedExternalId) {
+                    existingBooking.externalId = event.extractedExternalId;
+                    await existingBooking.save();
+                  }
+                  // Prenotazione già esistente o aggiornata, salta
                   continue;
                 }
                 
@@ -135,7 +144,7 @@ async function handleRequest(req: NextRequest) {
                   status: 'confirmed',
                   paymentStatus: 'paid',
                   source,
-                  externalId: event.uid,
+                  externalId: event.extractedExternalId || event.uid, // Usa extractedExternalId se disponibile
                   notes: guestInfo.notes || `Importato da ${icalSource.source} iCal feed`,
                 });
                 
