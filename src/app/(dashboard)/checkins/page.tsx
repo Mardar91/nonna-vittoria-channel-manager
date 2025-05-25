@@ -19,27 +19,24 @@ interface GuestInCheckIn {
 interface CheckInDocumentForPage {
   _id: mongoose.Types.ObjectId | string;
   bookingId: mongoose.Types.ObjectId | string;
-  apartmentId: mongoose.Types.ObjectId | string;
+  apartmentId?: mongoose.Types.ObjectId | string | null; // Modificato per riflettere che può essere null/undefined
   guests: GuestInCheckIn[];
   checkInDate: Date | string;
   completedAt?: Date | string | null;
   completedBy?: 'guest' | string | null;
   status?: string;
-  createdAt: Date | string; // Aggiunto createdAt se lo usi per .sort() o altrove
-  // ...altre proprietà del checkin
+  createdAt: Date | string; 
 }
 
 interface BookingDocumentForPage {
   _id: mongoose.Types.ObjectId | string;
   checkIn: Date | string;
   checkOut: Date | string;
-  // ...altre proprietà del booking
 }
 
 interface ApartmentDocumentForPage {
   _id: mongoose.Types.ObjectId | string;
   name: string;
-  // ...altre proprietà dell'appartamento
 }
 
 
@@ -53,31 +50,34 @@ export default async function CheckInsPage() {
   await connectDB();
   
   const checkIns = await CheckInModel.find({})
-    .sort({ createdAt: -1 }) // Assicurati che createdAt sia nel tipo CheckInDocumentForPage se TypeScript si lamenta
+    .sort({ createdAt: -1 }) 
     .limit(100)
-    .lean<CheckInDocumentForPage[]>(); // <-- TIPO FORNITO A LEAN
+    .lean<CheckInDocumentForPage[]>(); 
   
-  // Mongoose find().lean() generalmente restituisce un array vuoto se non trova documenti,
-  // quindi il controllo !checkIns potrebbe non essere necessario per null/undefined se il tipo è Array.
-  // Tuttavia, se per qualche motivo potesse essere null, il controllo è una buona pratica.
-  // if (!checkIns) {
-  //   // Gestisci questo caso, ad es.
-  //   return <p>Nessun check-in trovato.</p>; 
-  // }
-
   const bookingIds = checkIns.map(c => c.bookingId);
   const bookings = await BookingModel.find({ _id: { $in: bookingIds } })
-    .lean<BookingDocumentForPage[]>(); // <-- TIPO FORNITO A LEAN
+    .lean<BookingDocumentForPage[]>(); 
   const bookingMap = new Map(bookings.map(b => [String(b._id), b]));
   
-  const apartmentIds = Array.from(new Set(checkIns.map(c => String(c.apartmentId))));
+  // Modifica per filtrare gli apartmentId non validi
+  const apartmentIds = Array.from(
+    new Set(
+      checkIns
+        .map(c => c.apartmentId) // Estrae apartmentId, che può essere ObjectId, string, null, o undefined
+        .filter(id => id != null && mongoose.Types.ObjectId.isValid(String(id))) // Filtra null/undefined e ID non validi
+        .map(id => String(id)) // Converte gli ID validi rimasti in stringhe
+    )
+  );
+  
   const apartments = await ApartmentModel.find({ _id: { $in: apartmentIds } })
-    .lean<ApartmentDocumentForPage[]>(); // <-- TIPO FORNITO A LEAN
+    .lean<ApartmentDocumentForPage[]>();
   const apartmentMap = new Map(apartments.map(a => [String(a._id), a]));
   
   const checkInsWithDetails = checkIns.map(checkIn => {
     const booking = bookingMap.get(String(checkIn.bookingId));
-    const apartment = apartmentMap.get(String(checkIn.apartmentId));
+    // String(checkIn.apartmentId) qui potrebbe diventare "null" o "undefined" se apartmentId è tale.
+    // apartmentMap.get("null") o .get("undefined") restituirà undefined, che è gestito da apartment?.name
+    const apartment = apartmentMap.get(String(checkIn.apartmentId)); 
     const mainGuest = checkIn.guests.find(g => g.isMainGuest);
     
     return {
