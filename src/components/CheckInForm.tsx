@@ -5,7 +5,7 @@ import { CheckInFormData, DOCUMENT_TYPES, SEX_OPTIONS, IGuestData } from '@/type
 import { validateCheckInForm, ITALIAN_PROVINCES } from '@/lib/checkin-validator';
 import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 
-// MODIFICA APPLICATA: Aggiunto 'export' qui
+// Modifica: Aggiunto 'export' per rendere l'interfaccia importabile
 export interface CheckInFormProps {
   numberOfGuests: number; // This will be used as initialNumberOfGuests
   onSubmit: (data: CheckInFormData) => void;
@@ -29,9 +29,14 @@ export default function CheckInForm({
   const isNumberOfGuestsEditable = mode === 'unassigned_checkin' || (mode === 'normal' && bookingSource !== 'direct');
 
   useEffect(() => {
+    // Sync editableNumberOfGuests with initialNumberOfGuests prop if it's not editable,
+    // or if the initial prop value changes (e.g. parent updates the default for unassigned mode)
     if (!isNumberOfGuestsEditable) {
       setEditableNumberOfGuests(initialNumberOfGuests || 1);
     } else {
+      // For editable cases, prop is the initial default. If prop changes, reflect it.
+      // This ensures that if the parent page (form/page.tsx) changes the numberOfGuests
+      // (e.g. for unassigned_checkin mode if a default is fetched later), it's updated here.
       setEditableNumberOfGuests(initialNumberOfGuests || 1);
     }
   }, [initialNumberOfGuests, isNumberOfGuestsEditable]);
@@ -52,14 +57,15 @@ export default function CheckInForm({
       documentIssuePlace: '',
       documentIssueProvince: '',
       documentIssueCountry: 'IT',
-      isMainGuest: true,
+      isMainGuest: true, // Main guest is always true
     },
-    additionalGuests: [],
+    additionalGuests: [], // Initialized empty, populated by useEffect
     acceptTerms: false,
     numberOfGuests: initialNumberOfGuests || 1,
     notes: '',
   });
 
+  // Effect to synchronize the additionalGuests array with editableNumberOfGuests
   useEffect(() => {
     setFormData(prev => {
       const currentAdditionalGuests = prev.additionalGuests;
@@ -81,7 +87,7 @@ export default function CheckInForm({
       }
       return {
         ...prev,
-        numberOfGuests: editableNumberOfGuests,
+        numberOfGuests: editableNumberOfGuests, // Update numberOfGuests in formData
         additionalGuests: updatedAdditionalGuests
       };
     });
@@ -118,7 +124,7 @@ export default function CheckInForm({
     if (!isNumberOfGuestsEditable) return;
     let newNum = parseInt(e.target.value, 10);
     if (isNaN(newNum) || newNum < 1) newNum = 1;
-    if (newNum > 20) newNum = 20;
+    if (newNum > 20) newNum = 20; // Example: Max 20 guests
 
     setEditableNumberOfGuests(newNum);
   };
@@ -132,6 +138,10 @@ export default function CheckInForm({
   
   const removeAdditionalGuestButton = (index: number) => {
     if (!isNumberOfGuestsEditable) return;
+    // This function now just decrements the total number of guests.
+    // The useEffect for 'editableNumberOfGuests' will handle removing the last guest from the array.
+    // The 'index' parameter is kept if direct removal by index is restored later,
+    // but for current logic, it's not directly used to splice the array here.
     if (editableNumberOfGuests > 1) {
        setEditableNumberOfGuests(prevNum => prevNum - 1);
     }
@@ -143,6 +153,7 @@ export default function CheckInForm({
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // formData should be up-to-date due to state management and useEffect
     const validationErrors = validateCheckInForm(formData, mode === 'unassigned_checkin' ? 'unassigned' : bookingSource);
     
     if (validationErrors.length > 0) {
@@ -171,7 +182,7 @@ export default function CheckInForm({
               id="numberOfGuestsInput"
               type="number"
               min="1"
-              max="20"
+              max="20" // Example: Max 20 guests
               value={editableNumberOfGuests}
               onChange={handleNumGuestsInputChange}
               className="mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500"
@@ -190,18 +201,21 @@ export default function CheckInForm({
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-medium mb-4">Ospite Principale</h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Last Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Cognome *</label>
             <input type="text" value={formData.mainGuest.lastName} onChange={(e) => handleMainGuestChange('lastName', e.target.value)} 
                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.lastName'] ? 'border-red-300' : 'border-gray-300'}`} />
             {errors['mainGuest.lastName'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.lastName']}</p>}
           </div>
+          {/* First Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Nome *</label>
             <input type="text" value={formData.mainGuest.firstName} onChange={(e) => handleMainGuestChange('firstName', e.target.value)}
                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.firstName'] ? 'border-red-300' : 'border-gray-300'}`} />
             {errors['mainGuest.firstName'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.firstName']}</p>}
           </div>
+          {/* Sex */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Sesso *</label>
             <select value={formData.mainGuest.sex} onChange={(e) => handleMainGuestChange('sex', e.target.value)}
@@ -211,27 +225,31 @@ export default function CheckInForm({
             </select>
             {errors['mainGuest.sex'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.sex']}</p>}
           </div>
+          {/* Date of Birth */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Data di nascita *</label>
             <input type="date" max={maxDate} value={formData.mainGuest.dateOfBirth} onChange={(e) => handleMainGuestChange('dateOfBirth', e.target.value)}
                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.dateOfBirth'] ? 'border-red-300' : 'border-gray-300'}`} />
             {errors['mainGuest.dateOfBirth'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.dateOfBirth']}</p>}
           </div>
+          {/* Place of Birth */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Luogo di nascita *</label>
             <input type="text" value={formData.mainGuest.placeOfBirth} onChange={(e) => handleMainGuestChange('placeOfBirth', e.target.value)}
                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.placeOfBirth'] ? 'border-red-300' : 'border-gray-300'}`} />
             {errors['mainGuest.placeOfBirth'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.placeOfBirth']}</p>}
           </div>
+          {/* Country of Birth */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Paese di nascita *</label>
             <select value={formData.mainGuest.countryOfBirth} onChange={(e) => handleMainGuestChange('countryOfBirth', e.target.value)}
                     className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.countryOfBirth'] ? 'border-red-300' : 'border-gray-300'}`}>
               <option value="IT">Italia</option>
-              <option value="other">Altro</option>
+              <option value="other">Altro</option> {/* Placeholder for a list of countries */}
             </select>
             {errors['mainGuest.countryOfBirth'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.countryOfBirth']}</p>}
           </div>
+          {/* Province of Birth (Conditional) */}
           {formData.mainGuest.countryOfBirth === 'IT' && (
             <div>
               <label className="block text-sm font-medium text-gray-700">Provincia di nascita *</label>
@@ -243,12 +261,13 @@ export default function CheckInForm({
               {errors['mainGuest.provinceOfBirth'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.provinceOfBirth']}</p>}
             </div>
           )}
+          {/* Citizenship */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Cittadinanza *</label>
             <select value={formData.mainGuest.citizenship} onChange={(e) => handleMainGuestChange('citizenship', e.target.value)}
                     className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.citizenship'] ? 'border-red-300' : 'border-gray-300'}`}>
               <option value="IT">Italiana</option>
-              <option value="other">Altra</option>
+              <option value="other">Altra</option> {/* Placeholder for a list of countries */}
             </select>
             {errors['mainGuest.citizenship'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.citizenship']}</p>}
           </div>
@@ -256,6 +275,7 @@ export default function CheckInForm({
         
         <h4 className="text-md font-medium mt-6 mb-4">Documento di identità (Ospite Principale)</h4>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Document Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Tipo documento *</label>
             <select value={formData.mainGuest.documentType} onChange={(e) => handleMainGuestChange('documentType', e.target.value)}
@@ -265,27 +285,31 @@ export default function CheckInForm({
             </select>
             {errors['mainGuest.documentType'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentType']}</p>}
           </div>
+          {/* Document Number */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Numero documento *</label>
             <input type="text" value={formData.mainGuest.documentNumber} onChange={(e) => handleMainGuestChange('documentNumber', e.target.value.toUpperCase())}
                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.documentNumber'] ? 'border-red-300' : 'border-gray-300'}`} />
             {errors['mainGuest.documentNumber'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentNumber']}</p>}
           </div>
+          {/* Document Issue Place */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Luogo di rilascio *</label>
             <input type="text" value={formData.mainGuest.documentIssuePlace} onChange={(e) => handleMainGuestChange('documentIssuePlace', e.target.value)}
                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.documentIssuePlace'] ? 'border-red-300' : 'border-gray-300'}`} />
             {errors['mainGuest.documentIssuePlace'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentIssuePlace']}</p>}
           </div>
+          {/* Document Issue Country */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Paese di rilascio *</label>
             <select value={formData.mainGuest.documentIssueCountry} onChange={(e) => handleMainGuestChange('documentIssueCountry', e.target.value)}
                     className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.documentIssueCountry'] ? 'border-red-300' : 'border-gray-300'}`}>
               <option value="IT">Italia</option>
-              <option value="other">Altro</option>
+              <option value="other">Altro</option> {/* Placeholder for list */}
             </select>
             {errors['mainGuest.documentIssueCountry'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentIssueCountry']}</p>}
           </div>
+          {/* Document Issue Province (Conditional) */}
           {formData.mainGuest.documentIssueCountry === 'IT' && (
             <div>
               <label className="block text-sm font-medium text-gray-700">Provincia di rilascio *</label>
@@ -312,18 +336,21 @@ export default function CheckInForm({
             )}
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Last Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Cognome *</label>
               <input type="text" value={guest.lastName} onChange={(e) => handleAdditionalGuestChange(index, 'lastName', e.target.value)}
                      className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.lastName`] ? 'border-red-300' : 'border-gray-300'}`} />
               {errors[`additionalGuests.${index}.lastName`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.lastName`]}</p>}
             </div>
+            {/* First Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Nome *</label>
               <input type="text" value={guest.firstName} onChange={(e) => handleAdditionalGuestChange(index, 'firstName', e.target.value)}
                      className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.firstName`] ? 'border-red-300' : 'border-gray-300'}`} />
               {errors[`additionalGuests.${index}.firstName`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.firstName`]}</p>}
             </div>
+            {/* Sex */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Sesso *</label>
               <select value={guest.sex} onChange={(e) => handleAdditionalGuestChange(index, 'sex', e.target.value)}
@@ -333,18 +360,21 @@ export default function CheckInForm({
               </select>
               {errors[`additionalGuests.${index}.sex`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.sex`]}</p>}
             </div>
+            {/* Date of Birth */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Data di nascita *</label>
               <input type="date" max={maxDate} value={guest.dateOfBirth} onChange={(e) => handleAdditionalGuestChange(index, 'dateOfBirth', e.target.value)}
                      className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.dateOfBirth`] ? 'border-red-300' : 'border-gray-300'}`} />
               {errors[`additionalGuests.${index}.dateOfBirth`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.dateOfBirth`]}</p>}
             </div>
+            {/* Place of Birth */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Luogo di nascita *</label>
               <input type="text" value={guest.placeOfBirth} onChange={(e) => handleAdditionalGuestChange(index, 'placeOfBirth', e.target.value)}
                      className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.placeOfBirth`] ? 'border-red-300' : 'border-gray-300'}`} />
               {errors[`additionalGuests.${index}.placeOfBirth`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.placeOfBirth`]}</p>}
             </div>
+            {/* Country of Birth */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Paese di nascita *</label>
               <select value={guest.countryOfBirth} onChange={(e) => handleAdditionalGuestChange(index, 'countryOfBirth', e.target.value)}
@@ -354,6 +384,7 @@ export default function CheckInForm({
               </select>
               {errors[`additionalGuests.${index}.countryOfBirth`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.countryOfBirth`]}</p>}
             </div>
+            {/* Province of Birth (Conditional) */}
             {guest.countryOfBirth === 'IT' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700">Provincia di nascita *</label>
@@ -365,6 +396,7 @@ export default function CheckInForm({
                 {errors[`additionalGuests.${index}.provinceOfBirth`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.provinceOfBirth`]}</p>}
               </div>
             )}
+            {/* Citizenship */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Cittadinanza *</label>
               <select value={guest.citizenship} onChange={(e) => handleAdditionalGuestChange(index, 'citizenship', e.target.value)}
@@ -375,6 +407,8 @@ export default function CheckInForm({
               {errors[`additionalGuests.${index}.citizenship`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.citizenship`]}</p>}
             </div>
             
+            {/* Document Fields for Additional Guests - ALWAYS RENDERED */}
+            {/* The validator (checkin-validator.ts) handles if these are mandatory based on bookingSource/context */}
             <>
               <h4 className="text-md font-medium mt-6 mb-2 sm:col-span-2">Documento di identità (Ospite {index + 2})</h4>
               <div>
@@ -407,7 +441,7 @@ export default function CheckInForm({
                 </select>
                 {errors[`additionalGuests.${index}.documentIssueCountry`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.documentIssueCountry`]}</p>}
               </div>
-              {(guest.documentIssueCountry === 'IT' || !guest.documentIssueCountry) && ( 
+              {(guest.documentIssueCountry === 'IT' || !guest.documentIssueCountry) && ( // Show if IT or if country is not yet set (default to IT context)
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Provincia di rilascio</label>
                   <select value={guest.documentIssueProvince || ''} onChange={(e) => handleAdditionalGuestChange(index, 'documentIssueProvince', e.target.value)}
