@@ -17,57 +17,58 @@ export interface BookingValidationResponse {
     hasCheckedIn: boolean;
   };
   error?: string;
+  errorCode?: string; // e.g., BOOKING_NOT_FOUND_ASK_DATES
+  mode?: 'unassigned_checkin'; // For specific validation responses
+  requestedDates?: { // For unassigned_checkin mode
+    checkIn: string;
+    checkOut: string;
+  };
+  // email and bookingReference might also be returned for unassigned_checkin context
+  email?: string; 
+  bookingReference?: string;
 }
+
+export interface IGuestData { // Renamed from parts of ICheckIn in models for clarity in form data
+  lastName: string;
+  firstName: string;
+  sex: 'M' | 'F' | '';
+  dateOfBirth: string; // string for form input, converted to Date on submission
+  placeOfBirth: string;
+  provinceOfBirth?: string; // Solo per luoghi italiani
+  countryOfBirth: string;
+  citizenship: string;
+  documentType?: 'identity_card' | 'passport' | 'driving_license' | 'other' | '';
+  documentNumber?: string;
+  documentIssuePlace?: string;
+  documentIssueProvince?: string; // Solo per luoghi italiani
+  documentIssueCountry?: string;
+  isMainGuest?: boolean; // To distinguish main guest in a flat array if needed, or structure implies it
+}
+
 
 // Tipi per il form di check-in
 export interface CheckInFormData {
-  mainGuest: {
-    lastName: string;
-    firstName: string;
-    sex: 'M' | 'F' | '';
-    dateOfBirth: string;
-    placeOfBirth: string;
-    provinceOfBirth: string;
-    countryOfBirth: string;
-    citizenship: string;
-    documentType: 'identity_card' | 'passport' | 'driving_license' | 'other' | '';
-    documentNumber: string;
-    documentIssuePlace: string;
-    documentIssueProvince: string;
-    documentIssueCountry: string;
-  };
-  additionalGuests: Array<{
-    lastName: string;
-    firstName: string;
-    sex: 'M' | 'F' | '';
-    dateOfBirth: string;
-    placeOfBirth: string;
-    provinceOfBirth: string;
-    countryOfBirth: string;
-    citizenship: string;
-  }>;
+  mainGuest: IGuestData; // Use the common IGuestData
+  additionalGuests: IGuestData[]; // Array of IGuestData
   acceptTerms: boolean;
+  numberOfGuests: number; // Total number of guests, reflects editableNumberOfGuests
+  notes?: string; // Optional notes from the user
 }
 
 // Tipi per le richieste API
 export interface CheckInSubmitRequest {
-  bookingId: string;
-  guests: Array<{
-    lastName: string;
-    firstName: string;
-    sex: 'M' | 'F';
-    dateOfBirth: string;
-    placeOfBirth: string;
-    provinceOfBirth?: string;
-    countryOfBirth: string;
-    citizenship: string;
-    documentType?: string;
-    documentNumber?: string;
-    documentIssuePlace?: string;
-    documentIssueProvince?: string;
-    documentIssueCountry?: string;
-    isMainGuest: boolean;
-  }>;
+  bookingId?: string; // Optional for unassigned_checkin
+  apartmentId?: string; // Optional for unassigned_checkin
+  guests: Array<IGuestData & { isMainGuest: boolean }>; // Submitted guests with isMainGuest flag
+  mode: 'normal' | 'unassigned_checkin';
+  acceptTerms: boolean;
+  notes?: string;
+  // For 'unassigned_checkin'
+  requestedCheckIn?: string;
+  requestedCheckOut?: string;
+  originalEmail?: string;
+  originalBookingRef?: string;
+  numberOfGuests?: number; // Number of guests for unassigned checkin
 }
 
 export interface CheckInSubmitResponse {
@@ -75,6 +76,7 @@ export interface CheckInSubmitResponse {
   checkInId?: string;
   message?: string;
   error?: string;
+  redirectUrl?: string;
 }
 
 // Tipi per la visualizzazione
@@ -89,7 +91,7 @@ export interface CheckInDetails {
     documentInfo?: string;
     isMainGuest: boolean;
   }>;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'pending' | 'completed' | 'cancelled' | 'pending_assignment';
   completedAt?: string;
   completedBy?: string;
 }
