@@ -23,7 +23,6 @@ export default function CheckInFormPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<IPublicProfile | null>(null);
   // const [booking, setBooking] = useState<BookingData | null>(null); // Replaced by bookingData
-  const [profile, setProfile] = useState<IPublicProfile | null>(null); // Keep profile state
   const [bookingData, setBookingData] = useState<any>(null); // Can be BookingData or context data
   const [checkInMode, setCheckInMode] = useState<'normal' | 'unassigned_checkin'>('normal');
   const [requestedDates, setRequestedDates] = useState<{ checkIn: string, checkOut: string } | null>(null);
