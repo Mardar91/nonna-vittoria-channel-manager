@@ -30,12 +30,12 @@ export default async function DashboardPage() {
   const apartmentCount = await ApartmentModel.countDocuments();
   const totalBookings = await BookingModel.countDocuments();
   
-  // Prenotazioni attive oggi
-  const activeBookingsToday = await BookingModel.countDocuments({
-    status: 'confirmed',
-    checkIn: { $lte: today },
-    checkOut: { $gt: today }
-  });
+  // Prenotazioni attive oggi - This will be recalculated later
+  // const activeBookingsToday = await BookingModel.countDocuments({
+  //   status: 'confirmed',
+  //   checkIn: { $lte: today },
+  //   checkOut: { $gt: today }
+  // });
   
   // Check-in e check-out di oggi
   const checkInsToday = await BookingModel.find({
@@ -151,6 +151,11 @@ export default async function DashboardPage() {
     })
   );
   
+  // Calculate active bookings based on refined statuses
+  const newActiveBookingsToday = apartmentsWithStatus.filter(
+    apt => apt.status === 'reserved' || apt.status === 'freeing_soon'
+  ).length;
+
   // Prenotazioni recenti per il widget
   const recentBookings = await BookingModel.find({})
     .sort({ createdAt: -1 })
@@ -164,7 +169,7 @@ export default async function DashboardPage() {
     stats: {
       apartmentCount,
       totalBookings,
-      activeBookingsToday,
+      activeBookingsToday: newActiveBookingsToday, // Use the new count
       monthlyRevenue: monthlyRevenue[0]?.total || 0
     },
     todayActivity: {
