@@ -39,7 +39,6 @@ export const isValidDocumentNumber = (
   number: string
 ): boolean => {
   if (!number || number.trim() === '') return false;
-  // type qui non sarà mai '', quindi non serve il controllo type === ''
 
   switch (type) {
     case 'identity_card':
@@ -53,19 +52,18 @@ export const isValidDocumentNumber = (
     
     case 'other':
       return /^[A-Z0-9]{5,20}$/.test(number.toUpperCase());
-    // Non serve un default perché il tipo di 'type' è limitato ai casi sopra.
   }
 };
 
 // Validazione del form principale
 export const validateCheckInForm = (
   data: CheckInFormData,
-  context?: 'airbnb' | 'booking' | 'unassigned' | string // string for other potential sources
+  context?: 'airbnb' | 'booking' | 'unassigned' | string 
 ): ValidationError[] => {
   const errors: ValidationError[] = [];
   
   const mainGuest = data.mainGuest;
-  const mainGuestDocType = mainGuest.documentType; // Variabile per mainGuest.documentType
+  const mainGuestDocType = mainGuest.documentType; 
 
   // Validate numberOfGuests
   if (typeof data.numberOfGuests !== 'number' || !Number.isInteger(data.numberOfGuests)) {
@@ -84,10 +82,7 @@ export const validateCheckInForm = (
     errors.push({ field: 'mainGuest.firstName', message: 'Il nome è obbligatorio' });
   }
   
-  // Se mainGuest.sex è di tipo Something | '', allora `!mainGuest.sex` è true per ''
-  // e `mainGuest.sex === ''` è ridondante. Se il tipo è Something | '' | undefined, allora è corretto.
-  // Lascio il @ts-expect-error se il tipo specifico di sex è solo 'M' | 'F' | '' senza undefined.
-  // @ts-expect-error 
+  // @ts-expect-error (Potrebbe essere necessario se il tipo di sex è definito come 'M' | 'F' | '' senza undefined)
   if (!mainGuest.sex || mainGuest.sex === '') {
     errors.push({ field: 'mainGuest.sex', message: 'Il sesso è obbligatorio' });
   }
@@ -116,17 +111,19 @@ export const validateCheckInForm = (
     errors.push({ field: 'mainGuest.citizenship', message: 'La cittadinanza è obbligatoria' });
   }
   
-  // Se mainGuestDocType è Something | '' | undefined, '!mainGuestDocType' copre '' e undefined.
-  // La parte '|| mainGuestDocType === ""' è ridondante. Simplificato a '!mainGuestDocType'.
-  if (!mainGuestDocType) {
+  // Validazione Documento Ospite Principale
+  if (!mainGuestDocType) { // Copre undefined e ''
     errors.push({ field: 'mainGuest.documentType', message: 'Il tipo di documento è obbligatorio' });
   }
   
   if (!mainGuest.documentNumber || mainGuest.documentNumber.trim() === '') {
     errors.push({ field: 'mainGuest.documentNumber', message: 'Il numero del documento è obbligatorio' });
-  } else if (mainGuestDocType && mainGuestDocType !== '' && !isValidDocumentNumber(mainGuestDocType, mainGuest.documentNumber)) {
-    // Usare mainGuestDocType qui, e il controllo esplicito 'mainGuestDocType !== ""'
-    errors.push({ field: 'mainGuest.documentNumber', message: 'Numero documento non valido per il tipo selezionato' });
+  } else {
+    if (mainGuestDocType && mainGuestDocType !== '') { 
+      if (!isValidDocumentNumber(mainGuestDocType, mainGuest.documentNumber)) {
+        errors.push({ field: 'mainGuest.documentNumber', message: 'Numero documento non valido per il tipo selezionato' });
+      }
+    }
   }
   
   if (!mainGuest.documentIssuePlace || mainGuest.documentIssuePlace.trim() === '') {
@@ -141,8 +138,9 @@ export const validateCheckInForm = (
     errors.push({ field: 'mainGuest.documentIssueProvince', message: 'La provincia di rilascio è obbligatoria per documenti italiani' });
   }
   
+  // Validazione Ospiti Aggiuntivi
   data.additionalGuests.forEach((guest, index) => {
-    const guestDocType = guest.documentType; // Variabile per guest.documentType
+    const guestDocType = guest.documentType; 
 
     if (!guest.lastName || guest.lastName.trim() === '') {
       errors.push({ field: `additionalGuests.${index}.lastName`, message: 'Il cognome è obbligatorio' });
@@ -152,7 +150,7 @@ export const validateCheckInForm = (
       errors.push({ field: `additionalGuests.${index}.firstName`, message: 'Il nome è obbligatorio' });
     }
     
-    // @ts-expect-error (vedi commento analogo per mainGuest.sex)
+    // @ts-expect-error (Potrebbe essere necessario se il tipo di sex è 'M' | 'F' | '' senza undefined)
     if (!guest.sex || guest.sex === '') {
       errors.push({ field: `additionalGuests.${index}.sex`, message: 'Il sesso è obbligatorio' });
     }
@@ -182,15 +180,19 @@ export const validateCheckInForm = (
     const isDocumentOptional = context === 'airbnb' || context === 'booking';
 
     if (!isDocumentOptional) {
-      // Se guestDocType è Something | '' | undefined, '!guestDocType' copre '' e undefined.
-      if (!guestDocType) { 
+      // Documento Obbligatorio per Ospite Aggiuntivo
+      if (!guestDocType) { // Copre undefined e ''
         errors.push({ field: `additionalGuests.${index}.documentType`, message: 'Il tipo di documento è obbligatorio' });
       }
       
       if (!guest.documentNumber || guest.documentNumber.trim() === '') {
         errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Il numero del documento è obbligatorio' });
-      } else if (guestDocType && guestDocType !== '' && !isValidDocumentNumber(guestDocType, guest.documentNumber)) {
-        errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Numero documento non valido per il tipo selezionato' });
+      } else {
+        if (guestDocType && guestDocType !== '') {
+          if (!isValidDocumentNumber(guestDocType, guest.documentNumber)) {
+            errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Numero documento non valido per il tipo selezionato' });
+          }
+        }
       }
       
       if (!guest.documentIssuePlace || guest.documentIssuePlace.trim() === '') {
@@ -205,16 +207,15 @@ export const validateCheckInForm = (
         errors.push({ field: `additionalGuests.${index}.documentIssueProvince`, message: 'La provincia di rilascio è obbligatoria per documenti italiani' });
       }
     } else {
-      // Even if optional, if documentType is provided, then number should also be provided and valid
-      // Questa era la riga 204 che causava l'errore di build
+      // Documento Opzionale per Ospite Aggiuntivo, ma se il tipo è fornito, il resto diventa condizionatamente obbligatorio.
       if (guestDocType && guestDocType !== '') { 
         if (!guest.documentNumber || guest.documentNumber.trim() === '') {
           errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Il numero del documento è richiesto se si specifica il tipo' });
-        } else if (!isValidDocumentNumber(guestDocType, guest.documentNumber)) { // Usare guestDocType
+        } else if (!isValidDocumentNumber(guestDocType, guest.documentNumber)) {
           errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Numero documento non valido per il tipo selezionato' });
         }
-        // Similar checks for issue place/country/province if type and number are present
-        if (guest.documentNumber && guest.documentNumber.trim() !== '') {
+        
+        if (guest.documentNumber && guest.documentNumber.trim() !== '' && isValidDocumentNumber(guestDocType, guest.documentNumber)) {
             if (!guest.documentIssuePlace || guest.documentIssuePlace.trim() === '') {
                 errors.push({ field: `additionalGuests.${index}.documentIssuePlace`, message: 'Luogo di rilascio richiesto se tipo/numero sono forniti' });
             }
@@ -236,7 +237,6 @@ export const validateCheckInForm = (
   return errors;
 };
 
-// Province italiane per validazione e selezione (rimane invariato dalla tua ultima versione)
 export const ITALIAN_PROVINCES = [
   { code: 'AG', name: 'Agrigento' },
   { code: 'AL', name: 'Alessandria' },
