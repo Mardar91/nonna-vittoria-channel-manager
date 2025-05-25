@@ -58,10 +58,22 @@ export const isValidDocumentNumber = (
 };
 
 // Validazione del form principale
-export const validateCheckInForm = (data: CheckInFormData): ValidationError[] => {
+export const validateCheckInForm = (
+  data: CheckInFormData,
+  context?: 'airbnb' | 'booking' | 'unassigned' | string // string for other potential sources
+): ValidationError[] => {
   const errors: ValidationError[] = [];
   
   const mainGuest = data.mainGuest;
+
+  // Validate numberOfGuests
+  if (typeof data.numberOfGuests !== 'number' || !Number.isInteger(data.numberOfGuests)) {
+    errors.push({ field: 'numberOfGuests', message: 'Il numero di ospiti deve essere un numero intero.' });
+  } else if (data.numberOfGuests < 1) {
+    errors.push({ field: 'numberOfGuests', message: 'Il numero di ospiti deve essere almeno 1.' });
+  } else if (data.numberOfGuests !== 1 + (data.additionalGuests?.length || 0)) {
+    errors.push({ field: 'numberOfGuests', message: 'Il numero di ospiti dichiarato non corrisponde al numero di moduli ospiti presentati.' });
+  }
   
   if (!mainGuest.lastName || mainGuest.lastName.trim() === '') {
     errors.push({ field: 'mainGuest.lastName', message: 'Il cognome è obbligatorio' });
@@ -158,6 +170,56 @@ export const validateCheckInForm = (data: CheckInFormData): ValidationError[] =>
     
     if (!guest.citizenship || guest.citizenship.trim() === '') {
       errors.push({ field: `additionalGuests.${index}.citizenship`, message: 'La cittadinanza è obbligatoria' });
+    }
+
+    // Document fields for additional guests: optional if context is 'airbnb' or 'booking'
+    const isDocumentOptional = context === 'airbnb' || context === 'booking';
+
+    if (!isDocumentOptional) {
+      // @ts-expect-error TS crede che questo confronto non sia necessario, ma lo è per il nostro tipo unione che include ''
+      if (!guest.documentType || guest.documentType === '') {
+        errors.push({ field: `additionalGuests.${index}.documentType`, message: 'Il tipo di documento è obbligatorio' });
+      }
+      
+      if (!guest.documentNumber || guest.documentNumber.trim() === '') {
+        errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Il numero del documento è obbligatorio' });
+      // @ts-expect-error TS segnala un "no overlap" qui per guest.documentType !== '', ma il controllo è intenzionale per il nostro tipo unione.
+      } else if (guest.documentType && guest.documentType !== '' && !isValidDocumentNumber(guest.documentType, guest.documentNumber)) {
+        errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Numero documento non valido per il tipo selezionato' });
+      }
+      
+      if (!guest.documentIssuePlace || guest.documentIssuePlace.trim() === '') {
+        errors.push({ field: `additionalGuests.${index}.documentIssuePlace`, message: 'Il luogo di rilascio è obbligatorio' });
+      }
+      
+      if (!guest.documentIssueCountry || guest.documentIssueCountry.trim() === '') {
+        errors.push({ field: `additionalGuests.${index}.documentIssueCountry`, message: 'Il paese di rilascio è obbligatorio' });
+      }
+      
+      if (guest.documentIssueCountry === 'IT' && (!guest.documentIssueProvince || guest.documentIssueProvince.trim() === '')) {
+        errors.push({ field: `additionalGuests.${index}.documentIssueProvince`, message: 'La provincia di rilascio è obbligatoria per documenti italiani' });
+      }
+    } else {
+      // Even if optional, if documentType is provided, then number should also be provided and valid
+      if (guest.documentType && guest.documentType !== '') {
+        if (!guest.documentNumber || guest.documentNumber.trim() === '') {
+          errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Il numero del documento è richiesto se si specifica il tipo' });
+        } else if (!isValidDocumentNumber(guest.documentType, guest.documentNumber)) {
+          errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Numero documento non valido per il tipo selezionato' });
+        }
+        // Similar checks for issue place/country/province if type and number are present
+        if (guest.documentNumber && guest.documentNumber.trim() !== '') {
+            if (!guest.documentIssuePlace || guest.documentIssuePlace.trim() === '') {
+                errors.push({ field: `additionalGuests.${index}.documentIssuePlace`, message: 'Luogo di rilascio richiesto se tipo/numero sono forniti' });
+            }
+            if (!guest.documentIssueCountry || guest.documentIssueCountry.trim() === '') {
+                errors.push({ field: `additionalGuests.${index}.documentIssueCountry`, message: 'Paese di rilascio richiesto se tipo/numero sono forniti' });
+            }
+            if (guest.documentIssueCountry === 'IT' && (!guest.documentIssueProvince || guest.documentIssueProvince.trim() === '')) {
+                errors.push({ field: `additionalGuests.${index}.documentIssueProvince`, message: 'Provincia di rilascio richiesta per documenti italiani se tipo/numero sono forniti' });
+            }
+        }
+      }
     }
   });
   
