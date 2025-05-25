@@ -8,18 +8,16 @@ import ApartmentModel from '@/models/Apartment';
 import { ClipboardDocumentCheckIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import mongoose from 'mongoose';
 
-// Interfacce (assicurati che corrispondano ai tuoi schemi Mongoose)
 interface GuestInCheckIn {
   isMainGuest: boolean;
   firstName: string;
   lastName: string;
-  // ...altre proprietà del guest se rilevanti qui
 }
 
 interface CheckInDocumentForPage {
   _id: mongoose.Types.ObjectId | string;
-  bookingId: mongoose.Types.ObjectId | string;
-  apartmentId?: mongoose.Types.ObjectId | string | null; // Modificato per riflettere che può essere null/undefined
+  bookingId?: mongoose.Types.ObjectId | string | null; // Reso opzionale/nullabile
+  apartmentId?: mongoose.Types.ObjectId | string | null;
   guests: GuestInCheckIn[];
   checkInDate: Date | string;
   completedAt?: Date | string | null;
@@ -54,42 +52,51 @@ export default async function CheckInsPage() {
     .limit(100)
     .lean<CheckInDocumentForPage[]>(); 
   
-  const bookingIds = checkIns.map(c => c.bookingId);
-  const bookings = await BookingModel.find({ _id: { $in: bookingIds } })
+  // 1. Pulizia degli ID per le query
+  const validBookingIdsForQuery = Array.from(
+    new Set(
+      checkIns
+        .map(c => c.bookingId)
+        .filter(id => id != null && mongoose.Types.ObjectId.isValid(String(id)))
+        .map(id => String(id))
+    )
+  );
+  const bookings = await BookingModel.find({ _id: { $in: validBookingIdsForQuery } })
     .lean<BookingDocumentForPage[]>(); 
   const bookingMap = new Map(bookings.map(b => [String(b._id), b]));
   
-  // Modifica per filtrare gli apartmentId non validi
-  const apartmentIds = Array.from(
+  const validApartmentIdsForQuery = Array.from(
     new Set(
       checkIns
-        .map(c => c.apartmentId) // Estrae apartmentId, che può essere ObjectId, string, null, o undefined
-        .filter(id => id != null && mongoose.Types.ObjectId.isValid(String(id))) // Filtra null/undefined e ID non validi
-        .map(id => String(id)) // Converte gli ID validi rimasti in stringhe
+        .map(c => c.apartmentId)
+        .filter(id => id != null && mongoose.Types.ObjectId.isValid(String(id)))
+        .map(id => String(id))
     )
   );
-  
-  const apartments = await ApartmentModel.find({ _id: { $in: apartmentIds } })
+  const apartments = await ApartmentModel.find({ _id: { $in: validApartmentIdsForQuery } })
     .lean<ApartmentDocumentForPage[]>();
   const apartmentMap = new Map(apartments.map(a => [String(a._id), a]));
   
-  const checkInsWithDetails = checkIns.map(checkIn => {
-    const booking = bookingMap.get(String(checkIn.bookingId));
-    // String(checkIn.apartmentId) qui potrebbe diventare "null" o "undefined" se apartmentId è tale.
-    // apartmentMap.get("null") o .get("undefined") restituirà undefined, che è gestito da apartment?.name
-    const apartment = apartmentMap.get(String(checkIn.apartmentId)); 
-    const mainGuest = checkIn.guests.find(g => g.isMainGuest);
+  // 2. Gestione di bookingId e apartmentId in checkInsWithDetails
+  const checkInsWithDetails = checkIns.map(rawCheckIn => {
+    const bookingIdAsString = rawCheckIn.bookingId != null ? String(rawCheckIn.bookingId) : null;
+    const booking = bookingIdAsString ? bookingMap.get(bookingIdAsString) : undefined;
+
+    const apartmentIdAsString = rawCheckIn.apartmentId != null ? String(rawCheckIn.apartmentId) : null;
+    const apartment = apartmentIdAsString ? apartmentMap.get(apartmentIdAsString) : undefined;
+    
+    const mainGuest = rawCheckIn.guests.find(g => g.isMainGuest);
     
     return {
-      id: String(checkIn._id),
-      bookingId: String(checkIn.bookingId),
+      id: String(rawCheckIn._id),
+      bookingId: bookingIdAsString, // Sarà una stringa ID valida o null
       apartmentName: apartment?.name || 'Sconosciuto',
       mainGuestName: mainGuest ? `${mainGuest.firstName} ${mainGuest.lastName}` : 'N/A',
-      guestCount: checkIn.guests.length,
-      checkInDate: checkIn.checkInDate,
-      completedAt: checkIn.completedAt,
-      completedBy: checkIn.completedBy,
-      status: checkIn.status,
+      guestCount: rawCheckIn.guests.length,
+      checkInDate: rawCheckIn.checkInDate,
+      completedAt: rawCheckIn.completedAt,
+      completedBy: rawCheckIn.completedBy,
+      status: rawCheckIn.status,
       bookingCheckIn: booking?.checkIn,
       bookingCheckOut: booking?.checkOut,
     };
@@ -232,12 +239,17 @@ export default async function CheckInsPage() {
                         >
                           <MagnifyingGlassIcon className="h-5 w-5" />
                         </Link>
-                        <Link
-                          href={`/bookings/${checkIn.bookingId}`}
-                          className="text-gray-600 hover:text-gray-900"
-                        >
-                          Prenotazione
-                        </Link>
+                        {/* 3. Condizionamento del Link */}
+                        {checkIn.bookingId && mongoose.Types.ObjectId.isValid(checkIn.bookingId) ? (
+                          <Link
+                            href={`/bookings/${checkIn.bookingId}`}
+                            className="text-gray-600 hover:text-gray-900"
+                          >
+                            Prenotazione
+                          </Link>
+                        ) : (
+                          <span className="text-gray-400 text-xs italic">Pren. N/D</span>
+                        )}
                       </div>
                     </td>
                   </tr>
