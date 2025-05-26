@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import CheckInForm from '@/components/CheckInForm';
-import { CheckInFormData } from '@/types/checkin';
+import { CheckInFormData, CheckInSubmitRequest } from '@/types/checkin'; // Aggiornato per usare CheckInSubmitRequest
 import { IPublicProfile } from '@/models/PublicProfile';
 
 interface BookingData {
@@ -17,30 +17,30 @@ interface BookingData {
   checkOut: string;
   numberOfGuests: number;
   hasCheckedIn: boolean;
+  // Aggiungere source se necessario per CheckInForm, es. bookingData?.source
 }
 
 export default function CheckInFormPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<IPublicProfile | null>(null);
-  // const [booking, setBooking] = useState<BookingData | null>(null); // Replaced by bookingData
   const [bookingData, setBookingData] = useState<any>(null); // Can be BookingData or context data
   const [checkInMode, setCheckInMode] = useState<'normal' | 'unassigned_checkin'>('normal');
   const [requestedDates, setRequestedDates] = useState<{ checkIn: string, checkOut: string } | null>(null);
   const [originalEmail, setOriginalEmail] = useState<string | null>(null);
   const [originalBookingRef, setOriginalBookingRef] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Renamed from loading
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkInTerms, setCheckInTerms] = useState<string | undefined>(undefined);
+  const [identificationEmail, setIdentificationEmail] = useState<string | null>(null); // Email usata per identificarsi
 
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoading(true);
       try {
-        // Carica il profilo pubblico per i termini di check-in
         const profileResponse = await fetch('/api/public-profile');
         if (profileResponse.ok) {
           const profileData = await profileResponse.json();
-          setProfile(profileData); // Save the full profile
+          setProfile(profileData);
           if (profileData.checkInTerms) {
             setCheckInTerms(profileData.checkInTerms);
           }
@@ -48,6 +48,7 @@ export default function CheckInFormPage() {
 
         const storedBooking = sessionStorage.getItem('checkInBooking');
         const storedContext = sessionStorage.getItem('checkInContext');
+        const storedIdentificationEmail = sessionStorage.getItem('checkInIdentificationEmail'); // Recupera l'email di identificazione
 
         if (storedContext) {
           const context = JSON.parse(storedContext);
@@ -56,16 +57,15 @@ export default function CheckInFormPage() {
             setRequestedDates(context.requestedDates);
             setOriginalEmail(context.email);
             setOriginalBookingRef(context.bookingReference);
-            // For CheckInForm compatibility, ensure numberOfGuests is set.
-            // Default to 1, but allow override if context provides it (future enhancement).
             setBookingData({ 
               numberOfGuests: context.numberOfGuests || 1, 
-              // Add other fields that CheckInForm might minimally expect, or make them optional in CheckInForm
-              guestName: context.email, // Use email as a placeholder for guestName
+              guestName: `Check-in per ${context.email}`,
               apartmentName: 'N/A (Richiesta da Assegnare)',
               checkIn: context.requestedDates.checkIn,
               checkOut: context.requestedDates.checkOut,
             });
+            // Non impostare identificationEmail per unassigned_checkin,
+            // l'API userà originalEmail per questo caso
             setIsLoading(false);
             return;
           }
@@ -75,7 +75,10 @@ export default function CheckInFormPage() {
           setCheckInMode('normal');
           const parsedBooking = JSON.parse(storedBooking);
           setBookingData(parsedBooking);
-        } else if (!storedContext) {
+          if (storedIdentificationEmail) { // Imposta l'email di identificazione se presente
+            setIdentificationEmail(storedIdentificationEmail);
+          }
+        } else if (!storedContext) { // Solo se non c'è né storedBooking né storedContext
           toast.error('Dati di check-in non trovati. Verrai reindirizzato.');
           router.push('/checkin');
           return;
@@ -95,17 +98,15 @@ export default function CheckInFormPage() {
   const handleSubmit = async (formData: CheckInFormData) => {
     setIsSubmitting(true);
     
-    // Prepara i dati per l'API - guests are already prepared by CheckInForm
-    // CheckInFormData should contain mainGuest and additionalGuests
-    const submissionData: any = {
-      guests: [ // Ensure guests are structured correctly
+    const submissionData: CheckInSubmitRequest = {
+      guests: [ 
         { ...formData.mainGuest, isMainGuest: true },
         ...formData.additionalGuests.map(guest => ({ ...guest, isMainGuest: false }))
       ],
       mode: checkInMode,
       acceptTerms: formData.acceptTerms, 
       notes: formData.notes,
-      numberOfGuests: formData.numberOfGuests // Always send numberOfGuests from the form
+      numberOfGuests: formData.numberOfGuests 
     };
 
     if (checkInMode === 'unassigned_checkin') {
@@ -113,7 +114,6 @@ export default function CheckInFormPage() {
       submissionData.requestedCheckOut = requestedDates?.checkOut;
       submissionData.originalEmail = originalEmail;
       submissionData.originalBookingRef = originalBookingRef;
-      // numberOfGuests is already set from formData above
     } else { // Normal mode
       if (!bookingData || !bookingData.id) {
         toast.error("ID Prenotazione mancante. Impossibile procedere.");
@@ -122,6 +122,9 @@ export default function CheckInFormPage() {
       }
       submissionData.bookingId = bookingData.id;
       submissionData.apartmentId = bookingData.apartmentId;
+      if (identificationEmail) { // Passa l'email di identificazione nel payload
+        submissionData.identificationEmail = identificationEmail;
+      }
     }
 
     try {
@@ -134,10 +137,11 @@ export default function CheckInFormPage() {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        toast.success('Check-in completato con successo!');
+        toast.success(result.message || 'Check-in completato con successo!'); // Usa il messaggio dall'API
         sessionStorage.removeItem('checkInBooking');
         sessionStorage.removeItem('checkInContext');
-        router.push(result.redirectUrl || '/checkin/success'); // Use redirectUrl from API if available
+        sessionStorage.removeItem('checkInIdentificationEmail'); // Rimuovi l'email di identificazione da sessionStorage
+        router.push(result.redirectUrl || '/checkin/success');
       } else {
         toast.error(result.error || 'Errore durante il salvataggio del check-in.');
       }
@@ -157,20 +161,7 @@ export default function CheckInFormPage() {
     );
   }
   
-  // if (!bookingData && checkInMode === 'normal') { // Already handled in useEffect by redirecting
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-  //       <div className="text-center max-w-md p-6 bg-white rounded-lg shadow-lg">
-  //         <h1 className="text-2xl font-bold text-red-600 mb-4">Dati non validi</h1>
-  //         <p className="text-gray-600 mb-6">Impossibile caricare i dati per il check-in. Riprova.</p>
-  //         <Link href="/checkin" className="text-blue-600 hover:underline">
-  //           Torna alla pagina di validazione
-  //         </Link>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-  if (!bookingData) { // General check if bookingData is null after loading (covers unassigned not setting default)
+  if (!bookingData) {
     return (
          <div className="min-h-screen flex items-center justify-center bg-gray-100">
            <div className="text-center max-w-md p-6 bg-white rounded-lg shadow-lg">
@@ -190,9 +181,13 @@ export default function CheckInFormPage() {
   
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('it-IT', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('it-IT', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+    } catch (e) {
+      return dateString; // Ritorna la stringa originale se non è una data valida
+    }
   };
   
   return (
@@ -252,7 +247,7 @@ export default function CheckInFormPage() {
               isSubmitting={isSubmitting}
               checkInTerms={checkInTerms}
               mode={checkInMode}
-              // bookingSource={bookingData?.source} // For Phase 2
+              // bookingSource={bookingData?.source} // Per futura implementazione se CheckInForm lo richiede
             />
           </div>
         </div>
