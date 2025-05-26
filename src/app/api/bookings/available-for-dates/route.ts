@@ -4,7 +4,23 @@ import connectDB from '@/lib/db';
 import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import CheckInModel from '@/models/CheckIn';
-import mongoose from 'mongoose'; // Aggiunto import per mongoose.Types.ObjectId
+import mongoose from 'mongoose';
+
+// Definizione dell'interfaccia BookingType
+interface BookingType {
+  _id: any; // Modificato per flessibilità con .lean()
+  guestName: string;
+  guestEmail: string;
+  checkIn: Date;
+  checkOut: Date;
+  apartmentId: any; // Modificato per flessibilità con .lean()
+  numberOfGuests: number;
+  source: string;
+  guestPhone?: string;
+  totalPrice?: number;
+  // Aggiungere altri campi del modello Booking se necessario per la logica sottostante
+  // status?: string; // Esempio, se status fosse usato
+}
 
 // GET: Ottenere prenotazioni disponibili per un range di date
 export async function GET(req: NextRequest) {
@@ -37,14 +53,11 @@ export async function GET(req: NextRequest) {
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
     
-    // Imposta le ore per confronto più preciso
     checkInDate.setHours(0, 0, 0, 0);
     checkOutDate.setHours(0, 0, 0, 0);
     
-    // Calcola il range con tolleranza
     const toleranceMs = tolerance * 24 * 60 * 60 * 1000;
     
-    // Costruisci la query
     const query: any = {
       status: 'confirmed',
       checkIn: {
@@ -57,39 +70,20 @@ export async function GET(req: NextRequest) {
       }
     };
     
-    // Filtra per appartamento se specificato
     if (apartmentId) {
       query.apartmentId = apartmentId;
     }
     
-    // Trova le prenotazioni
-    const bookings = await BookingModel.find(query).lean() as Array<{
-      _id: mongoose.Types.ObjectId;
-      guestName: string;
-      guestEmail: string;
-      checkIn: Date;
-      checkOut: Date;
-      apartmentId: mongoose.Types.ObjectId;
-      numberOfGuests: number;
-      source: string;
-      // Campi aggiuntivi usati sotto, come guestPhone e totalPrice,
-      // dovrebbero essere aggiunti qui se strettamente tipizzati.
-      // Per ora, ci atteniamo alla definizione fornita nella richiesta.
-      // TypeScript potrebbe inferire `any` per i campi non elencati.
-      guestPhone?: string; // Aggiunto per completezza basata sull'uso
-      totalPrice?: number; // Aggiunto per completezza basata sull'uso
-    }>;
+    const bookings = await BookingModel.find(query).lean() as BookingType[];
     
-    // Ottieni informazioni aggiuntive
     const bookingsWithDetails = await Promise.all(
       bookings.map(async (booking) => {
-        // Controlla se ha già un check-in
         let hasCheckIn = false;
         let checkInStatus = null;
         
         if (excludeWithCheckIn) {
           const existingCheckIn = await CheckInModel.findOne({
-            bookingId: booking._id.toString(), // Con il tipo corretto, .toString() è valido
+            bookingId: String(booking._id), // Usato String() per maggiore sicurezza
             status: { $in: ['completed', 'pending'] }
           }).lean();
           
@@ -97,15 +91,13 @@ export async function GET(req: NextRequest) {
           checkInStatus = existingCheckIn?.status || null;
         }
         
-        // Ottieni dettagli appartamento
         const apartment = await ApartmentModel.findById(booking.apartmentId).lean();
         
-        // Calcola la differenza in giorni tra le date
         const checkInDiff = Math.abs(checkInDate.getTime() - new Date(booking.checkIn).getTime()) / (1000 * 60 * 60 * 24);
         const checkOutDiff = Math.abs(checkOutDate.getTime() - new Date(booking.checkOut).getTime()) / (1000 * 60 * 60 * 24);
         
         return {
-          _id: booking._id,
+          _id: String(booking._id), // Restituisce _id come stringa
           guestName: booking.guestName,
           guestEmail: booking.guestEmail,
           guestPhone: booking.guestPhone,
@@ -114,7 +106,7 @@ export async function GET(req: NextRequest) {
           numberOfGuests: booking.numberOfGuests,
           totalPrice: booking.totalPrice,
           source: booking.source,
-          apartmentId: booking.apartmentId,
+          apartmentId: String(booking.apartmentId), // Restituisce apartmentId come stringa
           apartmentName: apartment?.name || 'N/A',
           hasCheckIn,
           checkInStatus,
@@ -129,17 +121,12 @@ export async function GET(req: NextRequest) {
       })
     );
     
-    // Ordina per corrispondenza migliore (differenza minore)
     bookingsWithDetails.sort((a, b) => {
-      // Prima le corrispondenze esatte
       if (a.matchScore.isExactMatch && !b.matchScore.isExactMatch) return -1;
       if (!a.matchScore.isExactMatch && b.matchScore.isExactMatch) return 1;
-      
-      // Poi per differenza totale
       return a.matchScore.totalDiff - b.matchScore.totalDiff;
     });
     
-    // Filtra solo quelle disponibili se richiesto
     const availableBookings = excludeWithCheckIn 
       ? bookingsWithDetails.filter(b => b.isAvailable)
       : bookingsWithDetails;
@@ -147,7 +134,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       bookings: availableBookings,
-      totalFound: bookings.length, // Qui si usa bookings.length dalla query originale
+      totalFound: bookings.length,
       availableCount: availableBookings.length,
       searchParams: {
         checkIn: checkInDate.toISOString().split('T')[0],
@@ -200,12 +187,10 @@ export async function POST(req: NextRequest) {
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
     
-    // Query base
     const query: any = {
       status: 'confirmed'
     };
     
-    // Se le date sono flessibili, cerca in un range più ampio
     if (flexibleDates) {
       const daysDiff = maxDaysDifference * 24 * 60 * 60 * 1000;
       query.checkIn = {
@@ -217,7 +202,6 @@ export async function POST(req: NextRequest) {
         $lte: new Date(checkOutDate.getTime() + daysDiff)
       };
     } else {
-      // Cerca corrispondenze esatte
       const startOfDayCheckIn = new Date(checkInDate);
       startOfDayCheckIn.setHours(0, 0, 0, 0);
       const endOfDayCheckIn = new Date(checkInDate);
@@ -232,7 +216,6 @@ export async function POST(req: NextRequest) {
       query.checkOut = { $gte: startOfDayCheckOut, $lte: endOfDayCheckOut };
     }
     
-    // Filtri aggiuntivi opzionali
     if (apartmentId) {
       query.apartmentId = apartmentId;
     }
@@ -241,58 +224,42 @@ export async function POST(req: NextRequest) {
       query.numberOfGuests = { $gte: numberOfGuests };
     }
     
-    // Ricerca per nome ospite (case insensitive)
     if (guestName) {
       query.guestName = { $regex: new RegExp(guestName, 'i') };
     }
     
-    const bookings = await BookingModel.find(query).lean() as Array<{ // Applicato tipo anche qui per coerenza
-      _id: mongoose.Types.ObjectId;
-      guestName: string;
-      guestEmail: string; // Non usato direttamente ma parte del modello
-      checkIn: Date;
-      checkOut: Date;
-      apartmentId: mongoose.Types.ObjectId;
-      numberOfGuests: number;
-      source: string; // Non usato direttamente ma parte del modello
-      // Aggiungere altri campi se necessari per la logica di POST
-    }>;
+    const bookings = await BookingModel.find(query).lean() as BookingType[];
     
-    // Arricchisci con dettagli e calcola score
     const enrichedBookings = await Promise.all(
       bookings.map(async (booking) => {
         const apartment = await ApartmentModel.findById(booking.apartmentId).lean();
         
         const existingCheckIn = await CheckInModel.findOne({
-          bookingId: booking._id.toString()
+          bookingId: String(booking._id) // Usato String() per maggiore sicurezza
         }).lean();
         
-        // Calcola score di corrispondenza
         let score = 100;
         
-        // Penalizza per differenza date
         const checkInDiff = Math.abs(checkInDate.getTime() - new Date(booking.checkIn).getTime()) / (1000 * 60 * 60 * 24);
         const checkOutDiff = Math.abs(checkOutDate.getTime() - new Date(booking.checkOut).getTime()) / (1000 * 60 * 60 * 24);
         score -= (checkInDiff + checkOutDiff) * 10;
         
-        // Bonus per corrispondenza nome
         if (guestName && booking.guestName.toLowerCase().includes(guestName.toLowerCase())) {
           score += 20;
         }
         
-        // Bonus per numero ospiti esatto
         if (numberOfGuests && booking.numberOfGuests === numberOfGuests) {
           score += 15;
         }
         
-        // Penalizza se ha già check-in
         if (existingCheckIn) {
           score -= 50;
         }
         
         return {
-          ...booking, // Mantiene tutti i campi originali di booking
-          _id: booking._id.toString(), // Sovrascrive _id con la sua versione stringa se necessario per il frontend
+          ...booking,
+          _id: String(booking._id), // Assicura che _id sia una stringa nel risultato finale
+          apartmentId: String(booking.apartmentId), // Assicura che apartmentId sia una stringa
           apartmentName: apartment?.name || 'N/A',
           hasExistingCheckIn: !!existingCheckIn,
           checkInStatus: existingCheckIn?.status || null,
@@ -307,7 +274,6 @@ export async function POST(req: NextRequest) {
       })
     );
     
-    // Ordina per score migliore
     enrichedBookings.sort((a, b) => b.matchScore - a.matchScore);
     
     return NextResponse.json({
