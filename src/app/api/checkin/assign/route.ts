@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import CheckInModel from '@/models/CheckIn';
-import BookingModel from '@/models/Booking';
-import ApartmentModel from '@/models/Apartment';
+import BookingModel, { IBooking } from '@/models/Booking';
+import ApartmentModel, { IApartment } from '@/models/Apartment';
 
 export async function POST(req: NextRequest) {
   try {
@@ -190,17 +190,17 @@ export async function GET(req: NextRequest) {
         $gte: new Date(endDate.getTime() - oneDayMs),
         $lte: new Date(endDate.getTime() + oneDayMs)
       }
-    }).lean();
+    }).lean() as unknown as IBooking[];
 
     // Per ogni prenotazione, verifica se ha già un check-in completato
     const bookingsWithCheckInStatus = await Promise.all(
-      bookings.map(async (booking) => {
+      bookings.map(async (booking: IBooking) => {
         const existingCheckIn = await CheckInModel.findOne({
           bookingId: booking._id.toString(),
           status: 'completed'
         });
         
-        const apartment = await ApartmentModel.findById(booking.apartmentId).lean();
+        const apartment = await ApartmentModel.findById(booking.apartmentId).lean() as unknown as IApartment | null;
         
         return {
           _id: booking._id,
