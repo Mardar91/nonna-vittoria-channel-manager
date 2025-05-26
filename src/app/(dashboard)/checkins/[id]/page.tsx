@@ -7,6 +7,7 @@ import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import { UserIcon, IdentificationIcon, CalendarIcon, HomeIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import mongoose from 'mongoose';
+import DeleteCheckInButton from '@/components/DeleteCheckInButton';
 
 interface GuestType {
   isMainGuest: boolean;
@@ -150,27 +151,7 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
                 <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
                 Smista Prenotazione
               </Link>
-              <button
-                onClick={async () => {
-                  if (confirm('Sei sicuro di voler eliminare questo check-in?')) {
-                    try {
-                      const response = await fetch(`/api/checkin/${String(checkIn._id)}`, {
-                        method: 'DELETE',
-                      });
-                      if (response.ok) {
-                        window.location.href = '/checkins';
-                      } else {
-                        alert('Errore durante l\'eliminazione del check-in');
-                      }
-                    } catch (error) {
-                      alert('Errore durante l\'eliminazione del check-in');
-                    }
-                  }
-                }}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-              >
-                Elimina Check-in
-              </button>
+              <DeleteCheckInButton checkInId={String(checkIn._id)} />
             </>
           ) : (
             checkIn.bookingId && (

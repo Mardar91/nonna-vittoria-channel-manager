@@ -2,25 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import BookingModel from '@/models/Booking';
-import ApartmentModel from '@/models/Apartment';
-import CheckInModel from '@/models/CheckIn';
+import ApartmentModel, { IApartment } from '@/models/Apartment';
+import CheckInModel, { ICheckIn } from '@/models/CheckIn';
 import mongoose from 'mongoose';
-
-// Definizione dell'interfaccia BookingType
-interface BookingType {
-  _id: any; // Modificato per flessibilità con .lean()
-  guestName: string;
-  guestEmail: string;
-  checkIn: Date;
-  checkOut: Date;
-  apartmentId: any; // Modificato per flessibilità con .lean()
-  numberOfGuests: number;
-  source: string;
-  guestPhone?: string;
-  totalPrice?: number;
-  // Aggiungere altri campi del modello Booking se necessario per la logica sottostante
-  // status?: string; // Esempio, se status fosse usato
-}
+import { IBooking } from '@/models/Booking';
 
 // GET: Ottenere prenotazioni disponibili per un range di date
 export async function GET(req: NextRequest) {
@@ -74,7 +59,7 @@ export async function GET(req: NextRequest) {
       query.apartmentId = apartmentId;
     }
     
-    const bookings = await BookingModel.find(query).lean() as BookingType[];
+    const bookings = await BookingModel.find(query).lean() as unknown as IBooking[];
     
     const bookingsWithDetails = await Promise.all(
       bookings.map(async (booking) => {
@@ -85,13 +70,13 @@ export async function GET(req: NextRequest) {
           const existingCheckIn = await CheckInModel.findOne({
             bookingId: String(booking._id), // Usato String() per maggiore sicurezza
             status: { $in: ['completed', 'pending'] }
-          }).lean();
+          }).lean() as ICheckIn | null;
           
           hasCheckIn = !!existingCheckIn;
           checkInStatus = existingCheckIn?.status || null;
         }
         
-        const apartment = await ApartmentModel.findById(booking.apartmentId).lean();
+        const apartment = await ApartmentModel.findById(booking.apartmentId).lean() as unknown as IApartment | null;
         
         const checkInDiff = Math.abs(checkInDate.getTime() - new Date(booking.checkIn).getTime()) / (1000 * 60 * 60 * 24);
         const checkOutDiff = Math.abs(checkOutDate.getTime() - new Date(booking.checkOut).getTime()) / (1000 * 60 * 60 * 24);
@@ -228,15 +213,15 @@ export async function POST(req: NextRequest) {
       query.guestName = { $regex: new RegExp(guestName, 'i') };
     }
     
-    const bookings = await BookingModel.find(query).lean() as BookingType[];
+    const bookings = await BookingModel.find(query).lean() as unknown as IBooking[];
     
     const enrichedBookings = await Promise.all(
       bookings.map(async (booking) => {
-        const apartment = await ApartmentModel.findById(booking.apartmentId).lean();
+        const apartment = await ApartmentModel.findById(booking.apartmentId).lean() as unknown as IApartment | null;
         
         const existingCheckIn = await CheckInModel.findOne({
           bookingId: String(booking._id) // Usato String() per maggiore sicurezza
-        }).lean();
+        }).lean() as ICheckIn | null;
         
         let score = 100;
         

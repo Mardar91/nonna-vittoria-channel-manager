@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import CheckInModel from '@/models/CheckIn';
-import BookingModel from '@/models/Booking';
-import ApartmentModel from '@/models/Apartment';
+import BookingModel, { IBooking } from '@/models/Booking';
+import ApartmentModel, { IApartment } from '@/models/Apartment';
 
 export async function POST(req: NextRequest) {
   try {
@@ -190,20 +190,41 @@ export async function GET(req: NextRequest) {
         $gte: new Date(endDate.getTime() - oneDayMs),
         $lte: new Date(endDate.getTime() + oneDayMs)
       }
-    }).lean();
+    }).lean() as unknown as IBooking[];
 
     // Per ogni prenotazione, verifica se ha già un check-in completato
     const bookingsWithCheckInStatus = await Promise.all(
-      bookings.map(async (booking) => {
+      bookings.map(async (booking: IBooking) => {
+        if (!booking._id) {
+          console.warn(`Booking processed in GET checkin/assign API without an _id. Booking data: ${JSON.stringify(booking)}. Returning as unavailable.`);
+          // Restituisci un oggetto che corrisponda alla struttura di ritorno attesa,
+          // ma segnalando che non è valido o non disponibile.
+          return {
+            _id: booking._id || `invalid-${Date.now()}`, // Usa l'ID se esiste (improbabile qui), o genera uno temporaneo
+            guestName: booking.guestName || 'N/A (Missing ID)',
+            guestEmail: booking.guestEmail || 'N/A',
+            checkIn: booking.checkIn || new Date(0), // Data placeholder
+            checkOut: booking.checkOut || new Date(0), // Data placeholder
+            apartmentId: booking.apartmentId || 'N/A',
+            apartmentName: 'N/A (Booking Missing ID)',
+            numberOfGuests: booking.numberOfGuests || 0,
+            source: booking.source || 'N/A',
+            hasExistingCheckIn: true, // Consideralo come se avesse già un check-in per escluderlo
+            isAvailableForAssignment: false 
+          };
+        }
+
+        // Il resto del codice originale del map callback va qui, 
+        // iniziando con la dichiarazione di existingCheckIn:
         const existingCheckIn = await CheckInModel.findOne({
-          bookingId: booking._id.toString(),
+          bookingId: booking._id.toString(), // Ora è sicuro chiamare toString()
           status: 'completed'
         });
         
-        const apartment = await ApartmentModel.findById(booking.apartmentId).lean();
+        const apartment = await ApartmentModel.findById(booking.apartmentId).lean() as unknown as IApartment | null;
         
         return {
-          _id: booking._id,
+          _id: booking._id, // Assicurati che questo sia l'ID originale
           guestName: booking.guestName,
           guestEmail: booking.guestEmail,
           checkIn: booking.checkIn,
