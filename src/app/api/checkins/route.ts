@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
-import CheckInModel from '@/models/CheckIn';
-import BookingModel from '@/models/Booking';
-import ApartmentModel from '@/models/Apartment';
+import CheckInModel, { ICheckIn, IGuest } from '@/models/CheckIn';
+import BookingModel, { IBooking } from '@/models/Booking';
+import ApartmentModel, { IApartment } from '@/models/Apartment';
 import mongoose from 'mongoose';
 
 // GET: Ottenere tutti i check-ins con informazioni correlate
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     const checkIns = await CheckInModel.find(query)
       .sort({ createdAt: -1 })
       .limit(limit)
-      .lean();
+      .lean() as unknown as ICheckIn[];
     
     // Ottieni gli ID unici per booking e apartment
     const validBookingIds = Array.from(
@@ -58,21 +58,21 @@ export async function GET(req: NextRequest) {
     
     // Carica booking e apartment in batch
     const [bookings, apartments] = await Promise.all([
-      BookingModel.find({ _id: { $in: validBookingIds } }).lean(),
-      ApartmentModel.find({ _id: { $in: validApartmentIds } }).lean()
+      BookingModel.find({ _id: { $in: validBookingIds } }).lean() as unknown as IBooking[],
+      ApartmentModel.find({ _id: { $in: validApartmentIds } }).lean() as unknown as IApartment[]
     ]);
     
     // Crea mappe per lookup rapido
-    const bookingMap = new Map(bookings.map(b => [String(b._id), b]));
-    const apartmentMap = new Map(apartments.map(a => [String(a._id), a]));
+    const bookingMap = new Map(bookings.map((b: IBooking) => [String(b._id), b]));
+    const apartmentMap = new Map(apartments.map((a: IApartment) => [String(a._id), a]));
     
     // Formatta i dati per il frontend
-    const formattedCheckIns = checkIns.map(checkIn => {
+    const formattedCheckIns = checkIns.map((checkIn: ICheckIn) => {
       const booking = checkIn.bookingId ? bookingMap.get(String(checkIn.bookingId)) : null;
       const apartment = checkIn.apartmentId ? apartmentMap.get(String(checkIn.apartmentId)) : null;
       
       // Trova l'ospite principale
-      const mainGuest = checkIn.guests.find(g => g.isMainGuest);
+      const mainGuest = checkIn.guests.find((g: IGuest) => g.isMainGuest);
       
       return {
         id: String(checkIn._id),

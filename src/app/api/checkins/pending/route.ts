@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
-import CheckInModel from '@/models/CheckIn';
+import CheckInModel, { ICheckIn, IGuest } from '@/models/CheckIn';
 
 // GET: Ottenere check-ins da smistare (pending_assignment)
 export async function GET(req: NextRequest) {
@@ -58,12 +58,12 @@ export async function GET(req: NextRequest) {
         createdAt: -1 // Poi i più recenti
       })
       .limit(limit)
-      .lean();
+      .lean() as unknown as ICheckIn[];
     
     // Formatta i dati per il frontend
-    const formattedCheckIns = pendingCheckIns.map(checkIn => {
+    const formattedCheckIns = pendingCheckIns.map((checkIn: ICheckIn) => {
       // Trova l'ospite principale
-      const mainGuest = checkIn.guests.find(g => g.isMainGuest);
+      const mainGuest = checkIn.guests.find((g: IGuest) => g.isMainGuest);
       
       return {
         _id: String(checkIn._id),
