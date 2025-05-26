@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       query.apartmentId = apartmentId;
     }
     
-    const bookings = await BookingModel.find(query).lean() as IBooking[];
+    const bookings = await BookingModel.find(query).lean() as unknown as IBooking[];
     
     const bookingsWithDetails = await Promise.all(
       bookings.map(async (booking) => {
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
       query.guestName = { $regex: new RegExp(guestName, 'i') };
     }
     
-    const bookings = await BookingModel.find(query).lean() as IBooking[];
+    const bookings = await BookingModel.find(query).lean() as unknown as IBooking[];
     
     const enrichedBookings = await Promise.all(
       bookings.map(async (booking) => {
