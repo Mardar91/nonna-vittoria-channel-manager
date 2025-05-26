@@ -11,6 +11,7 @@ import PaymentButton from '@/components/PaymentButton';
 import CheckInStatusBadge from '@/components/CheckInStatusBadge';
 import CheckInDetails from '@/components/CheckInDetails';
 import ManualCheckInButton from '@/components/ManualCheckInButton';
+import { extractReservationUrl } from '@/utils/stringUtils';
 
 export default async function BookingDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession();
@@ -97,6 +98,8 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
     }
   };
   
+  const reservationUrl = extractReservationUrl(booking.notes);
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -138,7 +141,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
               size="md"
             />
             {booking.status === 'confirmed' && booking.paymentStatus === 'paid' && !booking.hasCheckedIn && (
-              <div className="mt-2">
+              <div className="mt-2 flex space-x-2">
                 <ManualCheckInButton 
                   bookingId={params.id}
                   bookingDetails={{
@@ -147,6 +150,16 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
                     apartmentName: apartment?.name || 'Appartamento'
                   }}
                 />
+                {booking.source !== 'direct' && reservationUrl && (
+                  <a
+                    href={reservationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700"
+                  >
+                    Apri in {booking.source ? booking.source.charAt(0).toUpperCase() + booking.source.slice(1) : 'link'}
+                  </a>
+                )}
               </div>
             )}
           </div>

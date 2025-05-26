@@ -100,40 +100,52 @@ export default async function DashboardPage() {
       let determinedStatus: 'available' | 'occupied' | 'freeing_soon' | 'reserved' = 'available';
       let bookingToDisplay = null;
 
+      // Ensure 'now', 'today_date_only', 'currentBookingOnDateModel', 
+      // 'bookingCheckInDate', 'bookingCheckOutDate', 
+      // 'checkInDateOnly', 'checkOutDateOnly' are defined as they are in the current code.
+
       if (currentBookingOnDateModel) {
-        const currentBookingOnDate = currentBookingOnDateModel.toObject();
-        const bookingCheckInDate = new Date(currentBookingOnDate.checkIn);
-        const bookingCheckOutDate = new Date(currentBookingOnDate.checkOut);
+        const currentBookingOnDate = currentBookingOnDateModel.toObject(); // Ensure you get the plain object
+        
+        // Re-define dates from currentBookingOnDate as they might be shadowed or not directly from the plain object
+        const localBookingCheckInDate = new Date(currentBookingOnDate.checkIn);
+        const localBookingCheckOutDate = new Date(currentBookingOnDate.checkOut);
+        const localCheckInDateOnly = new Date(localBookingCheckInDate);
+        localCheckInDateOnly.setHours(0, 0, 0, 0);
+        const localCheckOutDateOnly = new Date(localBookingCheckOutDate);
+        localCheckOutDateOnly.setHours(0, 0, 0, 0);
 
-        const checkInDateOnly = new Date(bookingCheckInDate);
-        checkInDateOnly.setHours(0, 0, 0, 0);
+        // Default to 'reserved' if a booking relevant to today is found
+        determinedStatus = 'reserved';
+        bookingToDisplay = currentBookingOnDate;
 
-        const checkOutDateOnly = new Date(bookingCheckOutDate);
-        checkOutDateOnly.setHours(0, 0, 0, 0);
+        const isCheckoutToday = localCheckOutDateOnly.getTime() === today_date_only.getTime();
 
-        // Reserved (due to check-in today or ongoing multi-day booking)
-        if (checkInDateOnly.getTime() === today_date_only.getTime() || 
-            (now >= bookingCheckInDate && now < bookingCheckOutDate && checkOutDateOnly.getTime() !== today_date_only.getTime())) {
-          determinedStatus = 'reserved';
-          bookingToDisplay = currentBookingOnDate;
-        } 
-        // Freeing Soon (due to check-out today before 10 AM)
-        else if (checkOutDateOnly.getTime() === today_date_only.getTime() && now < bookingCheckOutDate && now.getHours() < 10) {
-          determinedStatus = 'freeing_soon';
-          bookingToDisplay = currentBookingOnDate;
-        } 
-        // Available (due to check-out today at/after 10 AM)
-        else if (checkOutDateOnly.getTime() === today_date_only.getTime() && (now >= bookingCheckOutDate || now.getHours() >= 10)) {
-          determinedStatus = 'available';
-          bookingToDisplay = null;
+        if (isCheckoutToday) {
+          // It's a checkout today
+          if (now < localBookingCheckOutDate) {
+            // Actual checkout time has not passed yet
+            if (now.getHours() < 10) {
+              determinedStatus = 'freeing_soon';
+            } else {
+              // Still reserved, it's past 10 AM but guest hasn't reached checkout time
+              determinedStatus = 'reserved'; 
+            }
+          } else {
+            // Actual checkout time has passed
+            determinedStatus = 'available';
+            bookingToDisplay = null;
+          }
         }
-        // Still Reserved (edge case: booking is active today, not freeing_soon or made available by checkout time)
-        // This condition catches cases where now is between check-in and check-out, 
-        // and it's not a checkout day or it is a checkout day but before the 10am rule has made it available.
-        else if (now >= bookingCheckInDate && now < bookingCheckOutDate) {
-          determinedStatus = 'reserved';
-          bookingToDisplay = currentBookingOnDate;
-        }
+        // If it's not a checkout today, but currentBookingOnDateModel was found,
+        // it implies it's either a check-in today or an ongoing multi-day booking.
+        // In these cases, it remains 'reserved' as per the default assignment above.
+        // This also covers the case where isCheckinToday is true and isCheckoutToday is false.
+
+      } else {
+        // No booking found by currentBookingOnDateModel for today
+        determinedStatus = 'available';
+        bookingToDisplay = null;
       }
       
       const nextBookingModel = await BookingModel.findOne({
