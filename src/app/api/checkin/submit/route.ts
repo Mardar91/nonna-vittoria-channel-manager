@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
       originalBookingRef,
       numberOfGuests: submittedNumberOfGuests, // Proviene da body.numberOfGuests
       bookingId, 
-      apartmentId 
+      apartmentId,
+      identificationEmail // Nuovo campo per l'email usata per identificarsi
     } = body;
 
     if (!acceptTerms) {
@@ -133,6 +134,30 @@ export async function POST(req: NextRequest) {
         } else {
             console.warn(`Discrepancy in submitted guest count for booking ${booking._id}: payload says ${submittedNumberOfGuests}, guest list has ${submittedGuests.length}. Not updating numberOfGuests.`);
         }
+      }
+
+      // NUOVA LOGICA: Aggiorna i dati della prenotazione con i dati reali dell'ospite principale
+      // Solo se la prenotazione è stata importata (ha un email fittizia)
+      if (booking.guestEmail && booking.guestEmail.includes('@guest.example.com')) {
+        // Costruisci il nome completo dell'ospite principale
+        const mainGuestFullName = `${mainGuestData.firstName} ${mainGuestData.lastName}`;
+        
+        // Aggiorna i dati della prenotazione con i dati reali
+        booking.guestName = mainGuestFullName;
+        
+        // Aggiorna l'email con quella fornita durante il check-in
+        // Usa identificationEmail se disponibile (modalità normale), altrimenti originalEmail (modalità unassigned)
+        const emailToUse = identificationEmail || originalEmail;
+        if (emailToUse && emailToUse !== booking.guestEmail) {
+          booking.guestEmail = emailToUse;
+        }
+        
+        // Se hai il telefono nei dati del guest, aggiornalo
+        // booking.guestPhone = mainGuestData.phone || booking.guestPhone;
+        
+        // Aggiungi una nota per tracciare l'aggiornamento
+        const updateNote = `Dati aggiornati dopo check-in online: ${mainGuestFullName}`;
+        booking.notes = booking.notes ? `${booking.notes}\n${updateNote}` : updateNote;
       }
 
       booking.hasCheckedIn = true;
