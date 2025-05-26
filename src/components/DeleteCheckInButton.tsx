@@ -27,8 +27,8 @@ const DeleteCheckInButton: React.FC<DeleteCheckInButtonProps> = ({
             window.location.href = '/checkins'; 
           }
         } else {
-          const errorData = await response.json().catch(() => ({ message: 'Errore sconosciuto durante l'eliminazione.' }));
-          const error = new Error(errorData.message || 'Errore durante l'eliminazione del check-in');
+          const errorData = await response.json().catch(() => ({ message: "Errore sconosciuto durante l'eliminazione." }));
+          const error = new Error(errorData.message || "Errore durante l'eliminazione del check-in");
           if (onDeleteError) {
             onDeleteError(error);
           } else {
@@ -36,7 +36,7 @@ const DeleteCheckInButton: React.FC<DeleteCheckInButtonProps> = ({
           }
         }
       } catch (error) {
-        const fetchError = error instanceof Error ? error : new Error('Errore di rete o durante l'eliminazione del check-in');
+        const fetchError = error instanceof Error ? error : new Error("Errore di rete o durante l'eliminazione del check-in");
         if (onDeleteError) {
           onDeleteError(fetchError);
         } else {
