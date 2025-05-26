@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
-import CheckInModel from '@/models/CheckIn';
+import CheckInModel, { ICheckIn } from '@/models/CheckIn';
 import mongoose from 'mongoose';
 import { IBooking } from '@/models/Booking';
 
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
           const existingCheckIn = await CheckInModel.findOne({
             bookingId: String(booking._id), // Usato String() per maggiore sicurezza
             status: { $in: ['completed', 'pending'] }
-          }).lean();
+          }).lean() as ICheckIn | null;
           
           hasCheckIn = !!existingCheckIn;
           checkInStatus = existingCheckIn?.status || null;
@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
         
         const existingCheckIn = await CheckInModel.findOne({
           bookingId: String(booking._id) // Usato String() per maggiore sicurezza
-        }).lean();
+        }).lean() as ICheckIn | null;
         
         let score = 100;
         
