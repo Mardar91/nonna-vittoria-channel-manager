@@ -89,25 +89,63 @@ export default async function DashboardPage() {
       const today_end_of_day = new Date(today_date_only);
       today_end_of_day.setHours(23, 59, 59, 999);
 
-      // Booking active at any point during the current calendar day
-      const currentBookingOnDateModel = await BookingModel.findOne({
+      // Fetch all confirmed bookings for the apartment that overlap with today
+      const todaysBookingsModels = await BookingModel.find({
         apartmentId: apartment._id,
         status: 'confirmed',
-        checkIn: { $lte: today_end_of_day }, // Active if checkIn is anytime today or before
-        checkOut: { $gt: today_date_only }    // And checkOut is after the start of today
+        checkIn: { $lte: today_end_of_day },
+        checkOut: { $gt: today_date_only }
       });
+
+      let bookingToConsider = null;
+      const today_date_only_string = today_date_only.toDateString();
+
+      if (todaysBookingsModels.length > 0) {
+        const todaysBookingsObjects = todaysBookingsModels.map(m => m.toObject());
+
+        // Priority A: Active Now
+        let activeBookings = todaysBookingsObjects.filter(b => {
+          const ci = new Date(b.checkIn);
+          const co = new Date(b.checkOut);
+          return ci <= now && co > now;
+        });
+        if (activeBookings.length > 0) {
+          activeBookings.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+          bookingToConsider = activeBookings[0];
+        }
+
+        // Priority B: Checking In Today Later
+        if (!bookingToConsider) {
+          let checkinTodayBookings = todaysBookingsObjects.filter(b => {
+            const ci = new Date(b.checkIn);
+            return ci.toDateString() === today_date_only_string && ci > now;
+          });
+          if (checkinTodayBookings.length > 0) {
+            checkinTodayBookings.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+            bookingToConsider = checkinTodayBookings[0];
+          }
+        }
+
+        // Priority C: Checking Out Today Later
+        if (!bookingToConsider) {
+          let checkoutTodayBookings = todaysBookingsObjects.filter(b => {
+            const co = new Date(b.checkOut);
+            // Ensure it's a checkout relevant for "occupying longer" - it must still be active
+            return co.toDateString() === today_date_only_string && co > now;
+          });
+          if (checkoutTodayBookings.length > 0) {
+            checkoutTodayBookings.sort((a, b) => new Date(b.checkOut).getTime() - new Date(a.checkOut).getTime());
+            bookingToConsider = checkoutTodayBookings[0];
+          }
+        }
+      }
       
       let determinedStatus: 'available' | 'occupied' | 'freeing_soon' | 'reserved' = 'available';
       let bookingToDisplay = null;
 
-      // Ensure 'now', 'today_date_only', 'currentBookingOnDateModel', 
-      // 'bookingCheckInDate', 'bookingCheckOutDate', 
-      // 'checkInDateOnly', 'checkOutDateOnly' are defined as they are in the current code.
+      const currentBookingOnDate = bookingToConsider; // Use bookingToConsider here
 
-      if (currentBookingOnDateModel) {
-        const currentBookingOnDate = currentBookingOnDateModel.toObject(); // Ensure you get the plain object
-        
-        // Re-define dates from currentBookingOnDate as they might be shadowed or not directly from the plain object
+      if (currentBookingOnDate) { // This replaces `if (currentBookingOnDateModel)`
         const localBookingCheckInDate = new Date(currentBookingOnDate.checkIn);
         const localBookingCheckOutDate = new Date(currentBookingOnDate.checkOut);
         const localCheckInDateOnly = new Date(localBookingCheckInDate);
@@ -115,35 +153,33 @@ export default async function DashboardPage() {
         const localCheckOutDateOnly = new Date(localBookingCheckOutDate);
         localCheckOutDateOnly.setHours(0, 0, 0, 0);
 
-        // Default to 'reserved' if a booking relevant to today is found
-        determinedStatus = 'reserved';
+        determinedStatus = 'reserved'; // Default if a booking is being considered
         bookingToDisplay = currentBookingOnDate;
 
         const isCheckoutToday = localCheckOutDateOnly.getTime() === today_date_only.getTime();
+        const isCheckinToday = localCheckInDateOnly.getTime() === today_date_only.getTime();
 
         if (isCheckoutToday) {
-          // It's a checkout today
-          if (now < localBookingCheckOutDate) {
-            // Actual checkout time has not passed yet
+          if (now < localBookingCheckOutDate) { // Before actual checkout time
             if (now.getHours() < 10) {
               determinedStatus = 'freeing_soon';
             } else {
-              // Still reserved, it's past 10 AM but guest hasn't reached checkout time
-              determinedStatus = 'reserved'; 
+              // Past 10 AM but before checkout time, still considered reserved for the guest
+              determinedStatus = 'reserved';
             }
-          } else {
-            // Actual checkout time has passed
+          } else { // After actual checkout time
             determinedStatus = 'available';
             bookingToDisplay = null;
           }
+        } else if (isCheckinToday) {
+          // If it's a check-in today (and not a checkout today), it's 'reserved'.
+          // This is covered by the default 'reserved' status.
+           determinedStatus = 'reserved';
         }
-        // If it's not a checkout today, but currentBookingOnDateModel was found,
-        // it implies it's either a check-in today or an ongoing multi-day booking.
-        // In these cases, it remains 'reserved' as per the default assignment above.
-        // This also covers the case where isCheckinToday is true and isCheckoutToday is false.
-
+        // If it's an ongoing multi-day booking (not check-in today, not checkout today),
+        // it's also covered by the default 'reserved' status.
+        
       } else {
-        // No booking found by currentBookingOnDateModel for today
         determinedStatus = 'available';
         bookingToDisplay = null;
       }
