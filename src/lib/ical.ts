@@ -180,6 +180,35 @@ export function checkAvailability(
   return true; // Disponibile
 }
 
+// Funzione per identificare il canale dal summary dell'evento
+function identifyChannelFromSummary(summary: string): string {
+  const summaryLower = summary.toLowerCase();
+  
+  // Cerca pattern comuni per identificare il canale
+  if (summaryLower.includes('booking.com') || summaryLower.includes('booking')) {
+    return 'Booking.com';
+  } else if (summaryLower.includes('airbnb')) {
+    return 'Airbnb';
+  } else if (summaryLower.includes('expedia')) {
+    return 'Expedia';
+  } else if (summaryLower.includes('vrbo')) {
+    return 'VRBO';
+  } else if (summaryLower.includes('hotels.com')) {
+    return 'Hotels.com';
+  } else if (summaryLower.includes('agoda')) {
+    return 'Agoda';
+  } else if (summaryLower.includes('tripadvisor')) {
+    return 'TripAdvisor';
+  } else if (summaryLower.includes('homeaway')) {
+    return 'HomeAway';
+  } else if (summaryLower.includes('closed') || summaryLower.includes('not available')) {
+    // Per i casi di "CLOSED - Not available", cerca di identificare il canale dal source
+    return 'Importata';
+  }
+  
+  return 'Importata'; // Default generico
+}
+
 // Funzione per estrarre informazioni dell'ospite dagli eventi iCal
 export function extractGuestInfoFromEvent(event: ICalEvent): {
   name: string;
@@ -192,15 +221,38 @@ export function extractGuestInfoFromEvent(event: ICalEvent): {
   let phone = '';
   let notes = '';
   
-  // Estrai nome dall'oggetto summary
-  if (event.summary) {
-    // Rimuovi prefissi comuni come "Prenotazione:", "Booking:", ecc.
-    const cleanSummary = event.summary
-      .replace(/^(prenotazione:|booking:|reservation:|booked:|reserved:|blocked:|unavailable:)/i, '')
-      .trim();
-    
-    if (cleanSummary) {
-      name = cleanSummary;
+  // Identifica il canale dal summary o dal source
+  let channel = '';
+  if (event.source) {
+    // Capitalizza il source per renderlo più leggibile
+    channel = event.source.charAt(0).toUpperCase() + event.source.slice(1).toLowerCase();
+    // Gestisci casi specifici
+    if (channel.toLowerCase() === 'booking' || channel.toLowerCase() === 'booking.com') {
+      channel = 'Booking.com';
+    } else if (channel.toLowerCase() === 'airbnb') {
+      channel = 'Airbnb';
+    }
+  } else if (event.summary) {
+    // Se non c'è source, prova a identificare dal summary
+    channel = identifyChannelFromSummary(event.summary);
+  }
+  
+  // Se abbiamo identificato un canale, usa "Prenotazione [Canale]"
+  if (channel) {
+    name = `Prenotazione ${channel}`;
+  } else {
+    // Altrimenti usa il summary pulito come fallback
+    if (event.summary) {
+      const cleanSummary = event.summary
+        .replace(/^(prenotazione:|booking:|reservation:|booked:|reserved:|blocked:|unavailable:)/i, '')
+        .replace(/closed\s*-\s*not\s*available/i, '')
+        .trim();
+      
+      if (cleanSummary && cleanSummary.length > 0) {
+        name = cleanSummary;
+      } else {
+        name = 'Prenotazione Importata';
+      }
     }
   }
   
@@ -238,10 +290,10 @@ export function extractGuestInfoFromEvent(event: ICalEvent): {
     }
   }
   
-  // Se l'email non è disponibile, genera un'email fittizia usando il nome dell'ospite
+  // Se l'email non è disponibile, genera un'email fittizia usando il canale
   if (!email) {
-    const sanitizedName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    email = `${sanitizedName}_${uuidv4().slice(0, 8)}@guest.example.com`;
+    const sanitizedChannel = channel.toLowerCase().replace(/[^a-z0-9]/g, '');
+    email = `${sanitizedChannel}_${uuidv4().slice(0, 8)}@guest.example.com`;
   }
   
   return {
