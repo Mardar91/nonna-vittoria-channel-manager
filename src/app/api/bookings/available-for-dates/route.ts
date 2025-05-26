@@ -5,22 +5,7 @@ import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import CheckInModel from '@/models/CheckIn';
 import mongoose from 'mongoose';
-
-// Definizione dell'interfaccia BookingType
-interface BookingType {
-  _id: any; // Modificato per flessibilità con .lean()
-  guestName: string;
-  guestEmail: string;
-  checkIn: Date;
-  checkOut: Date;
-  apartmentId: any; // Modificato per flessibilità con .lean()
-  numberOfGuests: number;
-  source: string;
-  guestPhone?: string;
-  totalPrice?: number;
-  // Aggiungere altri campi del modello Booking se necessario per la logica sottostante
-  // status?: string; // Esempio, se status fosse usato
-}
+import { IBooking } from '@/models/Booking';
 
 // GET: Ottenere prenotazioni disponibili per un range di date
 export async function GET(req: NextRequest) {
@@ -74,7 +59,7 @@ export async function GET(req: NextRequest) {
       query.apartmentId = apartmentId;
     }
     
-    const bookings = await BookingModel.find(query).lean() as BookingType[];
+    const bookings = await BookingModel.find(query).lean() as IBooking[];
     
     const bookingsWithDetails = await Promise.all(
       bookings.map(async (booking) => {
@@ -228,7 +213,7 @@ export async function POST(req: NextRequest) {
       query.guestName = { $regex: new RegExp(guestName, 'i') };
     }
     
-    const bookings = await BookingModel.find(query).lean() as BookingType[];
+    const bookings = await BookingModel.find(query).lean() as IBooking[];
     
     const enrichedBookings = await Promise.all(
       bookings.map(async (booking) => {
