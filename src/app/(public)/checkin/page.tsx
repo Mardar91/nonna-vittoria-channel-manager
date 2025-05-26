@@ -161,6 +161,8 @@ export default function CheckInPage() {
         }));
       } else {
         sessionStorage.setItem('checkInBooking', JSON.stringify(data.booking));
+        // IMPORTANTE: Salva l'email di identificazione per il check-in normale
+        sessionStorage.setItem('checkInIdentificationEmail', formData.email.trim().toLowerCase());
       }
       
       router.push('/checkin/form');
