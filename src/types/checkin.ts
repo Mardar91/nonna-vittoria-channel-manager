@@ -24,7 +24,7 @@ export interface BookingValidationResponse {
     checkOut: string;
   };
   // email and bookingReference might also be returned for unassigned_checkin context
-  email?: string; 
+  email?: string;
   bookingReference?: string;
 }
 
@@ -68,7 +68,8 @@ export interface CheckInSubmitRequest {
   requestedCheckOut?: string;
   originalEmail?: string;
   originalBookingRef?: string;
-  numberOfGuests?: number; // Number of guests for unassigned checkin
+  numberOfGuests?: number; // Number of guests for unassigned checkin // Può essere numberOfGuests: number; se è sempre obbligatorio nel payload
+  identificationEmail?: string;      // <-- MODIFICA QUI: Aggiunta questa riga
 }
 
 export interface CheckInSubmitResponse {
