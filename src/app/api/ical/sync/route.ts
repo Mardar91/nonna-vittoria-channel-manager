@@ -67,6 +67,9 @@ export async function POST(req: NextRequest) {
     
     for (const event of events) {
       try {
+        // Aggiungi il source all'evento prima di processarlo
+        const eventWithSource = { ...event, source };
+        
         // Verifica se la prenotazione esiste già
         // Check against extractedExternalId if available, otherwise fall back to uid
         const idToCheck = event.extractedExternalId || event.uid;
@@ -92,8 +95,8 @@ export async function POST(req: NextRequest) {
           continue; // Salta questo evento se la prenotazione esiste già o è stata aggiornata
         }
         
-        // Estrai informazioni dell'ospite dall'evento
-        const guestInfo = extractGuestInfoFromEvent(event);
+        // Estrai informazioni dell'ospite dall'evento CON il source
+        const guestInfo = extractGuestInfoFromEvent(eventWithSource);
         
         // Set totalPrice to 0 for iCal imports
         const totalPrice = 0;
@@ -106,7 +109,7 @@ export async function POST(req: NextRequest) {
         const booking = await BookingModel.create({
           apartmentId,
           guestName: guestInfo.name || 'Guest',
-          // Use the original source string for email generation if guestInfo.email is null
+          // Usa l'email generata da extractGuestInfoFromEvent che ora include il canale
           guestEmail: guestInfo.email || `${source.replace(/[^a-zA-Z0-9]/g, '')}_${uuidv4().slice(0, 8)}@example.com`,
           guestPhone: guestInfo.phone || undefined,
           checkIn: event.start,
@@ -187,15 +190,28 @@ export async function GET(req: NextRequest) {
     
     // Sincronizza con tutti i feed iCal configurati
     try {
-      const events = await importICalEvents(apartment.icalUrls[0].url);
+      // Modifica per includere il source negli eventi
+      const eventsWithSource = [];
+      for (const icalSource of apartment.icalUrls) {
+        try {
+          const events = await importICalEvents(icalSource.url);
+          // Aggiungi il source a ogni evento
+          const eventsFromSource = events.map(event => ({ ...event, source: icalSource.source }));
+          eventsWithSource.push(...eventsFromSource);
+        } catch (error) {
+          console.error(`Failed to import from ${icalSource.source}:`, error);
+          // Continua con gli altri feed anche se uno fallisce
+        }
+      }
+      
       return NextResponse.json({
-        events,
-        message: `Successfully retrieved ${events.length} events from iCal feed`
+        events: eventsWithSource,
+        message: `Successfully retrieved ${eventsWithSource.length} events from iCal feeds`
       });
     } catch (error) {
       return NextResponse.json({
         error: `Failed to import events: ${(error as Error).message}`,
-        message: "There was an error retrieving events from the iCal feed"
+        message: "There was an error retrieving events from the iCal feeds"
       }, { status: 500 });
     }
   } catch (error) {
