@@ -25,15 +25,13 @@ interface CheckInDocumentAPI {
   completedAt?: Date | string | null;
   completedBy?: 'guest' | string | null;
   notes?: string | null;
-  updatedAt?: Date | string; // Aggiunto per la risposta del PUT
-  // Aggiungi altre proprietà se ce ne sono
+  updatedAt?: Date | string;
 }
 
 interface ApartmentDocumentAPI {
   _id: mongoose.Types.ObjectId | string;
   name: string;
 }
-
 
 export async function GET(
   req: NextRequest,
@@ -119,11 +117,94 @@ export async function PUT(
       }
     });
     
-  } catch (error) { // <--- PARENTESI GRAFFA APERTA AGGIUNTA QUI
+  } catch (error) {
     console.error('Error updating check-in:', error);
     return NextResponse.json(
       { error: 'Errore nell\'aggiornamento del check-in' },
       { status: 500 }
     );
+  }
+}
+
+// DELETE: Eliminare un check-in (solo se pending_assignment)
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { bookingId: string } }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Non autorizzato' },
+        { status: 401 }
+      );
+    }
+
+    await connectDB();
+    
+    // Se il parametro è un ID MongoDB valido, cerca per _id
+    // altrimenti cerca per bookingId
+    let checkIn;
+    
+    if (mongoose.Types.ObjectId.isValid(params.bookingId)) {
+      // Prima prova a cercare per _id (per check-in da smistare che non hanno bookingId)
+      checkIn = await CheckInModel.findById(params.bookingId);
+      
+      // Se non trovato, cerca per bookingId
+      if (!checkIn) {
+        checkIn = await CheckInModel.findOne({ bookingId: params.bookingId });
+      }
+    } else {
+      // Se non è un ObjectId valido, cerca solo per bookingId
+      checkIn = await CheckInModel.findOne({ bookingId: params.bookingId });
+    }
+    
+    if (!checkIn) {
+      return NextResponse.json({
+        success: false,
+        error: 'Check-in non trovato'
+      }, { status: 404 });
+    }
+
+    // Verifica che il check-in sia eliminabile
+    if (checkIn.status !== 'pending_assignment' && checkIn.status !== 'cancelled') {
+      return NextResponse.json({
+        success: false,
+        error: 'Solo i check-in da assegnare o cancellati possono essere eliminati'
+      }, { status: 400 });
+    }
+
+    // Se il check-in è collegato a una prenotazione, aggiorna la prenotazione
+    if (checkIn.bookingId) {
+      const booking = await BookingModel.findById(checkIn.bookingId);
+      if (booking) {
+        const otherCheckIns = await CheckInModel.find({
+          bookingId: checkIn.bookingId,
+          _id: { $ne: checkIn._id },
+          status: 'completed'
+        });
+        
+        if (otherCheckIns.length === 0) {
+          booking.hasCheckedIn = false;
+          await booking.save();
+        }
+      }
+    }
+
+    // Elimina il check-in
+    await CheckInModel.findByIdAndDelete(checkIn._id);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Check-in eliminato con successo'
+    });
+
+  } catch (error) {
+    console.error('Error deleting check-in:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto';
+    return NextResponse.json({
+      success: false,
+      error: `Errore nell'eliminazione del check-in: ${errorMessage}`
+    }, { status: 500 });
   }
 }
