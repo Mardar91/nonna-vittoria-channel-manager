@@ -4,6 +4,7 @@ import connectDB from '@/lib/db';
 import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import CheckInModel from '@/models/CheckIn';
+import mongoose from 'mongoose'; // Aggiunto import per mongoose.Types.ObjectId
 
 // GET: Ottenere prenotazioni disponibili per un range di date
 export async function GET(req: NextRequest) {
@@ -62,7 +63,22 @@ export async function GET(req: NextRequest) {
     }
     
     // Trova le prenotazioni
-    const bookings = await BookingModel.find(query).lean();
+    const bookings = await BookingModel.find(query).lean() as Array<{
+      _id: mongoose.Types.ObjectId;
+      guestName: string;
+      guestEmail: string;
+      checkIn: Date;
+      checkOut: Date;
+      apartmentId: mongoose.Types.ObjectId;
+      numberOfGuests: number;
+      source: string;
+      // Campi aggiuntivi usati sotto, come guestPhone e totalPrice,
+      // dovrebbero essere aggiunti qui se strettamente tipizzati.
+      // Per ora, ci atteniamo alla definizione fornita nella richiesta.
+      // TypeScript potrebbe inferire `any` per i campi non elencati.
+      guestPhone?: string; // Aggiunto per completezza basata sull'uso
+      totalPrice?: number; // Aggiunto per completezza basata sull'uso
+    }>;
     
     // Ottieni informazioni aggiuntive
     const bookingsWithDetails = await Promise.all(
@@ -73,7 +89,7 @@ export async function GET(req: NextRequest) {
         
         if (excludeWithCheckIn) {
           const existingCheckIn = await CheckInModel.findOne({
-            bookingId: booking._id.toString(),
+            bookingId: booking._id.toString(), // Con il tipo corretto, .toString() è valido
             status: { $in: ['completed', 'pending'] }
           }).lean();
           
@@ -131,7 +147,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       bookings: availableBookings,
-      totalFound: bookings.length,
+      totalFound: bookings.length, // Qui si usa bookings.length dalla query originale
       availableCount: availableBookings.length,
       searchParams: {
         checkIn: checkInDate.toISOString().split('T')[0],
@@ -230,7 +246,17 @@ export async function POST(req: NextRequest) {
       query.guestName = { $regex: new RegExp(guestName, 'i') };
     }
     
-    const bookings = await BookingModel.find(query).lean();
+    const bookings = await BookingModel.find(query).lean() as Array<{ // Applicato tipo anche qui per coerenza
+      _id: mongoose.Types.ObjectId;
+      guestName: string;
+      guestEmail: string; // Non usato direttamente ma parte del modello
+      checkIn: Date;
+      checkOut: Date;
+      apartmentId: mongoose.Types.ObjectId;
+      numberOfGuests: number;
+      source: string; // Non usato direttamente ma parte del modello
+      // Aggiungere altri campi se necessari per la logica di POST
+    }>;
     
     // Arricchisci con dettagli e calcola score
     const enrichedBookings = await Promise.all(
@@ -265,7 +291,8 @@ export async function POST(req: NextRequest) {
         }
         
         return {
-          ...booking,
+          ...booking, // Mantiene tutti i campi originali di booking
+          _id: booking._id.toString(), // Sovrascrive _id con la sua versione stringa se necessario per il frontend
           apartmentName: apartment?.name || 'N/A',
           hasExistingCheckIn: !!existingCheckIn,
           checkInStatus: existingCheckIn?.status || null,
