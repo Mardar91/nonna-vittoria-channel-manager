@@ -15,6 +15,29 @@ interface BookingFormProps {
   apartments?: IApartment[];
 }
 
+const timeOptions: string[] = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 30) {
+    const hour = h.toString().padStart(2, '0');
+    const minute = m.toString().padStart(2, '0');
+    timeOptions.push(`${hour}:${minute}`);
+  }
+}
+
+const applyTime = (date: Date, timeString: string): Date => {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  const newDate = new Date(date);
+  newDate.setHours(hours, minutes, 0, 0);
+  return newDate;
+};
+
+const formatTimeForSelect = (date: Date): string => {
+  if (!date || !(date instanceof Date)) return '00:00'; // Fallback
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
 export default function BookingForm({ booking, isEdit = false, apartments = [] }: BookingFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -31,6 +54,8 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
   const [loading, setLoading] = useState(false);
   const [isIcalBookingEditMode, setIsIcalBookingEditMode] = useState(false);
   const [displaySourceOptions, setDisplaySourceOptions] = useState(baseSourceOptions);
+  const [defaultCheckInTime, setDefaultCheckInTime] = useState('15:00');
+  const [defaultCheckOutTime, setDefaultCheckOutTime] = useState('10:00');
 
   const [formData, setFormData] = useState<Partial<IBooking>>({
     apartmentId: preselectedApartmentId || '',
@@ -61,59 +86,95 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
       if (apartment) {
         const checkIn = new Date(formData.checkIn);
         const checkOut = new Date(formData.checkOut);
-        const nights = Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
+        const nights = Math.max(0, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
+        // If nights is 0 (same day checkin/checkout), price should be for 1 night or based on specific logic not detailed here.
+        // For now, calculateTotalPrice should handle 0 nights if that's intended.
         
-        // Usa la funzione di calcolo del prezzo
         const totalPrice = calculateTotalPrice(
           apartment, 
           formData.numberOfGuests, 
-          nights
+          nights > 0 ? nights : 1 // Assuming a 0-night stay (same day) is priced as 1 night
         );
         
         setFormData(prev => ({ ...prev, totalPrice }));
       }
     }
-  }, [formData.apartmentId, formData.checkIn, formData.checkOut, formData.numberOfGuests, apartments]);
+  }, [formData.apartmentId, formData.checkIn, formData.checkOut, formData.numberOfGuests, apartments, isIcalBookingEditMode]);
 
-  // Popola il form se stiamo modificando una prenotazione esistente
   useEffect(() => {
-    if (booking && isEdit) {
-      const isIcal = booking.source !== 'direct'; // Determine if it's an iCal booking
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+          const data = await response.json();
+          const settingsData = data.settings || data; // Adjust if settings are nested
+          if (settingsData) {
+            setDefaultCheckInTime(settingsData.defaultCheckInTime || '15:00');
+            setDefaultCheckOutTime(settingsData.defaultCheckOutTime || '10:00');
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch settings:", error);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Popola il form se stiamo modificando una prenotazione esistente o creando una nuova
+  useEffect(() => {
+    if (isEdit && booking) {
+      const isIcal = booking.source !== 'direct';
       setIsIcalBookingEditMode(isIcal);
 
       let currentSourceOptions = [...baseSourceOptions];
       const sourceExists = baseSourceOptions.some(opt => opt.value === booking.source);
-      if (!sourceExists && booking.source) { // Add booking.source to dropdown if not standard
+      if (!sourceExists && booking.source) {
         currentSourceOptions = [{ label: booking.source, value: booking.source }, ...baseSourceOptions];
       }
       setDisplaySourceOptions(currentSourceOptions);
       
-      setFormData({
+      setFormData(prev => ({
+        ...prev, // Keep any pre-selected apartmentId if it was from query param
         apartmentId: booking.apartmentId,
         guestName: booking.guestName,
         guestEmail: booking.guestEmail,
         guestPhone: booking.guestPhone || '',
-        checkIn: new Date(booking.checkIn),
+        checkIn: new Date(booking.checkIn), // Times are preserved from booking
         checkOut: new Date(booking.checkOut),
         totalPrice: booking.totalPrice,
-        manualTotalPrice: booking.manualTotalPrice, // Populate manualTotalPrice
+        manualTotalPrice: booking.manualTotalPrice,
         numberOfGuests: booking.numberOfGuests,
         status: booking.status,
         paymentStatus: booking.paymentStatus,
         source: booking.source,
         notes: booking.notes || '',
-      });
-    } else {
-      // For new bookings, reset to base options and direct source
+      }));
+    } else if (!isEdit) {
+      // New booking: apply defaults including times
+      const initialDate = new Date(); 
+      const tomorrowDate = new Date(initialDate);
+      tomorrowDate.setDate(initialDate.getDate() + 1);
+
+      setFormData(prev => ({
+        ...prev, // Keeps preselectedApartmentId if set
+        guestName: '',
+        guestEmail: '',
+        guestPhone: '',
+        checkIn: applyTime(initialDate, defaultCheckInTime),
+        checkOut: applyTime(tomorrowDate, defaultCheckOutTime),
+        numberOfGuests: 1,
+        status: 'pending',
+        paymentStatus: 'pending',
+        source: 'direct',
+        notes: '',
+        manualTotalPrice: undefined,
+        totalPrice: 0, // Will be recalculated by the other useEffect
+        apartmentId: preselectedApartmentId || prev.apartmentId || '',
+      }));
       setDisplaySourceOptions(baseSourceOptions);
       setIsIcalBookingEditMode(false);
-      setFormData(prev => ({
-        ...prev,
-        source: 'direct', // Default for new bookings
-        manualTotalPrice: undefined
-      }));
     }
-  }, [booking, isEdit]);
+  }, [booking, isEdit, defaultCheckInTime, defaultCheckOutTime, preselectedApartmentId]); // Added dependencies
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
@@ -127,8 +188,70 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
 
   const handleDateChange = (date: Date | null, field: 'checkIn' | 'checkOut') => {
     if (date) {
-      setFormData({ ...formData, [field]: date });
+      const existingTime = formData[field] ? new Date(formData[field]!) : (field === 'checkIn' ? applyTime(new Date(), defaultCheckInTime) : applyTime(new Date(), defaultCheckOutTime));
+      const newDateWithExistingTime = new Date(date);
+      newDateWithExistingTime.setHours(existingTime.getHours(), existingTime.getMinutes(), 0, 0);
+      
+      let newCheckIn = field === 'checkIn' ? newDateWithExistingTime : (formData.checkIn ? new Date(formData.checkIn) : new Date());
+      let newCheckOut = field === 'checkOut' ? newDateWithExistingTime : (formData.checkOut ? new Date(formData.checkOut) : new Date());
+
+      const apartment = apartments.find(a => a._id === formData.apartmentId);
+      const minStay = apartment?.minStay || 1;
+
+      if (field === 'checkIn') {
+        const minCheckOutDateAfterUpdate = new Date(newCheckIn);
+        minCheckOutDateAfterUpdate.setDate(minCheckOutDateAfterUpdate.getDate() + minStay);
+        minCheckOutDateAfterUpdate.setHours(newCheckOut.getHours(), newCheckOut.getMinutes(),0,0);
+        if (newCheckOut < minCheckOutDateAfterUpdate) {
+          newCheckOut = minCheckOutDateAfterUpdate;
+        }
+      } else { // field === 'checkOut'
+         const minValidCheckoutDate = new Date(newCheckIn);
+         minValidCheckoutDate.setDate(minValidCheckoutDate.getDate() + minStay);
+         minValidCheckoutDate.setHours(newCheckOut.getHours(), newCheckOut.getMinutes(), 0,0);
+         if (newCheckOut < minValidCheckoutDate) {
+             newCheckOut = minValidCheckoutDate;
+         }
+      }
+      setFormData(prev => ({ ...prev, checkIn: newCheckIn, checkOut: newCheckOut }));
     }
+  };
+  
+  const handleTimeChange = (selectedTime: string, field: 'checkIn' | 'checkOut') => {
+    const [hours, minutes] = selectedTime.split(':').map(Number);
+    const originalDate = formData[field] ? new Date(formData[field]!) : new Date();
+    const newDateWithUpdatedTime = new Date(originalDate);
+    newDateWithUpdatedTime.setHours(hours, minutes, 0, 0);
+
+    let newCheckIn = field === 'checkIn' ? newDateWithUpdatedTime : (formData.checkIn ? new Date(formData.checkIn) : new Date());
+    let newCheckOut = field === 'checkOut' ? newDateWithUpdatedTime : (formData.checkOut ? new Date(formData.checkOut) : new Date());
+
+    const apartment = apartments.find(a => a._id === formData.apartmentId);
+    const minStay = apartment?.minStay || 1; 
+
+    if (field === 'checkIn') {
+      const minCheckOutDateAfterUpdate = new Date(newCheckIn);
+      minCheckOutDateAfterUpdate.setDate(minCheckOutDateAfterUpdate.getDate() + minStay);
+      minCheckOutDateAfterUpdate.setHours(newCheckOut.getHours(), newCheckOut.getMinutes(), 0, 0);
+      if (newCheckOut < minCheckOutDateAfterUpdate) {
+        newCheckOut = minCheckOutDateAfterUpdate;
+      }
+    } else { // field === 'checkOut'
+      const minValidCheckoutDate = new Date(newCheckIn);
+      minValidCheckoutDate.setDate(minValidCheckoutDate.getDate() + minStay);
+      minValidCheckoutDate.setHours(0,0,0,0); 
+
+      const newCheckOutDateOnly = new Date(newCheckOut);
+      newCheckOutDateOnly.setHours(0,0,0,0);
+
+      if (newCheckOutDateOnly < minValidCheckoutDate || newCheckOut.getTime() <= newCheckIn.getTime()) {
+        const correctedDate = new Date(newCheckIn);
+        correctedDate.setDate(correctedDate.getDate() + minStay);
+        correctedDate.setHours(hours, minutes, 0,0); 
+        newCheckOut = correctedDate;
+      }
+    }
+    setFormData(prev => ({ ...prev, checkIn: newCheckIn, checkOut: newCheckOut }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -256,36 +379,56 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
               </div>
 
               <div className="col-span-6 sm:col-span-3">
-                <label htmlFor="checkIn" className="block text-sm font-medium text-gray-700">
-                  Check-in
-                </label>
-                <DatePicker
-                  selected={formData.checkIn ? new Date(formData.checkIn) : null}
-                  onChange={(date) => handleDateChange(date, 'checkIn')}
-                  selectsStart
-                  startDate={formData.checkIn ? new Date(formData.checkIn) : null}
-                  endDate={formData.checkOut ? new Date(formData.checkOut) : null}
-                  dateFormat="dd/MM/yyyy"
-                  className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
+                <label htmlFor="checkInDate" className="block text-sm font-medium text-gray-700">Data Check-in</label>
+                <div className="flex space-x-2 items-center mt-1">
+                  <DatePicker
+                    id="checkInDate"
+                    selected={formData.checkIn ? new Date(formData.checkIn) : null}
+                    onChange={(date) => handleDateChange(date, 'checkIn')}
+                    selectsStart
+                    startDate={formData.checkIn ? new Date(formData.checkIn) : null}
+                    endDate={formData.checkOut ? new Date(formData.checkOut) : null}
+                    dateFormat="dd/MM/yyyy"
+                    className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                  <select
+                    id="checkInTime"
+                    name="checkInTime"
+                    value={formData.checkIn ? formatTimeForSelect(new Date(formData.checkIn)) : defaultCheckInTime}
+                    onChange={(e) => handleTimeChange(e.target.value, 'checkIn')}
+                    className="block w-auto py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    {timeOptions.map(time => <option key={`ci-${time}`} value={time}>{time}</option>)}
+                  </select>
+                </div>
               </div>
 
               <div className="col-span-6 sm:col-span-3">
-                <label htmlFor="checkOut" className="block text-sm font-medium text-gray-700">
-                  Check-out
-                </label>
-                <DatePicker
-                  selected={formData.checkOut ? new Date(formData.checkOut) : null}
-                  onChange={(date) => handleDateChange(date, 'checkOut')}
-                  selectsEnd
-                  startDate={formData.checkIn ? new Date(formData.checkIn) : null}
-                  endDate={formData.checkOut ? new Date(formData.checkOut) : null}
-                  minDate={formData.checkIn ? new Date(formData.checkIn) : null}
-                  dateFormat="dd/MM/yyyy"
-                  className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
+                <label htmlFor="checkOutDate" className="block text-sm font-medium text-gray-700">Data Check-out</label>
+                <div className="flex space-x-2 items-center mt-1">
+                  <DatePicker
+                    id="checkOutDate"
+                    selected={formData.checkOut ? new Date(formData.checkOut) : null}
+                    onChange={(date) => handleDateChange(date, 'checkOut')}
+                    selectsEnd
+                    startDate={formData.checkIn ? new Date(formData.checkIn) : null}
+                    endDate={formData.checkOut ? new Date(formData.checkOut) : null}
+                    minDate={formData.checkIn ? new Date(new Date(formData.checkIn).setDate(new Date(formData.checkIn).getDate() + (apartments.find(a=>a._id === formData.apartmentId)?.minStay || 1) )) : null}
+                    dateFormat="dd/MM/yyyy"
+                    className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                   <select
+                    id="checkOutTime"
+                    name="checkOutTime"
+                    value={formData.checkOut ? formatTimeForSelect(new Date(formData.checkOut)) : defaultCheckOutTime}
+                    onChange={(e) => handleTimeChange(e.target.value, 'checkOut')}
+                    className="block w-auto py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    {timeOptions.map(time => <option key={`co-${time}`} value={time}>{time}</option>)}
+                  </select>
+                </div>
               </div>
-
+              
               <div className="col-span-6 sm:col-span-3">
                 <label htmlFor="numberOfGuests" className="block text-sm font-medium text-gray-700">
                   Numero Ospiti
