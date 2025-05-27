@@ -145,7 +145,7 @@ export default async function DashboardPage() {
         }
       }
       
-      let determinedStatus: 'available' | 'occupied' | 'freeing_soon' | 'reserved' = 'available';
+      let determinedStatus: 'available' | 'reserved' | 'in_uscita' = 'available';
       let bookingToDisplay = null;
 
       const currentBookingOnDate = bookingToConsider; // Use bookingToConsider here
