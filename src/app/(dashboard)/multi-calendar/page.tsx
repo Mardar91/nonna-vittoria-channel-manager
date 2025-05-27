@@ -20,7 +20,7 @@ export default async function MultiCalendarPage() {
   
   // Raccogliere tutti i dati delle prenotazioni per tutti gli appartamenti
   const bookings = await BookingModel.find({
-    status: { $ne: 'cancelled' },
+    status: { $in: ['pending', 'confirmed', 'completed'] },
   }).sort({ checkIn: 1 });
   
   // Ottieni le date con tariffe personalizzate

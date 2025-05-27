@@ -32,7 +32,7 @@ export default async function ApartmentCalendarPage({ params }: { params: { id: 
   // Ottieni le prenotazioni per questo appartamento
   const bookings = await BookingModel.find({
     apartmentId: params.id,
-    status: { $ne: 'cancelled' },
+    status: { $in: ['pending', 'confirmed', 'completed'] },
   }).sort({ checkIn: 1 });
   
   // Converti in formato semplice per il client

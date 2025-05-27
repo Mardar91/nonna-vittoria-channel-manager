@@ -426,8 +426,9 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     const dateStr = dateToString(date);
     return bookings.find(booking => {
       const checkInStr = dateToString(new Date(booking.checkIn));
+      // For getBookingForDate, checkOutStr is the day of check-out, so booking is active if date < checkOutStr
       const checkOutStr = dateToString(new Date(booking.checkOut));
-      return (booking.status === 'confirmed' && dateStr >= checkInStr && dateStr < checkOutStr);
+      return dateStr >= checkInStr && dateStr < checkOutStr;
     }) || null;
   };
 
@@ -524,13 +525,14 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     const visibleBookings = bookings.filter(booking => {
       const checkIn = new Date(booking.checkIn);
       const checkOut = new Date(booking.checkOut);
-      return (booking.status === 'confirmed' && checkIn < lastDayPlusOne && checkOut > firstDay);
+      // Removed status check, assuming parent component filters out 'cancelled'
+      return checkIn < lastDayPlusOne && checkOut > firstDay;
     });
 
     return visibleBookings.map((booking, bookingIndex) => {
       const checkIn = new Date(booking.checkIn);
       const checkOut = new Date(booking.checkOut);
-      const isBlocked = booking.status === 'blocked'; // Considera se vuoi mostrare anche date bloccate così
+      // const isBlocked = booking.status === 'blocked'; // This variable is not directly used for stripClass anymore
 
       const firstCellIndex = calendarDays.findIndex(day => day !== null && isSameDay(day, checkIn));
       const lastDayOfBooking = new Date(checkOut);
@@ -559,29 +561,41 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
           const height = 50; // Altezza leggermente ridotta
 
           bookingStrips.push(
-            <div
-              key={`${booking.id}-${currentRow}`}
-              className={`absolute pointer-events-auto px-2 py-1 rounded-lg shadow-sm z-10 overflow-hidden cursor-pointer transition-all duration-150 ease-in-out hover:shadow-md ${
-                isBlocked ? 'bg-red-50 border border-red-300 text-red-700' : 'bg-green-50 border border-green-300 text-green-700'
-              }`}
-              style={{
-                left: `${left}px`,
-                top: `${top}px`,
-                width: `${width}px`,
-                height: `${height}px`,
-              }}
-              onClick={() => handleBookingStripClick(booking)}
-            >
-              <div className="text-xs font-semibold truncate">
-                {isBlocked ? 'Bloccato' : booking.guestName}
-              </div>
-              <div className="text-xs opacity-80">
-                {booking.numberOfGuests} ospiti
-              </div>
-              <div className="text-xs font-medium opacity-90">
-                {new Date(booking.checkIn).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })} - {new Date(booking.checkOut).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
-              </div>
-            </div>
+            (() => { // IIFE to use the calculated stripClass
+              let stripClass = "absolute pointer-events-auto px-2 py-1 rounded-lg shadow-sm z-10 overflow-hidden cursor-pointer transition-all duration-150 ease-in-out hover:shadow-md ";
+              if (booking.status === 'pending') {
+                stripClass += 'bg-yellow-50 border border-yellow-300 text-yellow-700 border-dashed';
+              } else if (booking.status === 'confirmed') {
+                stripClass += 'bg-green-50 border border-green-300 text-green-700';
+              } else if (booking.status === 'blocked') { 
+                stripClass += 'bg-red-50 border border-red-300 text-red-700';
+              } else { 
+                stripClass += 'bg-gray-100 border border-gray-300 text-gray-700';
+              }
+              return (
+                <div
+                  key={`${booking.id}-${currentRow}`}
+                  className={stripClass}
+                  style={{
+                    left: `${left}px`,
+                    top: `${top}px`,
+                    width: `${width}px`,
+                    height: `${height}px`,
+                  }}
+                  onClick={() => handleBookingStripClick(booking)}
+                >
+                  <div className="text-xs font-semibold truncate">
+                    {booking.guestName} {booking.status === 'pending' && <span className="italic opacity-80">(In attesa)</span>}
+                  </div>
+                  <div className="text-xs opacity-80">
+                    {booking.numberOfGuests} ospiti
+                  </div>
+                  <div className="text-xs font-medium opacity-90">
+                    {new Date(booking.checkIn).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })} - {new Date(booking.checkOut).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                  </div>
+                </div>
+              );
+            })()
           );
         }
         currentRowStartIndex = (currentRow + 1) * 7;
