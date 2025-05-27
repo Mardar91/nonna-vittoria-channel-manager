@@ -12,14 +12,20 @@ async function checkApartmentAvailability(
   checkIn: Date,
   checkOut: Date
 ) {
+  const queryCheckIn = new Date(checkIn);
+  queryCheckIn.setHours(0, 0, 0, 0);
+
+  const queryCheckOut = new Date(checkOut);
+  queryCheckOut.setHours(0, 0, 0, 0);
+
   // Verifica prenotazioni esistenti
   const existingBookings = await BookingModel.find({
     apartmentId,
     status: { $ne: 'cancelled' },
     $or: [
       {
-        checkIn: { $lt: checkOut },
-        checkOut: { $gt: checkIn }
+        checkIn: { $lt: queryCheckOut }, // Use queryCheckOut
+        checkOut: { $gt: queryCheckIn }  // Use queryCheckIn
       }
     ]
   });
@@ -31,9 +37,15 @@ async function checkApartmentAvailability(
   // Verifica se ci sono date bloccate nel periodo
   const blockedDates = await DailyRateModel.find({
     apartmentId,
-    date: { $gte: checkIn, $lt: checkOut },
+    date: { $gte: queryCheckIn, $lt: queryCheckOut }, // Use queryCheckIn and queryCheckOut
     isBlocked: true
   });
+
+    // ADD TEMPORARY LOGGING HERE
+    console.log(`[Availability Check] Apartment ID: ${apartmentId}`);
+    console.log(`[Availability Check] Querying for blocked dates between: ${queryCheckIn.toISOString()} (inclusive) and ${queryCheckOut.toISOString()} (exclusive)`);
+    console.log(`[Availability Check] Found ${blockedDates.length} blocked date(s):`, JSON.stringify(blockedDates.map(d => ({ date: d.date, isBlocked: d.isBlocked }))));
+    // END TEMPORARY LOGGING
 
   if (blockedDates.length > 0) {
     return { available: false };
