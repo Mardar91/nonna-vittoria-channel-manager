@@ -494,7 +494,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
           const dateToCheck = new Date(date);
           dateToCheck.setHours(0, 0, 0, 0);
           
-          return booking.status === 'confirmed' && dateToCheck >= checkIn && dateToCheck < checkOut;
+          return dateToCheck >= checkIn && dateToCheck < checkOut; // Removed status check
         } catch {
           return false;
         }
@@ -591,7 +591,9 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       endsInNextMonth: boolean;
     }> = [];
     
-    const confirmedBookings = apartment.bookings.filter(booking => booking.status === 'confirmed');
+    // const confirmedBookings = apartment.bookings.filter(booking => booking.status === 'confirmed');
+    // Change to:
+    const bookingsToProcess = apartment.bookings; // Assuming parent already filtered out 'cancelled'
     
     // Ottieni il primo e l'ultimo giorno del mese corrente
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
@@ -599,7 +601,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     firstDayOfMonth.setHours(0, 0, 0, 0);
     lastDayOfMonth.setHours(0, 0, 0, 0);
     
-    for (const booking of confirmedBookings) {
+    for (const booking of bookingsToProcess) { // Iterate over bookingsToProcess
       try {
         const checkIn = new Date(booking.checkIn);
         const checkOut = new Date(booking.checkOut);
@@ -900,30 +902,50 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                         )}
                         
                         {/* Visualizza la prenotazione solo all'inizio della prenotazione */}
-                        {isFirstDayOfBooking && bookingInfo && (
-                          <div 
-                            className="absolute top-0 left-0 h-full bg-green-100 border border-green-300 rounded-md flex flex-col justify-center px-2 text-xs overflow-hidden z-5 cursor-pointer"
-                            style={{
-                              width: `${(bookingInfo.endIdx - bookingInfo.startIdx + 1) * 100}%`,
-                              minWidth: `${(bookingInfo.endIdx - bookingInfo.startIdx + 1) * 75}px`,
-                              borderLeft: bookingInfo.startsInPreviousMonth ? '4px solid #22c55e' : '', // Bordo verde se continua dal mese precedente
-                              borderRight: bookingInfo.endsInNextMonth ? '4px solid #22c55e' : '',     // Bordo verde se continua nel mese successivo
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/bookings/${bookingInfo.booking.id}`);
-                            }}
-                          >
-                            <div className="font-semibold truncate flex items-center">
-                              {bookingInfo.booking.guestName}
-                              {bookingInfo.booking.hasCheckedIn && (
-                                <ClipboardDocumentCheckIcon className="h-3 w-3 ml-1 text-green-600" />
+                        {isFirstDayOfBooking && bookingInfo && (() => {
+                          let bookingBlockClass = "absolute top-0 left-0 h-full rounded-md flex flex-col justify-center px-2 text-xs overflow-hidden z-5 cursor-pointer ";
+                          let bookingBlockStyle: React.CSSProperties = { // Added type for CSSProperties
+                            width: `${(bookingInfo.endIdx - bookingInfo.startIdx + 1) * 100}%`,
+                            minWidth: `${(bookingInfo.endIdx - bookingInfo.startIdx + 1) * 75}px`,
+                          };
+
+                          if (bookingInfo.booking.status === 'pending') {
+                            bookingBlockClass += "bg-yellow-100 border border-yellow-400 border-dashed ";
+                            bookingBlockStyle.borderLeft = bookingInfo.startsInPreviousMonth ? `4px solid #facc15` : '';
+                            bookingBlockStyle.borderRight = bookingInfo.endsInNextMonth ? `4px solid #facc15` : '';
+                          } else if (bookingInfo.booking.status === 'confirmed') {
+                            bookingBlockClass += "bg-green-100 border border-green-300 ";
+                            bookingBlockStyle.borderLeft = bookingInfo.startsInPreviousMonth ? `4px solid #22c55e` : '';
+                            bookingBlockStyle.borderRight = bookingInfo.endsInNextMonth ? `4px solid #22c55e` : '';
+                          } else {
+                            bookingBlockClass += "bg-gray-100 border border-gray-300 "; // Fallback for other statuses
+                            bookingBlockStyle.borderLeft = bookingInfo.startsInPreviousMonth ? `4px solid #d1d5db` : '';
+                            bookingBlockStyle.borderRight = bookingInfo.endsInNextMonth ? `4px solid #d1d5db` : '';
+                          }
+
+                          return (
+                            <div 
+                              className={bookingBlockClass}
+                              style={bookingBlockStyle}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/bookings/${bookingInfo.booking.id}`);
+                              }}
+                            >
+                              <div className="font-semibold truncate flex items-center">
+                                {bookingInfo.booking.guestName}
+                                {bookingInfo.booking.status === 'confirmed' && bookingInfo.booking.hasCheckedIn && (
+                                  <ClipboardDocumentCheckIcon className="h-3 w-3 ml-1 text-green-600" />
+                                )}
+                              </div>
+                              <div className="truncate">{bookingInfo.booking.numberOfGuests} ospiti</div>
+                              <div className="font-medium truncate">{bookingInfo.booking.totalPrice}€</div>
+                              {bookingInfo.booking.status === 'pending' && (
+                                <div className="text-xs italic text-yellow-700">In attesa</div>
                               )}
                             </div>
-                            <div className="truncate">{bookingInfo.booking.numberOfGuests} ospiti</div>
-                            <div className="font-medium truncate">{bookingInfo.booking.totalPrice}€</div>
-                          </div>
-                        )}
+                          );
+                        })()}
                         
                         {/* Menu contestuale dropdown */}
                         <div 

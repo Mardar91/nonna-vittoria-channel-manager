@@ -7,7 +7,7 @@ interface ApartmentWithStatus {
   _id: string;
   name: string;
   address: string;
-  status: 'available' | 'freeing_soon' | 'reserved';
+  status: 'available' | 'in_uscita' | 'reserved'; // Replaced 'freeing_soon' with 'in_uscita'
   currentBooking?: {
     guestName: string;
     checkOut: Date;
@@ -48,8 +48,8 @@ export default function ApartmentStatusGrid({ apartments }: ApartmentStatusGridP
               className={`relative rounded-lg border-2 p-4 hover:shadow-md transition-all ${
                 apartment.status === 'reserved'
                   ? 'border-green-200 bg-green-50'
-                  : apartment.status === 'freeing_soon'
-                  ? 'border-yellow-200 bg-yellow-50'
+                  : apartment.status === 'in_uscita' // Changed from freeing_soon
+                  ? 'border-red-200 bg-red-50'      // Red style for in_uscita
                   : 'border-gray-200 bg-gray-50'
               }`}
             >
@@ -81,23 +81,23 @@ export default function ApartmentStatusGrid({ apartments }: ApartmentStatusGridP
                     </div>
                   )}
                   
-                  {/* Freeing Soon Status */}
-                  {apartment.status === 'freeing_soon' && (
+                  {/* 'In Uscita' Status */}
+                  {apartment.status === 'in_uscita' && (
                     <div className="mt-3 space-y-1">
                       <div>
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mb-1">
-                          In uscita
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 mb-1">
+                          In Uscita
                         </span>
                       </div>
                       {apartment.currentBooking && (
                         <>
-                          <div className="flex items-center text-sm text-yellow-700">
+                          <div className="flex items-center text-sm text-red-700">
                             <UserIcon className="w-4 h-4 mr-1" />
                             <span className="font-medium">{apartment.currentBooking.guestName}</span>
                           </div>
-                          <div className="flex items-center text-xs text-yellow-600">
+                          <div className="flex items-center text-xs text-red-600">
                             <CalendarDaysIcon className="w-4 h-4 mr-1" />
-                            <span>Check-out: {formatDate(apartment.currentBooking.checkOut)}</span>
+                            <span>Check-out: {new Date(apartment.currentBooking.checkOut).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         </>
                       )}
@@ -117,15 +117,15 @@ export default function ApartmentStatusGrid({ apartments }: ApartmentStatusGridP
                 <div className={`ml-4 rounded-full p-2 ${
                   apartment.status === 'reserved'
                     ? 'bg-green-100'
-                    : apartment.status === 'freeing_soon'
-                    ? 'bg-yellow-100'
+                    : apartment.status === 'in_uscita' // Changed from freeing_soon
+                    ? 'bg-red-100'                   // Red style for in_uscita
                     : 'bg-gray-100'
                 }`}>
                   <HomeIcon className={`w-6 h-6 ${
                     apartment.status === 'reserved'
                       ? 'text-green-600'
-                      : apartment.status === 'freeing_soon'
-                      ? 'text-yellow-600'
+                      : apartment.status === 'in_uscita' // Changed from freeing_soon
+                      ? 'text-red-600'                 // Red style for in_uscita
                       : 'text-gray-400'
                   }`} />
                 </div>

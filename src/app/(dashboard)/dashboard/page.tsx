@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import ApartmentModel from '@/models/Apartment';
 import BookingModel from '@/models/Booking';
+import SettingsModel from '@/models/Settings'; // Added import
 import DashboardStats from '@/components/DashboardStats';
 import OccupancyChart from '@/components/dashboard/OccupancyChart';
 import RevenueChart from '@/components/dashboard/RevenueChart';
@@ -19,6 +20,10 @@ export default async function DashboardPage() {
   
   await connectDB();
   
+  // Fetch general settings
+  const settings = await SettingsModel.findOne({});
+  const defaultCheckoutTimeString = settings?.defaultCheckOutTime || '10:00'; // Default to '10:00' if no settings found
+
   // Data di oggi per i calcoli
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -89,51 +94,117 @@ export default async function DashboardPage() {
       const today_end_of_day = new Date(today_date_only);
       today_end_of_day.setHours(23, 59, 59, 999);
 
-      // Booking active at any point during the current calendar day
-      const currentBookingOnDateModel = await BookingModel.findOne({
+      // Fetch all confirmed bookings for the apartment that overlap with today
+      const todaysBookingsModels = await BookingModel.find({
         apartmentId: apartment._id,
         status: 'confirmed',
-        checkIn: { $lte: today_end_of_day }, // Active if checkIn is anytime today or before
-        checkOut: { $gt: today_date_only }    // And checkOut is after the start of today
+        checkIn: { $lte: today_end_of_day },
+        checkOut: { $gt: today_date_only }
       });
+
+      let bookingToConsider = null;
+      const today_date_only_string = today_date_only.toDateString();
+
+      if (todaysBookingsModels.length > 0) {
+        const todaysBookingsObjects = todaysBookingsModels.map(m => m.toObject());
+
+        // Priority A: Active Now
+        let activeBookings = todaysBookingsObjects.filter(b => {
+          const ci = new Date(b.checkIn);
+          const co = new Date(b.checkOut);
+          return ci <= now && co > now;
+        });
+        if (activeBookings.length > 0) {
+          activeBookings.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+          bookingToConsider = activeBookings[0];
+        }
+
+        // Priority B: Checking In Today Later
+        if (!bookingToConsider) {
+          let checkinTodayBookings = todaysBookingsObjects.filter(b => {
+            const ci = new Date(b.checkIn);
+            return ci.toDateString() === today_date_only_string && ci > now;
+          });
+          if (checkinTodayBookings.length > 0) {
+            checkinTodayBookings.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+            bookingToConsider = checkinTodayBookings[0];
+          }
+        }
+
+        // Priority C: Checking Out Today Later
+        if (!bookingToConsider) {
+          let checkoutTodayBookings = todaysBookingsObjects.filter(b => {
+            const co = new Date(b.checkOut);
+            // Ensure it's a checkout relevant for "occupying longer" - it must still be active
+            return co.toDateString() === today_date_only_string && co > now;
+          });
+          if (checkoutTodayBookings.length > 0) {
+            checkoutTodayBookings.sort((a, b) => new Date(b.checkOut).getTime() - new Date(a.checkOut).getTime());
+            bookingToConsider = checkoutTodayBookings[0];
+          }
+        }
+      }
       
-      let determinedStatus: 'available' | 'occupied' | 'freeing_soon' | 'reserved' = 'available';
+      let determinedStatus: 'available' | 'reserved' | 'in_uscita' = 'available';
       let bookingToDisplay = null;
 
-      if (currentBookingOnDateModel) {
-        const currentBookingOnDate = currentBookingOnDateModel.toObject();
-        const bookingCheckInDate = new Date(currentBookingOnDate.checkIn);
-        const bookingCheckOutDate = new Date(currentBookingOnDate.checkOut);
+      const currentBookingOnDate = bookingToConsider; // Use bookingToConsider here
 
-        const checkInDateOnly = new Date(bookingCheckInDate);
-        checkInDateOnly.setHours(0, 0, 0, 0);
+      // 'now', 'today_date_only', 'defaultCheckoutTimeString' must be in scope.
+      // 'currentBookingOnDate' is the result of the priority selection logic.
 
-        const checkOutDateOnly = new Date(bookingCheckOutDate);
-        checkOutDateOnly.setHours(0, 0, 0, 0);
+      if (currentBookingOnDate) {
+        const localBookingCheckInDate = new Date(currentBookingOnDate.checkIn);
+        const localBookingCheckOutDate = new Date(currentBookingOnDate.checkOut); // This contains the specific time for the booking
+        const localCheckInDateOnly = new Date(localBookingCheckInDate);
+        localCheckInDateOnly.setHours(0, 0, 0, 0);
+        const localCheckOutDateOnly = new Date(localBookingCheckOutDate);
+        localCheckOutDateOnly.setHours(0, 0, 0, 0);
 
-        // Reserved (due to check-in today or ongoing multi-day booking)
-        if (checkInDateOnly.getTime() === today_date_only.getTime() || 
-            (now >= bookingCheckInDate && now < bookingCheckOutDate && checkOutDateOnly.getTime() !== today_date_only.getTime())) {
+        const isCheckoutToday = localCheckOutDateOnly.getTime() === today_date_only.getTime();
+        const isCheckinToday = localCheckInDateOnly.getTime() === today_date_only.getTime();
+
+        // Determine the effective checkout time for comparison (hour and minute)
+        // The user wants to use the specific booking's checkout time.
+        const effectiveCheckoutHour = localBookingCheckOutDate.getHours();
+        const effectiveCheckoutMinute = localBookingCheckOutDate.getMinutes();
+
+        if (isCheckoutToday) {
+          // Booking is checking out today
+          const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+          const effectiveCheckoutTimeInMinutes = effectiveCheckoutHour * 60 + effectiveCheckoutMinute;
+
+          if (currentTimeInMinutes < effectiveCheckoutTimeInMinutes) {
+            // Current time is before the booking's specific checkout time
+            determinedStatus = 'in_uscita';
+            // bookingToDisplay will be set below
+          } else {
+            // Current time is at or after the booking's specific checkout time
+            determinedStatus = 'available';
+            // bookingToDisplay will be null for 'available'
+          }
+        } else if (isCheckinToday || (localBookingCheckInDate < now && localBookingCheckOutDate > now)) {
+          // Booking is checking in today (and not also checking out today),
+          // OR it's an ongoing booking that spans across 'now'
           determinedStatus = 'reserved';
-          bookingToDisplay = currentBookingOnDate;
-        } 
-        // Freeing Soon (due to check-out today before 10 AM)
-        else if (checkOutDateOnly.getTime() === today_date_only.getTime() && now < bookingCheckOutDate && now.getHours() < 10) {
-          determinedStatus = 'freeing_soon';
-          bookingToDisplay = currentBookingOnDate;
-        } 
-        // Available (due to check-out today at/after 10 AM)
-        else if (checkOutDateOnly.getTime() === today_date_only.getTime() && (now >= bookingCheckOutDate || now.getHours() >= 10)) {
+        } else {
+          // This case should ideally not be reached if bookingToConsider is correctly selected
+          // (as it implies a booking that's not for today, or already passed fully)
+          // but as a fallback:
           determinedStatus = 'available';
+        }
+        
+        // Set bookingToDisplay based on status
+        if (determinedStatus === 'in_uscita' || determinedStatus === 'reserved') {
+          bookingToDisplay = currentBookingOnDate;
+        } else {
           bookingToDisplay = null;
         }
-        // Still Reserved (edge case: booking is active today, not freeing_soon or made available by checkout time)
-        // This condition catches cases where now is between check-in and check-out, 
-        // and it's not a checkout day or it is a checkout day but before the 10am rule has made it available.
-        else if (now >= bookingCheckInDate && now < bookingCheckOutDate) {
-          determinedStatus = 'reserved';
-          bookingToDisplay = currentBookingOnDate;
-        }
+
+      } else {
+        // No relevant booking found for today
+        determinedStatus = 'available';
+        bookingToDisplay = null;
       }
       
       const nextBookingModel = await BookingModel.findOne({
@@ -153,7 +224,7 @@ export default async function DashboardPage() {
   
   // Calculate active bookings based on refined statuses
   const newActiveBookingsToday = apartmentsWithStatus.filter(
-    apt => apt.status === 'reserved' || apt.status === 'freeing_soon'
+    apt => apt.status === 'reserved'
   ).length;
 
   // Prenotazioni recenti per il widget
