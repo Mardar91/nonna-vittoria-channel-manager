@@ -19,6 +19,22 @@ interface BookingFormModalProps {
   customMinStay?: number; // Nuova prop per il soggiorno minimo personalizzato
 }
 
+const timeOptions: string[] = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 30) {
+    const hour = h.toString().padStart(2, '0');
+    const minute = m.toString().padStart(2, '0');
+    timeOptions.push(`${hour}:${minute}`);
+  }
+}
+
+const formatTimeForSelect = (date: Date): string => {
+  if (!date || !(date instanceof Date)) return '00:00'; // Fallback
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
 export default function BookingFormModal({
   isOpen,
   onClose,
@@ -30,6 +46,8 @@ export default function BookingFormModal({
 }: BookingFormModalProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [defaultCheckInTime, setDefaultCheckInTime] = useState('15:00'); // Fallback
+  const [defaultCheckOutTime, setDefaultCheckOutTime] = useState('10:00'); // Fallback
   const [formData, setFormData] = useState({
     apartmentId,
     guestName: '',
@@ -46,24 +64,85 @@ export default function BookingFormModal({
   });
 
   // Calcola il prezzo totale quando cambiano le date o il numero di ospiti
+  // This useEffect will now primarily react to formData.checkIn, formData.checkOut, and formData.numberOfGuests
+  // The initialization of checkIn and checkOut with default times is handled in the next useEffect.
+  useEffect(() => {
+    if (formData.checkIn && formData.checkOut) {
+      const nights = Math.ceil((formData.checkOut.getTime() - formData.checkIn.getTime()) / (1000 * 60 * 60 * 24));
+      if (nights >= 0) { // Ensure nights is not negative
+        const totalPrice = calculateTotalPrice(
+          apartmentData,
+          formData.numberOfGuests,
+          nights
+        );
+        setFormData(prev => ({ ...prev, totalPrice }));
+      } else {
+        // Handle invalid date range if necessary, though minDate should prevent this
+        setFormData(prev => ({ ...prev, totalPrice: 0 }));
+      }
+    }
+  }, [formData.checkIn, formData.checkOut, formData.numberOfGuests, apartmentData]);
+
+  // useEffect to initialize checkIn and checkOut dates with default times when modal opens or relevant props change
   useEffect(() => {
     if (isOpen) {
-      const nights = Math.ceil((formData.checkOut.getTime() - formData.checkIn.getTime()) / (1000 * 60 * 60 * 24));
+      const initialCheckIn = applyTime(new Date(startDate), defaultCheckInTime);
+      let initialCheckOut = applyTime(new Date(endDate), defaultCheckOutTime);
+
+      const minStay = customMinStay !== undefined ? customMinStay : (apartmentData.minStay || 1);
       
-      const totalPrice = calculateTotalPrice(
-        apartmentData, 
-        formData.numberOfGuests, 
-        nights
-      );
+      const minCheckOutDateFromCheckIn = new Date(initialCheckIn);
+      minCheckOutDateFromCheckIn.setDate(minCheckOutDateFromCheckIn.getDate() + minStay);
+      // Set the time of minCheckOutDateFromCheckIn to the default checkout time for accurate comparison and setting
+      minCheckOutDateFromCheckIn.setHours(parseInt(defaultCheckOutTime.split(':')[0]), parseInt(defaultCheckOutTime.split(':')[1]), 0, 0);
+
+      if (initialCheckOut < minCheckOutDateFromCheckIn) {
+        initialCheckOut = minCheckOutDateFromCheckIn;
+      }
       
+      // No need to calculate totalPrice here, the other useEffect will handle it
+      // when checkIn and checkOut in formData are updated.
       setFormData(prev => ({
         ...prev,
-        checkIn: startDate,
-        checkOut: endDate,
-        totalPrice
+        checkIn: initialCheckIn,
+        checkOut: initialCheckOut,
+        // totalPrice will be calculated by the other useEffect
       }));
     }
-  }, [startDate, endDate, formData.numberOfGuests, isOpen, apartmentData]);
+  // Ensure all dependencies that should trigger re-initialization are included.
+  // formData.numberOfGuests is removed as it doesn't influence initial date settings.
+  }, [isOpen, startDate, endDate, defaultCheckInTime, defaultCheckOutTime, apartmentData, customMinStay]);
+
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchSettings = async () => {
+        try {
+          const response = await fetch('/api/settings'); 
+          if (response.ok) {
+            const data = await response.json();
+            // Assuming data might be nested if it's the full settings object
+            const settingsData = data.settings || data; 
+            if (settingsData) {
+              setDefaultCheckInTime(settingsData.defaultCheckInTime || '15:00');
+              setDefaultCheckOutTime(settingsData.defaultCheckOutTime || '10:00');
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch settings:", error);
+          // Keep default fallbacks
+        }
+      };
+      fetchSettings();
+    }
+  }, [isOpen]);
+
+  const applyTime = (date: Date, timeString: string): Date => {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const newDate = new Date(date);
+    newDate.setHours(hours, minutes, 0, 0);
+    return newDate;
+  };
 
   // Helper per verificare se la durata del soggiorno è valida
   const isValidStayDuration = (checkIn: Date, checkOut: Date): boolean => {
@@ -86,34 +165,88 @@ export default function BookingFormModal({
 
   // Gestisci il cambio delle date
   const handleDateChange = (date: Date | null, field: 'checkIn' | 'checkOut') => {
-    if (date) {
-      let newCheckIn = field === 'checkIn' ? date : formData.checkIn;
-      let newCheckOut = field === 'checkOut' ? date : formData.checkOut;
-      
-      // Se cambia il check-in, aggiorniamo il check-out se necessario 
-      // per rispettare il soggiorno minimo
+    if (date) { // This 'date' is the date part from DatePicker, time is from select
+      let newCheckIn = formData.checkIn;
+      let newCheckOut = formData.checkOut;
+
       if (field === 'checkIn') {
-        // Usa customMinStay se disponibile, altrimenti usa apartmentData.minStay
-        const minStay = customMinStay !== undefined ? customMinStay : (apartmentData.minStay || 1);
-        const minCheckOut = new Date(date);
-        minCheckOut.setDate(minCheckOut.getDate() + minStay);
+        // Apply existing time from formData.checkIn to the new date from DatePicker
+        const timeString = formatTimeForSelect(formData.checkIn);
+        newCheckIn = applyTime(date, timeString);
         
-        if (newCheckOut < minCheckOut) {
-          newCheckOut = minCheckOut;
+        const minStay = customMinStay !== undefined ? customMinStay : (apartmentData.minStay || 1);
+        const minCheckOutDt = new Date(newCheckIn);
+        minCheckOutDt.setDate(minCheckOutDt.getDate() + minStay);
+        minCheckOutDt.setHours(newCheckOut.getHours(), newCheckOut.getMinutes(), 0, 0); // Preserve existing checkout time
+
+        if (newCheckOut < minCheckOutDt) {
+          newCheckOut = minCheckOutDt;
         }
+      } else { // field === 'checkOut'
+        // Apply existing time from formData.checkOut to the new date from DatePicker
+        const timeString = formatTimeForSelect(formData.checkOut);
+        newCheckOut = applyTime(date, timeString);
+
+        // Additional check to ensure checkout is not before checkin + minStay (already handled by DatePicker minDate for date part)
+        // This primarily ensures if someone picks an early time on the minimum valid day, it's respected or corrected if needed.
+        // For now, we trust minDate on DatePicker handles the date part.
       }
       
-      // Calcola il nuovo prezzo totale
-      const nights = Math.ceil((newCheckOut.getTime() - newCheckIn.getTime()) / (1000 * 60 * 60 * 24));
-      const totalPrice = calculateTotalPrice(apartmentData, formData.numberOfGuests, nights);
-      
-      setFormData({ 
-        ...formData, 
+      setFormData(prev => ({ 
+        ...prev, 
         checkIn: newCheckIn, 
         checkOut: newCheckOut,
-        totalPrice
-      });
+      }));
     }
+  };
+
+  const handleTimeChange = (selectedTime: string, field: 'checkIn' | 'checkOut') => {
+    const [hours, minutes] = selectedTime.split(':').map(Number);
+    const originalDate = formData[field];
+    const newDateWithUpdatedTime = new Date(originalDate);
+    newDateWithUpdatedTime.setHours(hours, minutes, 0, 0);
+
+    let newCheckIn = field === 'checkIn' ? newDateWithUpdatedTime : formData.checkIn;
+    let newCheckOut = field === 'checkOut' ? newDateWithUpdatedTime : formData.checkOut;
+
+    if (field === 'checkIn') {
+      const minStay = customMinStay !== undefined ? customMinStay : (apartmentData.minStay || 1);
+      const minCheckOutDateAfterUpdate = new Date(newCheckIn);
+      minCheckOutDateAfterUpdate.setDate(minCheckOutDateAfterUpdate.getDate() + minStay);
+      minCheckOutDateAfterUpdate.setHours(newCheckOut.getHours(), newCheckOut.getMinutes(), 0, 0);
+
+      if (newCheckOut < minCheckOutDateAfterUpdate) {
+        newCheckOut = minCheckOutDateAfterUpdate;
+      }
+    } else if (field === 'checkOut') {
+      const minStay = customMinStay !== undefined ? customMinStay : (apartmentData.minStay || 1);
+      const minValidCheckoutDate = new Date(newCheckIn);
+      minValidCheckoutDate.setDate(minValidCheckoutDate.getDate() + minStay);
+      minValidCheckoutDate.setHours(0,0,0,0); 
+
+      const newCheckOutDateOnly = new Date(newCheckOut);
+      newCheckOutDateOnly.setHours(0,0,0,0);
+
+      if (newCheckOutDateOnly < minValidCheckoutDate) {
+         const correctedDate = new Date(minValidCheckoutDate);
+         correctedDate.setHours(hours, minutes, 0,0);
+         newCheckOut = correctedDate;
+      } else if (newCheckOut.getTime() <= newCheckIn.getTime()) {
+          // If same day checkout, ensure checkout time is after checkin time.
+          // This simple check might need refinement for minStay=0 scenarios.
+          // For minStay >= 1, the date part check (minValidCheckoutDate) is more critical.
+          if (newCheckOut.toDateString() === newCheckIn.toDateString() && newCheckOut.getTime() <= newCheckIn.getTime()) {
+            // Attempt to push checkout to next valid slot or indicate error
+            // For now, this will be caught by isValidStayDuration on submit if it results in < minStay nights
+          }
+      }
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      checkIn: newCheckIn,
+      checkOut: newCheckOut,
+    }));
   };
 
   // Gestisci l'invio del form
@@ -226,36 +359,73 @@ export default function BookingFormModal({
                     )}
                     
                     <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="checkIn" className="block text-sm font-medium text-gray-700">
-                            Check-in
-                          </label>
-                          <DatePicker
-                            selected={formData.checkIn}
-                            onChange={(date) => handleDateChange(date, 'checkIn')}
-                            selectsStart
-                            startDate={formData.checkIn}
-                            endDate={formData.checkOut}
-                            dateFormat="dd/MM/yyyy"
-                            className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          />
+                      <div className="space-y-4"> {/* Main container for date/time rows */}
+                        {/* Check-in Row */}
+                        <div className="grid grid-cols-2 gap-2 items-end">
+                          <div>
+                            <label htmlFor="checkInDate" className="block text-sm font-medium text-gray-700">Data Check-in</label>
+                            <DatePicker
+                              id="checkInDate"
+                              selected={formData.checkIn}
+                              onChange={(date) => handleDateChange(date, 'checkIn')}
+                              selectsStart
+                              startDate={formData.checkIn}
+                              endDate={formData.checkOut}
+                              dateFormat="dd/MM/yyyy" // Reverted
+                              className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor="checkInTime" className="block text-sm font-medium text-gray-700">Ora Check-in</label>
+                            <select
+                              id="checkInTime"
+                              name="checkInTime"
+                              value={formatTimeForSelect(formData.checkIn)}
+                              onChange={(e) => handleTimeChange(e.target.value, 'checkIn')}
+                              className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            >
+                              {timeOptions.map(time => (
+                                <option key={`ci-${time}`} value={time}>{time}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
 
-                        <div>
-                          <label htmlFor="checkOut" className="block text-sm font-medium text-gray-700">
-                            Check-out
-                          </label>
-                          <DatePicker
-                            selected={formData.checkOut}
-                            onChange={(date) => handleDateChange(date, 'checkOut')}
-                            selectsEnd
-                            startDate={formData.checkIn}
-                            endDate={formData.checkOut}
-                            minDate={new Date(formData.checkIn.getTime() + 24 * 60 * 60 * 1000 * effectiveMinStay)}
-                            dateFormat="dd/MM/yyyy"
-                            className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          />
+                        {/* Check-out Row */}
+                        <div className="grid grid-cols-2 gap-2 items-end">
+                          <div>
+                            <label htmlFor="checkOutDate" className="block text-sm font-medium text-gray-700">Data Check-out</label>
+                            <DatePicker
+                              id="checkOutDate"
+                              selected={formData.checkOut}
+                              onChange={(date) => handleDateChange(date, 'checkOut')}
+                              selectsEnd
+                              startDate={formData.checkIn}
+                              endDate={formData.checkOut}
+                              minDate={(() => {
+                                const minCheckoutDate = new Date(formData.checkIn);
+                                minCheckoutDate.setDate(minCheckoutDate.getDate() + effectiveMinStay);
+                                minCheckoutDate.setHours(0, 0, 0, 0); // Allow any time on the min checkout day
+                                return minCheckoutDate;
+                              })()}
+                              dateFormat="dd/MM/yyyy" // Reverted
+                              className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor="checkOutTime" className="block text-sm font-medium text-gray-700">Ora Check-out</label>
+                            <select
+                              id="checkOutTime"
+                              name="checkOutTime"
+                              value={formatTimeForSelect(formData.checkOut)}
+                              onChange={(e) => handleTimeChange(e.target.value, 'checkOut')}
+                              className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            >
+                              {timeOptions.map(time => (
+                                <option key={`co-${time}`} value={time}>{time}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                       </div>
 
