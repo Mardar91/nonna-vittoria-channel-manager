@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
     
     await connectDB();
     
-    const body: CheckInSubmitRequest & { notes?: string } = await req.json();
-    const { bookingId, guests, notes } = body;
+    const body: CheckInSubmitRequest & { notes?: string; identificationEmail?: string } = await req.json();
+    const { bookingId, guests, notes, identificationEmail } = body; // Added identificationEmail here
     
     if (!bookingId || !guests || guests.length === 0) {
       return NextResponse.json({
@@ -81,8 +81,25 @@ export async function POST(req: NextRequest) {
     await checkIn.save();
     
     // Aggiorna la prenotazione
+    // mainGuest is already defined and validated earlier in the function
+    if (mainGuest) {
+        const mainGuestFullName = `${mainGuest.firstName} ${mainGuest.lastName}`;
+        booking.guestName = mainGuestFullName;
+
+        if (identificationEmail && typeof identificationEmail === 'string' && identificationEmail.trim() !== "") {
+            if (booking.guestEmail !== identificationEmail.trim()) {
+                booking.guestEmail = identificationEmail.trim();
+            }
+        } else {
+            console.warn(`Manual check-in for booking ID ${booking._id}: identificationEmail not provided or empty. Booking email not updated.`);
+        }
+
+        const updateNote = `Dati aggiornati dopo check-in manuale: ${mainGuestFullName}`;
+        booking.notes = booking.notes ? `${booking.notes}\n${updateNote}` : updateNote;
+    }
+
     booking.hasCheckedIn = true;
-    booking.checkInDate = new Date();
+    booking.checkInDate = checkIn.completedAt; // Use checkIn.completedAt for consistency
     await booking.save();
     
     return NextResponse.json({
