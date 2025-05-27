@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     // Verificare disponibilità con prenotazioni attuali
     const existingBookings = await BookingModel.find({
       apartmentId: data.apartmentId,
-      status: { $ne: 'cancelled' },
+      status: { $in: ['pending', 'confirmed'] }, // Changed line
       $or: [
         {
           checkIn: { 
