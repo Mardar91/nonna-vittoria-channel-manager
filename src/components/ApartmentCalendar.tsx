@@ -290,10 +290,16 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
   const handleSaveRate = async (rateData: any) => {
     if (!selectedDate) return;
     try {
+      // Add formatting for selectedDate (if selectedDate is not null)
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+
       const response = await fetch(`/api/apartments/${apartmentId}/rates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate.toISOString(), ...rateData }),
+        body: JSON.stringify({ date: formattedDate, ...rateData }),
       });
       if (!response.ok) throw new Error('Errore nel salvataggio della tariffa');
       const data = await response.json();
@@ -311,12 +317,27 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     if (selectedDates.length === 0) return;
     try {
       const sortedDates = [...selectedDates].sort((a, b) => a.getTime() - b.getTime());
+
+      // Formatting for startDate (from sortedDates[0])
+      const startDateObj = sortedDates[0];
+      const startYearBulk = startDateObj.getFullYear();
+      const startMonthBulk = String(startDateObj.getMonth() + 1).padStart(2, '0');
+      const startDayBulk = String(startDateObj.getDate()).padStart(2, '0');
+      const formattedStartDateBulk = `${startYearBulk}-${startMonthBulk}-${startDayBulk}`;
+
+      // Formatting for endDate (from sortedDates[sortedDates.length - 1])
+      const endDateObj = sortedDates[sortedDates.length - 1];
+      const endYearBulk = endDateObj.getFullYear();
+      const endMonthBulk = String(endDateObj.getMonth() + 1).padStart(2, '0');
+      const endDayBulk = String(endDateObj.getDate()).padStart(2, '0');
+      const formattedEndDateBulk = `${endYearBulk}-${endMonthBulk}-${endDayBulk}`;
+
       const response = await fetch(`/api/apartments/${apartmentId}/bulk-rates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startDate: sortedDates[0].toISOString(),
-          endDate: sortedDates[sortedDates.length - 1].toISOString(),
+          startDate: formattedStartDateBulk,
+          endDate: formattedEndDateBulk,
           ...rateData
         }),
       });
@@ -334,12 +355,24 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
 
   const handleBlockDates = async (startDate: Date, endDate: Date, isBlocked: boolean) => {
     try {
+      // Formatting for startDate
+      const startYear = startDate.getFullYear();
+      const startMonth = String(startDate.getMonth() + 1).padStart(2, '0');
+      const startDay = String(startDate.getDate()).padStart(2, '0');
+      const formattedStartDate = `${startYear}-${startMonth}-${startDay}`;
+
+      // Formatting for endDate
+      const endYear = endDate.getFullYear();
+      const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
+      const endDay = String(endDate.getDate()).padStart(2, '0');
+      const formattedEndDate = `${endYear}-${endMonth}-${endDay}`;
+
       const response = await fetch(`/api/apartments/${apartmentId}/bulk-rates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
+          startDate: formattedStartDate, // Use YYYY-MM-DD
+          endDate: formattedEndDate,   // Use YYYY-MM-DD
           isBlocked
         }),
       });
