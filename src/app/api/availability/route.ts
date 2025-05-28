@@ -12,16 +12,22 @@ async function checkApartmentAvailability(
   checkIn: Date,
   checkOut: Date
 ) {
-  // Date normalization removed
+  // Date normalization removed - This comment refers to the overall function's direct params
+  // Define UTC Normalized Dates for Queries (Bookings and Blocked Dates)
+  const dateForBlockedQueryCheckIn = new Date(checkIn);
+  dateForBlockedQueryCheckIn.setUTCHours(0, 0, 0, 0);
 
-  // Verifica prenotazioni esistenti
+  const dateForBlockedQueryCheckOut = new Date(checkOut);
+  dateForBlockedQueryCheckOut.setUTCHours(0, 0, 0, 0);
+
+  // Verifica prenotazioni esistenti using UTC normalized dates
   const existingBookings = await BookingModel.find({
     apartmentId,
     status: { $ne: 'cancelled' },
     $or: [
       {
-        checkIn: { $lt: checkOut }, // Reverted to original checkOut
-        checkOut: { $gt: checkIn }  // Reverted to original checkIn
+        checkIn: { $lt: dateForBlockedQueryCheckOut }, // Use UTC normalized check-out date
+        checkOut: { $gt: dateForBlockedQueryCheckIn }  // Use UTC normalized check-in date
       }
     ]
   });
@@ -29,13 +35,6 @@ async function checkApartmentAvailability(
   if (existingBookings.length > 0) {
     return { available: false };
   }
-
-  // Create Normalized Dates for Blocked Date Query
-  const dateForBlockedQueryCheckIn = new Date(checkIn);
-  dateForBlockedQueryCheckIn.setUTCHours(0, 0, 0, 0);
-
-  const dateForBlockedQueryCheckOut = new Date(checkOut);
-  dateForBlockedQueryCheckOut.setUTCHours(0, 0, 0, 0);
 
   // Verifica se ci sono date bloccate nel periodo
   const blockedDates = await DailyRateModel.find({
