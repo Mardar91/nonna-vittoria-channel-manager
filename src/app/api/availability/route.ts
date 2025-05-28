@@ -20,14 +20,18 @@ async function checkApartmentAvailability(
   const dateForBlockedQueryCheckOut = new Date(checkOut);
   dateForBlockedQueryCheckOut.setUTCHours(0, 0, 0, 0);
 
+  // Create effectiveCheckInForComparison, set to 12:00 PM UTC of the check-in day
+  const effectiveCheckInForComparison = new Date(dateForBlockedQueryCheckIn);
+  effectiveCheckInForComparison.setUTCHours(12, 0, 0, 0); // Set to 12:00 PM UTC
+
   // Verifica prenotazioni esistenti using UTC normalized dates
   const existingBookings = await BookingModel.find({
     apartmentId,
     status: { $ne: 'cancelled' },
     $or: [
       {
-        checkIn: { $lt: dateForBlockedQueryCheckOut }, // Use UTC normalized check-out date
-        checkOut: { $gt: dateForBlockedQueryCheckIn }  // Use UTC normalized check-in date
+        checkIn: { $lt: dateForBlockedQueryCheckOut },     // Compares DB check-in with the request's check-out (normalized to UTC midnight)
+        checkOut: { $gt: effectiveCheckInForComparison } // Compares DB check-out with the request's check-in (normalized to UTC noon)
       }
     ]
   });
