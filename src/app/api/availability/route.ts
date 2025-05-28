@@ -12,11 +12,7 @@ async function checkApartmentAvailability(
   checkIn: Date,
   checkOut: Date
 ) {
-  const queryCheckIn = new Date(checkIn);
-  queryCheckIn.setHours(0, 0, 0, 0);
-
-  const queryCheckOut = new Date(checkOut);
-  queryCheckOut.setHours(0, 0, 0, 0);
+  // Date normalization removed
 
   // Verifica prenotazioni esistenti
   const existingBookings = await BookingModel.find({
@@ -24,8 +20,8 @@ async function checkApartmentAvailability(
     status: { $ne: 'cancelled' },
     $or: [
       {
-        checkIn: { $lt: queryCheckOut }, // Use queryCheckOut
-        checkOut: { $gt: queryCheckIn }  // Use queryCheckIn
+        checkIn: { $lt: checkOut }, // Reverted to original checkOut
+        checkOut: { $gt: checkIn }  // Reverted to original checkIn
       }
     ]
   });
@@ -37,15 +33,15 @@ async function checkApartmentAvailability(
   // Verifica se ci sono date bloccate nel periodo
   const blockedDates = await DailyRateModel.find({
     apartmentId,
-    date: { $gte: queryCheckIn, $lt: queryCheckOut }, // Use queryCheckIn and queryCheckOut
+    date: { $gte: checkIn, $lt: checkOut }, // Reverted to original checkIn and checkOut
     isBlocked: true
   });
 
-    // ADD TEMPORARY LOGGING HERE
-    console.log(`[Availability Check] Apartment ID: ${apartmentId}`);
-    console.log(`[Availability Check] Querying for blocked dates between: ${queryCheckIn.toISOString()} (inclusive) and ${queryCheckOut.toISOString()} (exclusive)`);
-    console.log(`[Availability Check] Found ${blockedDates.length} blocked date(s):`, JSON.stringify(blockedDates.map(d => ({ date: d.date, isBlocked: d.isBlocked }))));
-    // END TEMPORARY LOGGING
+    // MODIFIED LOGGING HERE
+    console.log(`[Availability Check - Original Dates] Apartment ID: ${apartmentId}`);
+    console.log(`[Availability Check - Original Dates] Querying for blocked dates between: ${checkIn.toISOString()} (inclusive) and ${checkOut.toISOString()} (exclusive)`);
+    console.log(`[Availability Check - Original Dates] Found ${blockedDates.length} blocked date(s):`, JSON.stringify(blockedDates.map(d => ({ date: d.date, isBlocked: d.isBlocked }))));
+    // END MODIFIED LOGGING
 
   if (blockedDates.length > 0) {
     return { available: false };
