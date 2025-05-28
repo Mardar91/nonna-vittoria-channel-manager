@@ -69,6 +69,21 @@ export async function POST(
     }
 
     const data = await req.json();
+
+    // !! LOG AGGIUNTO QUI !!
+    console.log(`[Rates API POST] Received data.date: ${data.date}, Type: ${typeof data.date}`);
+    if (data.date && typeof data.date === 'object' && data.date.toISOString) { 
+      // If data.date is already a Date object or something that behaves like one (e.g. from Firestore timestamp)
+      console.log(`[Rates API POST] data.date as Date object methods: toISOString: ${new Date(data.date).toISOString()}, toString: ${new Date(data.date).toString()}`);
+    } else if (typeof data.date === 'string') {
+      // If data.date is a string, log its value and how new Date() would parse it by default.
+      try {
+        console.log(`[Rates API POST] data.date as string, default new Date() parse attempt: ${new Date(data.date).toISOString()}`);
+      } catch (e) {
+        console.log(`[Rates API POST] data.date as string, could not be parsed by new Date(): ${data.date}`);
+      }
+    }
+    // !! FINE LOG AGGIUNTO !!
     
     if (!data.date) {
       return NextResponse.json(
