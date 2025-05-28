@@ -18,23 +18,29 @@ export async function GET(
     }
 
     const url = new URL(req.url);
-    const startDate = url.searchParams.get('startDate');
-    const endDate = url.searchParams.get('endDate');
+    const startDateParam = url.searchParams.get('startDate');
+    const endDateParam = url.searchParams.get('endDate');
     
-    if (!startDate || !endDate) {
+    if (!startDateParam || !endDateParam) {
       return NextResponse.json(
         { error: 'startDate and endDate are required' },
         { status: 400 }
       );
     }
+
+    const normalizedQueryStartDate = new Date(startDateParam);
+    normalizedQueryStartDate.setUTCHours(0,0,0,0); 
+
+    const normalizedQueryEndDate = new Date(endDateParam);
+    normalizedQueryEndDate.setUTCHours(0,0,0,0);
     
     await connectDB();
     
     const rates = await DailyRateModel.find({
       apartmentId: params.id,
       date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
+        $gte: normalizedQueryStartDate,
+        $lte: normalizedQueryEndDate
       }
     }).sort({ date: 1 });
     
@@ -70,17 +76,22 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    const receivedDate = new Date(data.date);
+    const normalizedDate = new Date(Date.UTC(receivedDate.getUTCFullYear(), receivedDate.getUTCMonth(), receivedDate.getUTCDate()));
     
     await connectDB();
     
     // Cerca se esiste già una tariffa per questa data
     const existingRate = await DailyRateModel.findOne({
       apartmentId: params.id,
-      date: new Date(data.date)
+      date: normalizedDate // Use normalizedDate here
     });
     
     if (existingRate) {
       // Aggiorna la tariffa esistente
+      // The query to find existingRate used normalizedDate.
+      // The date field itself is not being updated here, which is fine.
       const updatedRate = await DailyRateModel.findByIdAndUpdate(
         existingRate._id,
         {
@@ -96,7 +107,7 @@ export async function POST(
       // Crea nuova tariffa
       const newRate = await DailyRateModel.create({
         apartmentId: params.id,
-        date: new Date(data.date),
+        date: normalizedDate, // Use normalizedDate here
         price: data.price,
         isBlocked: data.isBlocked,
         minStay: data.minStay,
@@ -128,21 +139,24 @@ export async function DELETE(
     }
 
     const url = new URL(req.url);
-    const date = url.searchParams.get('date');
+    const dateParam = url.searchParams.get('date'); // Renamed to dateParam for clarity
     
-    if (!date) {
+    if (!dateParam) {
       return NextResponse.json(
         { error: 'Date is required' },
         { status: 400 }
       );
     }
+
+    const receivedUrlDate = new Date(dateParam);
+    const normalizedUrlDate = new Date(Date.UTC(receivedUrlDate.getUTCFullYear(), receivedUrlDate.getUTCMonth(), receivedUrlDate.getUTCDate()));
     
     await connectDB();
     
     // Elimina la tariffa esistente
     await DailyRateModel.findOneAndDelete({
       apartmentId: params.id,
-      date: new Date(date)
+      date: normalizedUrlDate // Use normalizedUrlDate here
     });
     
     return NextResponse.json({ success: true });

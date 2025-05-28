@@ -30,18 +30,25 @@ async function checkApartmentAvailability(
     return { available: false };
   }
 
+  // Create Normalized Dates for Blocked Date Query
+  const dateForBlockedQueryCheckIn = new Date(checkIn);
+  dateForBlockedQueryCheckIn.setUTCHours(0, 0, 0, 0);
+
+  const dateForBlockedQueryCheckOut = new Date(checkOut);
+  dateForBlockedQueryCheckOut.setUTCHours(0, 0, 0, 0);
+
   // Verifica se ci sono date bloccate nel periodo
   const blockedDates = await DailyRateModel.find({
     apartmentId,
-    date: { $gte: checkIn, $lt: checkOut }, // Reverted to original checkIn and checkOut
+    date: { $gte: dateForBlockedQueryCheckIn, $lt: dateForBlockedQueryCheckOut }, // Use normalized dates
     isBlocked: true
   });
 
-    // MODIFIED LOGGING HERE
-    console.log(`[Availability Check - Original Dates] Apartment ID: ${apartmentId}`);
-    console.log(`[Availability Check - Original Dates] Querying for blocked dates between: ${checkIn.toISOString()} (inclusive) and ${checkOut.toISOString()} (exclusive)`);
-    console.log(`[Availability Check - Original Dates] Found ${blockedDates.length} blocked date(s):`, JSON.stringify(blockedDates.map(d => ({ date: d.date, isBlocked: d.isBlocked }))));
-    // END MODIFIED LOGGING
+    // UPDATED TEMPORARY LOGGING for Blocked Dates Query
+    console.log(`[Availability Check - Blocked Dates Query] Apartment ID: ${apartmentId}`);
+    console.log(`[Availability Check - Blocked Dates Query] Querying for blocked dates between: ${dateForBlockedQueryCheckIn.toISOString()} (inclusive) and ${dateForBlockedQueryCheckOut.toISOString()} (exclusive)`);
+    console.log(`[Availability Check - Blocked Dates Query] Found ${blockedDates.length} blocked date(s):`, JSON.stringify(blockedDates.map(d => ({ date: d.date, isBlocked: d.isBlocked }))));
+    // END UPDATED LOGGING
 
   if (blockedDates.length > 0) {
     return { available: false };
