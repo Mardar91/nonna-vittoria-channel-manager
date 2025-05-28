@@ -77,8 +77,30 @@ export async function POST(
       );
     }
 
-    const receivedDate = new Date(data.date);
-    const normalizedDate = new Date(Date.UTC(receivedDate.getUTCFullYear(), receivedDate.getUTCMonth(), receivedDate.getUTCDate()));
+    // Refined date parsing for POST
+    const dateStringFromRequest = data.date; 
+    let normalizedDate;
+
+    if (typeof dateStringFromRequest === 'string') {
+      const parts = dateStringFromRequest.split(/[-T]/); // Split by '-' or 'T'
+      if (parts.length < 3) {
+        return NextResponse.json({ error: 'Invalid date string format. Expected YYYY-MM-DD or YYYY-MM-DDTHH:MM...' }, { status: 400 });
+      }
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+      const day = parseInt(parts[2], 10);
+
+      if (isNaN(year) || isNaN(month) || isNaN(day)) {
+        return NextResponse.json({ error: 'Invalid date components after parsing string.' }, { status: 400 });
+      }
+      normalizedDate = new Date(Date.UTC(year, month, day));
+    } else if (dateStringFromRequest instanceof Date) {
+      const receivedDateObj = new Date(dateStringFromRequest);
+      normalizedDate = new Date(Date.UTC(receivedDateObj.getUTCFullYear(), receivedDateObj.getUTCMonth(), receivedDateObj.getUTCDate()));
+    } else {
+      return NextResponse.json({ error: 'Invalid date format received. Expected string or Date object.' }, { status: 400 });
+    }
+    // End of refined date parsing
     
     await connectDB();
     
@@ -148,8 +170,27 @@ export async function DELETE(
       );
     }
 
-    const receivedUrlDate = new Date(dateParam);
-    const normalizedUrlDate = new Date(Date.UTC(receivedUrlDate.getUTCFullYear(), receivedUrlDate.getUTCMonth(), receivedUrlDate.getUTCDate()));
+    // Refined date parsing for DELETE
+    let normalizedUrlDate;
+
+    if (typeof dateParam === 'string') {
+      const parts = dateParam.split(/[-T]/); // Split by '-' or 'T'
+      if (parts.length < 3) {
+        return NextResponse.json({ error: 'Invalid date string format in query parameters. Expected YYYY-MM-DD or YYYY-MM-DDTHH:MM...' }, { status: 400 });
+      }
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+      const day = parseInt(parts[2], 10);
+
+      if (isNaN(year) || isNaN(month) || isNaN(day)) {
+        return NextResponse.json({ error: 'Invalid date components after parsing string from query parameters.' }, { status: 400 });
+      }
+      normalizedUrlDate = new Date(Date.UTC(year, month, day));
+    } else {
+      // This case should ideally not be reached if dateParam is always a string from URL
+      return NextResponse.json({ error: 'Invalid date format in query parameters. Expected a string.' }, { status: 400 });
+    }
+    // End of refined date parsing
     
     await connectDB();
     
