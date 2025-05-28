@@ -412,6 +412,12 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
     
     try {
       if (action === 'block' || action === 'unblock') {
+        // PREPARA LA DATA NEL FORMATO "YYYY-MM-DD"
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed, so +1. padStart ensures two digits.
+        const day = String(date.getDate()).padStart(2, '0'); // padStart ensures two digits.
+        const formattedDate = `${year}-${month}-${day}`; // Example: "2025-05-28"
+
         // Blocca/sblocca la data
         const response = await fetch(`/api/apartments/${apartmentId}/rates`, {
           method: 'POST',
@@ -419,7 +425,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            date: date.toISOString(),
+            date: formattedDate, // Use the formatted "YYYY-MM-DD" string
             isBlocked: action === 'block',
           }),
         });
