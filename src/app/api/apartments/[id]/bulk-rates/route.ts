@@ -31,27 +31,55 @@ export async function POST(
     
     await connectDB();
     
-    // Genera tutte le date nell'intervallo
-    const start = new Date(data.startDate);
-    const end = new Date(data.endDate);
-    const dates = [];
+    const startDateString = data.startDate;
+    let normalizedStartDate;
+    if (typeof startDateString === 'string') {
+      const parts = startDateString.split(/[-T]/);
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+      const day = parseInt(parts[2], 10);
+      if (isNaN(year) || isNaN(month) || isNaN(day) || month < 0 || month > 11 || day < 1 || day > 31) {
+        return NextResponse.json({ error: 'Invalid startDate components after parsing' }, { status: 400 });
+      }
+      normalizedStartDate = new Date(Date.UTC(year, month, day));
+    } else {
+      return NextResponse.json({ error: 'Invalid startDate format, expected YYYY-MM-DD string' }, { status: 400 });
+    }
+
+    const endDateString = data.endDate;
+    let normalizedEndDate;
+    if (typeof endDateString === 'string') {
+      const parts = endDateString.split(/[-T]/);
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+      const day = parseInt(parts[2], 10);
+      if (isNaN(year) || isNaN(month) || isNaN(day) || month < 0 || month > 11 || day < 1 || day > 31) {
+        return NextResponse.json({ error: 'Invalid endDate components after parsing' }, { status: 400 });
+      }
+      normalizedEndDate = new Date(Date.UTC(year, month, day));
+    } else {
+      return NextResponse.json({ error: 'Invalid endDate format, expected YYYY-MM-DD string' }, { status: 400 });
+    }
     
-    let currentDate = new Date(start);
-    while (currentDate <= end) {
-      dates.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + 1);
+    const dates = [];
+    if (normalizedStartDate && normalizedEndDate && normalizedStartDate.getTime() <= normalizedEndDate.getTime()) { // Check if dates are valid
+        let currentIterDate = new Date(normalizedStartDate.getTime()); // Start with UTC normalized date
+        while (currentIterDate.getTime() <= normalizedEndDate.getTime()) {
+            dates.push(new Date(currentIterDate.getTime())); // Add a UTC normalized date
+            currentIterDate.setUTCDate(currentIterDate.getUTCDate() + 1); // Increment day in UTC
+        }
     }
 
     // Gestisce il reset dei prezzi - modifica solo le tariffe esistenti
     if (data.resetPrices) {
       // Otteniamo le tariffe esistenti nell'intervallo
-      const existingRates = await DailyRateModel.find({
+      const existingRatesToResetPrice = await DailyRateModel.find({ // Renamed for clarity
         apartmentId: params.id,
-        date: { $gte: start, $lte: end }
+        date: { $gte: normalizedStartDate, $lte: normalizedEndDate }
       });
 
       // Operazioni di aggiornamento solo per le tariffe esistenti
-      const operations = existingRates.map(rate => ({
+      const operations = existingRatesToResetPrice.map(rate => ({
         updateOne: {
           filter: { _id: rate._id },
           update: {
@@ -79,14 +107,14 @@ export async function POST(
     // Gestisce il reset del soggiorno minimo - modifica solo le tariffe esistenti
     if (data.resetMinStay) {
       // Otteniamo le tariffe esistenti nell'intervallo
-      const existingRates = await DailyRateModel.find({
+      const existingRatesToResetMinStay = await DailyRateModel.find({ // Renamed for clarity
         apartmentId: params.id,
-        date: { $gte: start, $lte: end },
+        date: { $gte: normalizedStartDate, $lte: normalizedEndDate },
         minStay: { $exists: true }
       });
 
       // Operazioni di aggiornamento solo per le tariffe esistenti
-      const operations = existingRates.map(rate => ({
+      const operations = existingRatesToResetMinStay.map(rate => ({
         updateOne: {
           filter: { _id: rate._id },
           update: {

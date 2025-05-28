@@ -369,6 +369,20 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       if (bulkEditIsBlocked !== null) {
         updateData.isBlocked = bulkEditIsBlocked;
       }
+
+      // Formatting for startDate
+      const startDateObj = datesArray[0];
+      const startYear = startDateObj.getFullYear();
+      const startMonth = String(startDateObj.getMonth() + 1).padStart(2, '0');
+      const startDay = String(startDateObj.getDate()).padStart(2, '0');
+      const formattedStartDate = `${startYear}-${startMonth}-${startDay}`;
+
+      // Formatting for endDate
+      const endDateObj = datesArray[datesArray.length - 1];
+      const endYear = endDateObj.getFullYear();
+      const endMonth = String(endDateObj.getMonth() + 1).padStart(2, '0');
+      const endDay = String(endDateObj.getDate()).padStart(2, '0');
+      const formattedEndDate = `${endYear}-${endMonth}-${endDay}`;
       
       // Chiamata all'API per l'aggiornamento in blocco
       const response = await fetch(`/api/apartments/${bulkEditApartmentId}/bulk-rates`, {
@@ -377,8 +391,8 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          startDate: datesArray[0].toISOString(),
-          endDate: datesArray[datesArray.length - 1].toISOString(),
+          startDate: formattedStartDate, // Use formatted "YYYY-MM-DD" string
+          endDate: formattedEndDate,   // Use formatted "YYYY-MM-DD" string
           ...updateData
         }),
       });
