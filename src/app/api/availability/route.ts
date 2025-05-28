@@ -12,14 +12,26 @@ async function checkApartmentAvailability(
   checkIn: Date,
   checkOut: Date
 ) {
-  // Verifica prenotazioni esistenti
+  // Date normalization removed - This comment refers to the overall function's direct params
+  // Define UTC Normalized Dates for Queries (Bookings and Blocked Dates)
+  const dateForBlockedQueryCheckIn = new Date(checkIn);
+  dateForBlockedQueryCheckIn.setUTCHours(0, 0, 0, 0);
+
+  const dateForBlockedQueryCheckOut = new Date(checkOut);
+  dateForBlockedQueryCheckOut.setUTCHours(0, 0, 0, 0);
+
+  // Create effectiveCheckInForComparison, set to 12:00 PM UTC of the check-in day
+  const effectiveCheckInForComparison = new Date(dateForBlockedQueryCheckIn);
+  effectiveCheckInForComparison.setUTCHours(12, 0, 0, 0); // Set to 12:00 PM UTC
+
+  // Verifica prenotazioni esistenti using UTC normalized dates
   const existingBookings = await BookingModel.find({
     apartmentId,
     status: { $ne: 'cancelled' },
     $or: [
       {
-        checkIn: { $lt: checkOut },
-        checkOut: { $gt: checkIn }
+        checkIn: { $lt: dateForBlockedQueryCheckOut },     // Compares DB check-in with the request's check-out (normalized to UTC midnight)
+        checkOut: { $gt: effectiveCheckInForComparison } // Compares DB check-out with the request's check-in (normalized to UTC noon)
       }
     ]
   });
@@ -31,9 +43,15 @@ async function checkApartmentAvailability(
   // Verifica se ci sono date bloccate nel periodo
   const blockedDates = await DailyRateModel.find({
     apartmentId,
-    date: { $gte: checkIn, $lt: checkOut },
+    date: { $gte: dateForBlockedQueryCheckIn, $lt: dateForBlockedQueryCheckOut }, // Use normalized dates
     isBlocked: true
   });
+
+    // UPDATED TEMPORARY LOGGING for Blocked Dates Query
+    console.log(`[Availability Check - Blocked Dates Query] Apartment ID: ${apartmentId}`);
+    console.log(`[Availability Check - Blocked Dates Query] Querying for blocked dates between: ${dateForBlockedQueryCheckIn.toISOString()} (inclusive) and ${dateForBlockedQueryCheckOut.toISOString()} (exclusive)`);
+    console.log(`[Availability Check - Blocked Dates Query] Found ${blockedDates.length} blocked date(s):`, JSON.stringify(blockedDates.map(d => ({ date: d.date, isBlocked: d.isBlocked }))));
+    // END UPDATED LOGGING
 
   if (blockedDates.length > 0) {
     return { available: false };
