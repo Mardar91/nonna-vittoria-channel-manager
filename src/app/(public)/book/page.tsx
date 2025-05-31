@@ -19,12 +19,23 @@ interface SearchState {
   children: number;
 }
 
+// New interface for apartments with calculated price
+interface ApartmentWithCalculatedPrice extends IApartment {
+  nights: number;
+  calculatedPriceForStay: number | null;
+}
+
+// New interface for distributed apartments in group bookings
+interface DistributedApartment extends ApartmentWithCalculatedPrice {
+  effectiveGuests: number;
+}
+
 interface AvailabilityResult {
   checkIn: Date;
   checkOut: Date;
   guests: number;
-  availableApartments: (IApartment & { nights: number })[];
-  groupBookingOptions: any[];
+  availableApartments: ApartmentWithCalculatedPrice[]; // Use the new type
+  groupBookingOptions: ApartmentWithCalculatedPrice[][]; // Array of arrays of these objects
   allowGroupBooking: boolean;
 }
 
@@ -55,9 +66,9 @@ export default function BookingPage() {
   const [showResults, setShowResults] = useState(false);
 
   // Stato per il form di prenotazione
-  const [selectedApartment, setSelectedApartment] = useState<any>(null);
+  const [selectedApartment, setSelectedApartment] = useState<ApartmentWithCalculatedPrice | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [groupBookingSelection, setGroupBookingSelection] = useState<any>(null);
+  const [groupBookingSelection, setGroupBookingSelection] = useState<DistributedApartment[] | null>(null);
   const [bookingFormData, setBookingFormData] = useState<BookingFormData>({
     guestName: '',
     guestEmail: '',
@@ -67,11 +78,11 @@ export default function BookingPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Funzione per distribuire gli ospiti tra gli appartamenti
-  const distributeGuests = (combination: any[], totalGuests: number) => {
+  const distributeGuests = (combination: ApartmentWithCalculatedPrice[], totalGuests: number): DistributedApartment[] => {
     let remainingGuests = totalGuests;
     
     // Copia degli appartamenti per non modificare l'originale
-    const distributedApartments = combination.map(apt => ({
+    const distributedApartments: DistributedApartment[] = combination.map(apt => ({
       ...apt,
       effectiveGuests: 0 // Quanti ospiti effettivamente assegnati a questo appartamento
     }));
@@ -213,7 +224,7 @@ export default function BookingPage() {
   // };
   
   // Calcola il prezzo totale per prenotazione di gruppo
-  const calculateGroupTotalPrice = (combination: any[]): number => {
+  const calculateGroupTotalPrice = (combination: ApartmentWithCalculatedPrice[]): number => {
     if (!combination || combination.length === 0) return 0;
     
     // Distribuisci gli ospiti tra gli appartamenti
@@ -640,7 +651,7 @@ export default function BookingPage() {
                             return (
                               <>
                                 <ul className="space-y-2 mb-4">
-                                  {distributedApartments.map((apt: any) => (
+                                  {distributedApartments.map((apt: DistributedApartment) => (
                                     apt.effectiveGuests > 0 ? (
                                       <li key={apt._id} className="flex justify-between items-center border-b border-gray-100 pb-2">
                                         <div>
@@ -825,8 +836,8 @@ export default function BookingPage() {
                             <div className="mt-4">
                               <h4 className="font-medium text-gray-900 mb-2">Riepilogo Apartamenti</h4>
                               {groupBookingSelection
-                                .filter((apt: any) => apt.effectiveGuests > 0)
-                                .map((apt: any) => (
+                                .filter((apt: DistributedApartment) => apt.effectiveGuests > 0)
+                                .map((apt: DistributedApartment) => (
                                 <div key={apt._id} className="border-b border-gray-200 pb-2 mb-2">
                                   <p className="font-medium">{apt.name}</p>
                                   <div className="flex justify-between items-center text-sm text-gray-600">
@@ -838,7 +849,7 @@ export default function BookingPage() {
                               <div className="flex justify-between items-center font-medium mt-2">
                                 <span>Prezzo totale:</span>
                                 {/* calculateGroupTotalPrice now handles the sum correctly based on its new logic */}
-                                <span>€{calculateGroupTotalPrice(groupBookingSelection).toFixed(2)}</span>
+                                <span>€{calculateGroupTotalPrice(groupBookingSelection.map(item => item as ApartmentWithCalculatedPrice)).toFixed(2)}</span>
                               </div>
                             </div>
                           )}
