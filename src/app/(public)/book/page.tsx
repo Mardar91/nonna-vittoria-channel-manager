@@ -569,28 +569,61 @@ export default function BookingPage() {
                         
                         {/* Informazioni sul prezzo */}
                         <div className="mt-2 text-sm text-gray-600">
-                          {apartment.priceType === 'per_person' ? (
-                            <p>€{apartment.price.toFixed(2)} per persona per notte (max {apartment.maxGuests} ospiti)</p>
-                          ) : (
-                            <>
-                              <p>€{apartment.price.toFixed(2)} per notte (fino a {apartment.baseGuests} ospiti)</p>
-                              {apartment.extraGuestPrice > 0 && (
-                                <p className="text-xs text-gray-500">
-                                  {apartment.extraGuestPriceType === 'fixed' 
-                                    ? `+€${apartment.extraGuestPrice.toFixed(2)} per ogni ospite extra (max ${apartment.maxGuests} ospiti)`
-                                    : `+${apartment.extraGuestPrice}% per ogni ospite extra (max ${apartment.maxGuests} ospiti)`}
-                                </p>
-                              )}
-                            </>
-                          )}
-                          
-                          {/* Avviso se il numero di ospiti totale è maggiore della capacità */}
-                          {search.adults + search.children > apartment.maxGuests && (
-                            <p className="mt-1 text-xs text-orange-600 font-semibold">
-                              Questo appartamento può ospitare al massimo {apartment.maxGuests} ospiti.
-                              Il prezzo mostrato è calcolato per {apartment.maxGuests} ospiti.
-                            </p>
-                          )}
+                          {(() => { // IIFE to handle logic cleanly in JSX
+                            const effectiveGuestsInSearch = search.adults + search.children;
+                            if (apartment.calculatedPriceForStay !== null && apartment.nights > 0) {
+                              const averagePricePerNight = apartment.calculatedPriceForStay / apartment.nights;
+
+                              const effectiveGuestsForReference = Math.min(effectiveGuestsInSearch, apartment.maxGuests);
+                              const referenceBaseNightlyPrice = calculateBasePriceLogic(
+                                {
+                                  price: apartment.price,
+                                  priceType: apartment.priceType,
+                                  baseGuests: apartment.baseGuests,
+                                  extraGuestPrice: apartment.extraGuestPrice,
+                                  extraGuestPriceType: apartment.extraGuestPriceType,
+                                },
+                                effectiveGuestsForReference,
+                                1
+                              );
+
+                              const tolerance = 0.01;
+                              if (apartment.priceType === 'per_person') {
+                                const perPersonNightly = effectiveGuestsForReference > 0 ? averagePricePerNight / effectiveGuestsForReference : apartment.price;
+                                return <p>€{perPersonNightly.toFixed(2)} per persona per notte</p>;
+                              } else if (Math.abs(averagePricePerNight - referenceBaseNightlyPrice) > tolerance) {
+                                return <p>€{averagePricePerNight.toFixed(2)} per notte (prezzo medio)</p>;
+                              } else {
+                                return (
+                                  <>
+                                    <p>€{apartment.price.toFixed(2)} per notte (fino a {apartment.baseGuests} ospiti)</p>
+                                    {apartment.extraGuestPrice > 0 && effectiveGuestsInSearch > apartment.baseGuests && (
+                                      <p className="text-xs text-gray-500">
+                                        {apartment.extraGuestPriceType === 'fixed'
+                                          ? `+€${apartment.extraGuestPrice.toFixed(2)} per ogni ospite extra (max ${apartment.maxGuests} ospiti)`
+                                          : `+${apartment.extraGuestPrice}% per ogni ospite extra (max ${apartment.maxGuests} ospiti)`}
+                                      </p>
+                                    )}
+                                  </>
+                                );
+                              }
+                            } else if (apartment.priceType === 'per_person') {
+                                return <p>€{apartment.price.toFixed(2)} per persona per notte (max {apartment.maxGuests} ospiti)</p>;
+                            } else {
+                                 return (
+                                  <>
+                                    <p>€{apartment.price.toFixed(2)} per notte (fino a {apartment.baseGuests} ospiti)</p>
+                                    {apartment.extraGuestPrice > 0 && (
+                                      <p className="text-xs text-gray-500">
+                                        {apartment.extraGuestPriceType === 'fixed'
+                                          ? `+€${apartment.extraGuestPrice.toFixed(2)} per ogni ospite extra (max ${apartment.maxGuests} ospiti)`
+                                          : `+${apartment.extraGuestPrice}% per ogni ospite extra (max ${apartment.maxGuests} ospiti)`}
+                                      </p>
+                                    )}
+                                  </>
+                                );
+                            }
+                          })()}
                         </div>
                         
                         <div className="mt-4 flex justify-between items-center">
