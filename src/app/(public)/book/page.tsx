@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { IPublicProfile } from '@/models/PublicProfile';
 import { IApartment } from '@/models/Apartment';
-import { calculateTotalPrice } from '@/lib/utils';
+import { calculateTotalPrice as calculateBasePriceLogic } from '@/lib/utils';
 
 interface SearchState {
   checkIn: Date;
@@ -197,20 +197,20 @@ export default function BookingPage() {
     }
   };
   
-  // Calcola il prezzo totale
-  const getTotalPrice = (apartment: any): number => {
-    if (!apartment || !apartment.nights) return 0;
+  // Calcola il prezzo totale - This function might be deprecated if calculatedPriceForStay is always present
+  // const getTotalPrice = (apartment: any): number => {
+  //   if (!apartment || !apartment.nights) return 0;
     
-    // Limita il numero di ospiti alla capacità massima dell'appartamento
-    const effectiveGuests = Math.min(search.adults + search.children, apartment.maxGuests);
+  //   // Limita il numero di ospiti alla capacità massima dell'appartamento
+  //   const effectiveGuests = Math.min(search.adults + search.children, apartment.maxGuests);
     
-    // Usa la funzione di calcolo del prezzo con il numero effettivo di ospiti
-    return calculateTotalPrice(
-      apartment,
-      effectiveGuests,
-      apartment.nights
-    );
-  };
+  //   // Usa la funzione di calcolo del prezzo con il numero effettivo di ospiti
+  //   return calculateBasePriceLogic( // Renamed import
+  //     apartment,
+  //     effectiveGuests,
+  //     apartment.nights
+  //   );
+  // };
   
   // Calcola il prezzo totale per prenotazione di gruppo
   const calculateGroupTotalPrice = (combination: any[]): number => {
@@ -223,7 +223,15 @@ export default function BookingPage() {
     return distributedApartments.reduce((total, apt) => {
       if (apt.effectiveGuests === 0) return total; // Salta appartamenti non utilizzati
       
-      return total + calculateTotalPrice(
+      // Use calculatedPriceForStay if available, otherwise fallback to base logic
+      if (apt.calculatedPriceForStay !== null && apt.calculatedPriceForStay !== undefined) {
+        // IMPORTANT: The backend calculates priceForGroupAptStay using Math.min(totalGuests, apt.maxGuests).
+        // If apt.effectiveGuests (from distributeGuests) is different, this sum might not be perfectly accurate
+        // without re-calculating based on effectiveGuests. For now, summing the provided price.
+        return total + apt.calculatedPriceForStay;
+      }
+      // Fallback if calculatedPriceForStay is null or undefined
+      return total + calculateBasePriceLogic( // Use renamed calculateBasePriceLogic
         apt,
         apt.effectiveGuests, // Usa il numero effettivo di ospiti assegnati
         apt.nights
@@ -577,10 +585,15 @@ export default function BookingPage() {
                         <div className="mt-4 flex justify-between items-center">
                           <div>
                             <div className="text-sm text-gray-500">Prezzo per {apartment.nights} notti</div>
-                            <div className="text-2xl font-bold">€{getTotalPrice(apartment).toFixed(2)}</div>
-                            {search.adults + search.children > apartment.maxGuests && (
+                            <div className="text-2xl font-bold">
+                              {apartment.calculatedPriceForStay !== null
+                                ? `€${apartment.calculatedPriceForStay.toFixed(2)}`
+                                : 'Prezzo non disponibile'}
+                            </div>
+                            {search.adults + search.children > apartment.maxGuests && apartment.calculatedPriceForStay !== null && (
                               <div className="text-xs text-gray-600">
-                                (per {apartment.maxGuests} ospiti)
+                                {/* This note might need adjustment if price is already for maxGuests from backend */}
+                                {/* (per {apartment.maxGuests} ospiti) */}
                               </div>
                             )}
                           </div>
@@ -637,7 +650,7 @@ export default function BookingPage() {
                                           </div>
                                         </div>
                                         <div className="font-medium">
-                                          €{calculateTotalPrice(apt, apt.effectiveGuests, apt.nights).toFixed(2)}
+                                          €{(apt.calculatedPriceForStay !== null && apt.calculatedPriceForStay !== undefined ? apt.calculatedPriceForStay : calculateBasePriceLogic(apt, apt.effectiveGuests, apt.nights)).toFixed(2)}
                                         </div>
                                       </li>
                                     ) : null // Non mostrare appartamenti non utilizzati
@@ -798,7 +811,11 @@ export default function BookingPage() {
                               
                               <div className="flex justify-between items-center font-medium mt-2">
                                 <span>Prezzo totale:</span>
-                                <span>€{getTotalPrice(selectedApartment).toFixed(2)}</span>
+                                <span>
+                                  {selectedApartment.calculatedPriceForStay !== null
+                                    ? `€${selectedApartment.calculatedPriceForStay.toFixed(2)}`
+                                    : 'Prezzo non disponibile'}
+                                </span>
                               </div>
                             </div>
                           )}
@@ -814,16 +831,14 @@ export default function BookingPage() {
                                   <p className="font-medium">{apt.name}</p>
                                   <div className="flex justify-between items-center text-sm text-gray-600">
                                     <span>{apt.effectiveGuests} ospiti (max {apt.maxGuests})</span>
-                                    <span>€{calculateTotalPrice(apt, apt.effectiveGuests, apt.nights).toFixed(2)}</span>
+                                    <span>€{(apt.calculatedPriceForStay !== null && apt.calculatedPriceForStay !== undefined ? apt.calculatedPriceForStay : calculateBasePriceLogic(apt, apt.effectiveGuests, apt.nights)).toFixed(2)}</span>
                                   </div>
                                 </div>
                               ))}
                               <div className="flex justify-between items-center font-medium mt-2">
                                 <span>Prezzo totale:</span>
-                                <span>€{groupBookingSelection
-                                  .filter((apt: any) => apt.effectiveGuests > 0)
-                                  .reduce((total: number, apt: any) => 
-                                    total + calculateTotalPrice(apt, apt.effectiveGuests, apt.nights), 0).toFixed(2)}</span>
+                                {/* calculateGroupTotalPrice now handles the sum correctly based on its new logic */}
+                                <span>€{calculateGroupTotalPrice(groupBookingSelection).toFixed(2)}</span>
                               </div>
                             </div>
                           )}

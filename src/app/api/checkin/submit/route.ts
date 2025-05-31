@@ -136,29 +136,20 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // NUOVA LOGICA: Aggiorna i dati della prenotazione con i dati reali dell'ospite principale
-      // Solo se la prenotazione è stata importata (ha un email fittizia)
-      if (booking.guestEmail && booking.guestEmail.includes('@guest.example.com')) {
-        // Costruisci il nome completo dell'ospite principale
-        const mainGuestFullName = `${mainGuestData.firstName} ${mainGuestData.lastName}`;
-        
-        // Aggiorna i dati della prenotazione con i dati reali
-        booking.guestName = mainGuestFullName;
-        
-        // Aggiorna l'email con quella fornita durante il check-in
-        // Usa identificationEmail se disponibile (modalità normale), altrimenti originalEmail (modalità unassigned)
-        const emailToUse = identificationEmail || originalEmail;
-        if (emailToUse && emailToUse !== booking.guestEmail) {
-          booking.guestEmail = emailToUse;
+      // Logic to update booking with main guest's data
+      const mainGuestFullName = `${mainGuestData.firstName} ${mainGuestData.lastName}`;
+      booking.guestName = mainGuestFullName;
+
+      if (identificationEmail && identificationEmail.trim() !== "") {
+        if (booking.guestEmail !== identificationEmail) {
+          booking.guestEmail = identificationEmail;
         }
-        
-        // Se hai il telefono nei dati del guest, aggiornalo
-        // booking.guestPhone = mainGuestData.phone || booking.guestPhone;
-        
-        // Aggiungi una nota per tracciare l'aggiornamento
-        const updateNote = `Dati aggiornati dopo check-in online: ${mainGuestFullName}`;
-        booking.notes = booking.notes ? `${booking.notes}\n${updateNote}` : updateNote;
+      } else {
+        console.warn(`Attempted online check-in for booking ID ${booking._id} without a valid identificationEmail. Booking email not updated.`);
       }
+
+      const updateNote = `Dati aggiornati dopo check-in online: ${mainGuestFullName}`;
+      booking.notes = booking.notes ? `${booking.notes}\n${updateNote}` : updateNote;
 
       booking.hasCheckedIn = true;
       await booking.save();
