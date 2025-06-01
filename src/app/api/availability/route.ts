@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import ApartmentModel from '@/models/Apartment';
+import ApartmentModel, { IApartment } from '@/models/Apartment'; // Import IApartment
 import BookingModel from '@/models/Booking';
 import DailyRateModel from '@/models/DailyRate';
 import PublicProfileModel from '@/models/PublicProfile';
@@ -86,6 +86,58 @@ async function checkApartmentAvailability(
     apartment: apartment 
   };
 }
+
+// Helper function for group booking guest distribution (backend)
+interface ApartmentForDistribution {
+  _id: string;
+  name: string;
+  maxGuests: number;
+  price: number;
+  priceType: 'per_night' | 'per_person';
+  baseGuests?: number;
+  extraGuestPrice?: number;
+  extraGuestPriceType?: 'fixed' | 'percentage';
+  seasonalPrices?: Array<{ startDate: Date; endDate: Date; price: number }>;
+  minStay?: number; // Added minStay
+  // Include any other properties of IApartment that calculateDynamicPriceForStay might need
+  // For example, if specific amenities or policies affect pricing.
+  // Also, ensure all fields required by IApartment for constructing the final object are here.
+}
+
+interface DistributedApartmentBackend extends ApartmentForDistribution {
+  effectiveGuests: number;
+  calculatedPriceForStay?: number | null;
+  nights: number;
+}
+
+function distributeGuestsForCombination(
+  combination: ApartmentForDistribution[], // Expects objects that include 'nights' already
+  totalGuestsToDistribute: number
+): DistributedApartmentBackend[] {
+  let remainingGuests = totalGuestsToDistribute;
+
+  // Map to ensure all properties are carried over and effectiveGuests is initialized.
+  // The 'nights' property should already be part of each apt in 'combination'.
+  const distributedApartments: DistributedApartmentBackend[] = combination.map(apt => ({
+    ...(apt as IApartment), // Cast to IApartment or ensure all fields are there
+    _id: apt._id.toString(), // Ensure _id is string
+    effectiveGuests: 0,
+    nights: (apt as any).nights, // Assuming nights is passed in or part of ApartmentForDistribution
+  }));
+
+  // Sort by maxGuests to prioritize larger apartments, can be adjusted
+  distributedApartments.sort((a, b) => b.maxGuests - a.maxGuests);
+
+  for (const apt of distributedApartments) {
+    if (remainingGuests <= 0) break;
+    const guestsToAssign = Math.min(remainingGuests, apt.maxGuests);
+    apt.effectiveGuests = guestsToAssign;
+    remainingGuests -= guestsToAssign;
+  }
+
+  return distributedApartments;
+}
+
 
 // POST: Verificare la disponibilità degli appartamenti
 export async function POST(req: NextRequest) {
@@ -173,62 +225,88 @@ export async function POST(req: NextRequest) {
     
     // Se non ci sono appartamenti disponibili per tutti gli ospiti insieme, ma il booking di gruppo è consentito
     if (availableApartments.length === 0 && allowGroupBooking && totalGuests > 1) {
-      // Ottieni tutti gli appartamenti disponibili
-      const allAvailableApts = [];
-      
-      for (const apartment of apartments) {
-        const result = await checkApartmentAvailability(
+      const potentialSourceApartmentsForGroup = [];
+      for (const apartment of apartments) { // Using 'apartments' which are full IApartment documents
+        const availabilityResult = await checkApartmentAvailability(
           apartment._id.toString(),
           checkInDate,
           checkOutDate
         );
-        
-        if (result.available) {
-          const nightsForGroupApt = Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-          let priceForGroupAptStay = null;
-          try {
-              priceForGroupAptStay = await calculateDynamicPriceForStay(
-                  apartment._id.toString(),
-                  checkInDate,
-                  checkOutDate,
-                  Math.min(totalGuests, apartment.maxGuests)
-              );
-          } catch (priceError) {
-              console.error(`Error calculating dynamic price for group option apartment ${apartment._id}:`, priceError);
-          }
+        if (availabilityResult.available && availabilityResult.apartment) {
+          // Push a lean version of the apartment, or the full one if needed by distribute/calculate functions
+          potentialSourceApartmentsForGroup.push(availabilityResult.apartment.toObject() as IApartment);
+        }
+      }
 
-          allAvailableApts.push({
-            ...apartment.toObject(),
-            nights: nightsForGroupApt,
-            calculatedPriceForStay: priceForGroupAptStay, // Add calculated price
-          });
+      // --- Modified Combination Logic with Price Recalculation ---
+      if (potentialSourceApartmentsForGroup.length > 0) { // Check if there are any available apartments at all
+        // Sort available apartments by maxGuests to try to fill with fewer apartments
+        potentialSourceApartmentsForGroup.sort((a, b) => b.maxGuests - a.maxGuests);
+        
+        let guestsToCoverByCombination = totalGuests;
+        const combinationSourceAptsData: IApartment[] = [];
+
+        for (const aptData of potentialSourceApartmentsForGroup) {
+            combinationSourceAptsData.push(aptData);
+            guestsToCoverByCombination -= aptData.maxGuests;
+            if (guestsToCoverByCombination <= 0) break;
+        }
+
+        if (guestsToCoverByCombination <= 0 && combinationSourceAptsData.length > 0) {
+            const nights = Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            // Ensure objects in combinationSourceAptsData have all necessary fields for ApartmentForDistribution
+            // and add 'nights' to each.
+            const combinationForDistribution: ApartmentForDistribution[] = combinationSourceAptsData.map(apt => ({
+              ...apt, // Spread all fields from IApartment
+              _id: apt._id.toString(), // ensure _id is string
+              nights: nights,
+              // Ensure all fields required by ApartmentForDistribution are mapped if IApartment structure differs
+              price: apt.price,
+              priceType: apt.priceType as 'per_night' | 'per_person',
+              baseGuests: apt.baseGuests,
+              extraGuestPrice: apt.extraGuestPrice,
+              extraGuestPriceType: apt.extraGuestPriceType as 'fixed' | 'percentage',
+              seasonalPrices: apt.seasonalPrices,
+              minStay: apt.minStay,
+            }));
+
+            const distributedApartmentsInCombination = distributeGuestsForCombination(combinationForDistribution, totalGuests);
+
+            const finalPricedCombination: DistributedApartmentBackend[] = [];
+            let actualGuestsCoveredInCombination = 0;
+
+            for (const aptInDistro of distributedApartmentsInCombination) {
+                if (aptInDistro.effectiveGuests > 0) {
+                    let priceForAptInDistro = null;
+                    try {
+                        priceForAptInDistro = await calculateDynamicPriceForStay(
+                            aptInDistro._id.toString(),
+                            checkInDate,
+                            checkOutDate,
+                            aptInDistro.effectiveGuests // Use actual assigned guests
+                        );
+                    } catch (priceError) {
+                        console.error(`Error recalculating price for group apartment ${aptInDistro._id} with ${aptInDistro.effectiveGuests} guests:`, priceError);
+                    }
+                    finalPricedCombination.push({
+                        ...aptInDistro,
+                        calculatedPriceForStay: priceForAptInDistro,
+                    });
+                    actualGuestsCoveredInCombination += aptInDistro.effectiveGuests;
+                } else {
+                  // Optionally, include apartments with 0 guests if needed for display,
+                  // but they won't contribute to price or guest count.
+                  // For now, only adding if they have effective guests.
+                }
+            }
+            // Add the combination if it effectively covers all guests
+            if (actualGuestsCoveredInCombination >= totalGuests && finalPricedCombination.length > 0) {
+                groupBookingOptions.push(finalPricedCombination);
+            }
         }
       }
-      
-      // Crea combinazioni di appartamenti per ospitare tutti gli ospiti
-      if (allAvailableApts.length >= 2) {
-        // Ordina gli appartamenti per capacità
-        allAvailableApts.sort((a, b) => b.maxGuests - a.maxGuests);
-        
-        // Algoritmo semplice per trovare combinazioni
-        let remainingGuests = totalGuests;
-        const combination = [];
-        
-        for (const apt of allAvailableApts) {
-          if (remainingGuests <= 0) break;
-          
-          // Aggiungi questo appartamento alla combinazione
-          combination.push(apt);
-          
-          // Aggiorna gli ospiti rimanenti
-          remainingGuests -= apt.maxGuests;
-        }
-        
-        // Se abbiamo trovato una combinazione che può ospitare tutti
-        if (remainingGuests <= 0) {
-          groupBookingOptions.push(combination);
-        }
-      }
+      // --- End Modified Combination Logic ---
     }
     
     return NextResponse.json({
