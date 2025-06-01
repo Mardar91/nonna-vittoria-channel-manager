@@ -2,30 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import BookingModel from '@/models/Booking';
 import CheckInModel from '@/models/CheckIn';
-import { IGuestData, CheckInSubmitRequest, CheckInSubmitResponse } from '@/types/checkin'; // IGuestData è usato internamente, CheckInSubmitRequest per il body
-
-// L'interfaccia ExtendedCheckInSubmitRequest è stata rimossa come da istruzioni.
-// Useremo CheckInSubmitRequest direttamente da '@/types/checkin'.
+import { IGuestData, CheckInSubmitRequest, CheckInSubmitResponse } from '@/types/checkin';
+import { createCheckInNotification } from '@/lib/notifications';
 
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
     
-    // Modificato il tipo di 'body' da ExtendedCheckInSubmitRequest a CheckInSubmitRequest
     const body: CheckInSubmitRequest = await req.json();
     const { 
       mode, 
-      guests: submittedGuests, // Rinominato per chiarezza, proviene da body.guests
+      guests: submittedGuests,
       acceptTerms, 
       notes,
       requestedCheckIn, 
       requestedCheckOut, 
       originalEmail, 
       originalBookingRef,
-      numberOfGuests: submittedNumberOfGuests, // Proviene da body.numberOfGuests
+      numberOfGuests: submittedNumberOfGuests,
       bookingId, 
       apartmentId,
-      identificationEmail // Nuovo campo per l'email usata per identificarsi
+      identificationEmail
     } = body;
 
     if (!acceptTerms) {
@@ -35,8 +32,6 @@ export async function POST(req: NextRequest) {
       } as CheckInSubmitResponse, { status: 400 });
     }
 
-    // Il tipo di submittedGuests è ora Array<IGuestData & { isMainGuest: boolean }>
-    // come definito in CheckInSubmitRequest
     if (!submittedGuests || submittedGuests.length === 0) {
       return NextResponse.json({
         success: false,
@@ -44,7 +39,6 @@ export async function POST(req: NextRequest) {
       } as CheckInSubmitResponse, { status: 400 });
     }
 
-    // g.isMainGuest sarà un booleano (true/false) perché il tipo lo impone.
     const mainGuestData = submittedGuests.find(g => g.isMainGuest === true); 
     if (!mainGuestData) {
       return NextResponse.json({
@@ -54,11 +48,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Common guest processing
-    // 'guest' qui è di tipo (IGuestData & { isMainGuest: boolean })
     const processedGuests = submittedGuests.map(guest => ({
-      ...guest, // Copia tutte le proprietà, inclusa isMainGuest
-      dateOfBirth: new Date(guest.dateOfBirth), // Converti stringa data in oggetto Date
-      // documentIssueDate: guest.documentIssueDate ? new Date(guest.documentIssueDate) : undefined,
+      ...guest,
+      dateOfBirth: new Date(guest.dateOfBirth),
     }));
 
     const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
@@ -75,7 +67,7 @@ export async function POST(req: NextRequest) {
       const checkInNotes = `Check-in da smistare. Riferimento originale: ${originalBookingRef}, Email originale: ${originalEmail}. ${notes ? `Note aggiuntive: ${notes}` : ''}`;
       
       const newCheckIn = new CheckInModel({
-        guests: processedGuests, // processedGuests include isMainGuest
+        guests: processedGuests,
         status: 'pending_assignment',
         checkInDate: new Date(requestedCheckIn),
         requestedCheckIn: new Date(requestedCheckIn),
@@ -85,10 +77,18 @@ export async function POST(req: NextRequest) {
         userAgent,
         completedBy: 'guest',
         completedAt: new Date(),
-        // bookingId e apartmentId rimangono undefined qui
       });
 
       await newCheckIn.save();
+      
+      // Crea notifica per check-in da assegnare
+      const mainGuestFullName = `${mainGuestData.firstName} ${mainGuestData.lastName}`;
+      await createCheckInNotification(
+        newCheckIn,
+        mainGuestFullName,
+        undefined // Nessun appartamento ancora assegnato
+      );
+      
       return NextResponse.json({
         success: true,
         checkInId: newCheckIn._id.toString(),
@@ -151,18 +151,16 @@ export async function POST(req: NextRequest) {
       const updateNote = `Dati aggiornati dopo check-in online: ${mainGuestFullName}`;
       booking.notes = booking.notes ? `${booking.notes}\n${updateNote}` : updateNote;
 
-      // LA RIPETIZIONE È STATA RIMOSSA DA QUI
-
       booking.hasCheckedIn = true;
       await booking.save();
 
       const newCheckIn = new CheckInModel({
         bookingId: booking._id.toString(),
-        apartmentId: booking.apartmentId.toString(), // Assicurati che apartmentId sia corretto
-        guests: processedGuests, // processedGuests include isMainGuest
+        apartmentId: booking.apartmentId.toString(),
+        guests: processedGuests,
         status: 'completed',
         checkInDate: new Date(booking.checkIn),
-        notes: notes, // Qui potresti voler usare `updateNote` o una combinazione se `notes` dal body è diverso
+        notes: notes,
         ipAddress,
         userAgent,
         completedBy: 'guest',
@@ -170,6 +168,14 @@ export async function POST(req: NextRequest) {
       });
 
       await newCheckIn.save();
+      
+      // Crea notifica per check-in completato
+      await createCheckInNotification(
+        newCheckIn,
+        mainGuestFullName,
+        booking.apartmentId.toString()
+      );
+      
       return NextResponse.json({
         success: true,
         checkInId: newCheckIn._id.toString(),

@@ -5,6 +5,7 @@ import ApartmentModel, { IApartment } from '@/models/Apartment';
 import BookingModel from '@/models/Booking';
 import { importICalEvents, extractGuestInfoFromEvent } from '@/lib/ical';
 import { v4 as uuidv4 } from 'uuid';
+import { createNotification } from '@/lib/notifications';
 
 // POST: Sincronizzare le prenotazioni da un feed iCal esterno
 export async function POST(req: NextRequest) {
@@ -100,10 +101,6 @@ export async function POST(req: NextRequest) {
         
         // Set totalPrice to 0 for iCal imports
         const totalPrice = 0;
-        // const nights = Math.max(1, Math.round((event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60 * 24)));
-        // const totalPrice = apartment.price * nights;
-        
-        // const validSource = mapSourceToEnumValue(source); // No longer needed
         
         // Crea una nuova prenotazione - NON valida il soggiorno minimo per prenotazioni importate
         const booking = await BookingModel.create({
@@ -124,6 +121,19 @@ export async function POST(req: NextRequest) {
         });
         
         importedBookings.push(booking);
+        
+        // Crea notifica per ogni prenotazione importata
+        await createNotification({
+          type: 'ical_import',
+          relatedModel: 'Booking',
+          relatedId: booking._id.toString(),
+          apartmentId: booking.apartmentId,
+          guestName: booking.guestName,
+          checkIn: booking.checkIn,
+          checkOut: booking.checkOut,
+          source: source
+        });
+        
       } catch (error) {
         errors.push({ 
           uid: event.uid,

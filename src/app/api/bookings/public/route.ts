@@ -6,6 +6,7 @@ import PublicProfileModel from '@/models/PublicProfile';
 import { checkAvailability } from '@/lib/ical';
 import { calculateTotalPrice } from '@/lib/utils'; // This might be kept if other parts use it, or removed if not.
 import { calculateDynamicPriceForStay } from '@/lib/pricing';
+import { createNotification, createBookingNotifications } from '@/lib/notifications';
 
 export async function POST(req: NextRequest) {
   try {
@@ -125,6 +126,18 @@ export async function POST(req: NextRequest) {
         notes
       });
       
+      // Crea la notifica per la nuova richiesta di prenotazione
+      await createNotification({
+        type: 'booking_inquiry',
+        relatedModel: 'Booking',
+        relatedId: booking._id.toString(),
+        apartmentId: booking.apartmentId,
+        guestName: booking.guestName,
+        checkIn: booking.checkIn,
+        checkOut: booking.checkOut,
+        source: 'direct'
+      });
+      
       return NextResponse.json({
         success: true,
         booking
@@ -231,6 +244,9 @@ export async function POST(req: NextRequest) {
       
       // Crea tutte le prenotazioni
       const createdBookings = await BookingModel.insertMany(bookingsToCreate);
+      
+      // Crea le notifiche per tutte le prenotazioni del gruppo
+      await createBookingNotifications(createdBookings, true); // true = è una inquiry
       
       return NextResponse.json({
         success: true,
