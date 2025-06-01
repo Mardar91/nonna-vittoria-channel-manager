@@ -180,6 +180,41 @@ export async function POST(req: NextRequest) {
     // Ottieni il profilo pubblico per verificare se il booking di gruppo è consentito
     const profile = await PublicProfileModel.findOne({});
     const allowGroupBooking = profile?.allowGroupBooking || false;
+
+    // START: minDaysInAdvance and maxDaysInAdvance logic
+    if (profile) {
+      const currentDateUtc = new Date();
+      currentDateUtc.setUTCHours(0, 0, 0, 0);
+
+      let minBookingDate = new Date(currentDateUtc);
+      if (profile.minDaysInAdvance && profile.minDaysInAdvance > 0) {
+        minBookingDate.setUTCDate(currentDateUtc.getUTCDate() + profile.minDaysInAdvance);
+      }
+
+      let maxBookingDate: Date | null = null;
+      if (profile.maxDaysInAdvance && profile.maxDaysInAdvance > 0) {
+        maxBookingDate = new Date(currentDateUtc);
+        maxBookingDate.setUTCDate(currentDateUtc.getUTCDate() + profile.maxDaysInAdvance);
+      }
+
+      const checkInDateNormalized = new Date(checkInDate);
+      checkInDateNormalized.setUTCHours(0, 0, 0, 0);
+
+      if (checkInDateNormalized < minBookingDate) {
+        return NextResponse.json(
+          { error: `La data di check-in deve essere almeno ${profile.minDaysInAdvance} giorni dopo la data odierna.` },
+          { status: 400 }
+        );
+      }
+
+      if (maxBookingDate && checkInDateNormalized > maxBookingDate) {
+        return NextResponse.json(
+          { error: `La data di check-in non può essere oltre ${profile.maxDaysInAdvance} giorni dalla data odierna.` },
+          { status: 400 }
+        );
+      }
+    }
+    // END: minDaysInAdvance and maxDaysInAdvance logic
     
     // Ottieni tutti gli appartamenti
     const apartments = await ApartmentModel.find({}).sort({ maxGuests: -1 });

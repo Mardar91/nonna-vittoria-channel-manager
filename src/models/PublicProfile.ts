@@ -38,7 +38,7 @@ const PublicProfileSchema = new Schema<IPublicProfile>(
     termsAndConditions: { type: String },
     privacyPolicy: { type: String },
     allowGroupBooking: { type: Boolean, default: true },
-    minDaysInAdvance: { type: Number, default: 1 },
+    minDaysInAdvance: { type: Number, default: 0 },
     maxDaysInAdvance: { type: Number, default: 365 },
     enableOnlineCheckIn: { type: Boolean, default: false },
     checkInTerms: { type: String },
