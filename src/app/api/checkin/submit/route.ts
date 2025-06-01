@@ -151,8 +151,7 @@ export async function POST(req: NextRequest) {
       const updateNote = `Dati aggiornati dopo check-in online: ${mainGuestFullName}`;
       booking.notes = booking.notes ? `${booking.notes}\n${updateNote}` : updateNote;
 
-      const updateNote = `Dati aggiornati dopo check-in online: ${mainGuestFullName}`;
-      booking.notes = booking.notes ? `${booking.notes}\n${updateNote}` : updateNote;
+      // LA RIPETIZIONE È STATA RIMOSSA DA QUI
 
       booking.hasCheckedIn = true;
       await booking.save();
@@ -163,7 +162,7 @@ export async function POST(req: NextRequest) {
         guests: processedGuests, // processedGuests include isMainGuest
         status: 'completed',
         checkInDate: new Date(booking.checkIn),
-        notes: notes,
+        notes: notes, // Qui potresti voler usare `updateNote` o una combinazione se `notes` dal body è diverso
         ipAddress,
         userAgent,
         completedBy: 'guest',
