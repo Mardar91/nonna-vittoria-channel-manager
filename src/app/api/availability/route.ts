@@ -93,7 +93,7 @@ interface ApartmentForDistribution {
   name: string;
   maxGuests: number;
   price: number;
-  priceType: 'per_night' | 'per_person';
+  priceType: 'per_night' | 'per_person' | 'flat';
   baseGuests?: number;
   extraGuestPrice?: number;
   extraGuestPriceType?: 'fixed' | 'percentage';
@@ -263,7 +263,7 @@ export async function POST(req: NextRequest) {
               nights: nights,
               // Ensure all fields required by ApartmentForDistribution are mapped if IApartment structure differs
               price: apt.price,
-              priceType: apt.priceType as 'per_night' | 'per_person',
+              priceType: apt.priceType as 'per_night' | 'per_person' | 'flat',
               baseGuests: apt.baseGuests,
               extraGuestPrice: apt.extraGuestPrice,
               extraGuestPriceType: apt.extraGuestPriceType as 'fixed' | 'percentage',
