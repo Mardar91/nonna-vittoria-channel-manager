@@ -180,6 +180,50 @@ export async function POST(req: NextRequest) {
     // Ottieni il profilo pubblico per verificare se il booking di gruppo è consentito
     const profile = await PublicProfileModel.findOne({});
     const allowGroupBooking = profile?.allowGroupBooking || false;
+
+    // START: minDaysInAdvance and maxDaysInAdvance logic
+    if (profile) {
+      const currentDateUtc = new Date();
+      currentDateUtc.setUTCHours(0, 0, 0, 0);
+
+      let minBookingDate = new Date(currentDateUtc);
+      if (profile.minDaysInAdvance && profile.minDaysInAdvance > 0) {
+        minBookingDate.setUTCDate(currentDateUtc.getUTCDate() + profile.minDaysInAdvance);
+      }
+
+      let maxBookingDate: Date | null = null;
+      if (profile.maxDaysInAdvance && profile.maxDaysInAdvance > 0) {
+        maxBookingDate = new Date(currentDateUtc);
+        maxBookingDate.setUTCDate(currentDateUtc.getUTCDate() + profile.maxDaysInAdvance);
+      }
+
+      const checkInDateNormalized = new Date(checkInDate);
+      checkInDateNormalized.setUTCHours(0, 0, 0, 0);
+
+      if (checkInDateNormalized < minBookingDate) {
+        let message: string;
+        const minDays = profile.minDaysInAdvance || 0;
+        if (minDays > 0) {
+          message = `La data di check-in deve essere almeno ${minDays} giorni dopo la data odierna.`;
+        } else {
+          // This condition implies checkInDateNormalized < currentDateUtc because minBookingDate is currentDateUtc when minDaysInAdvance is 0
+          message = "Non è possibile prenotare per date passate.";
+        }
+        return NextResponse.json(
+          { errorCode: 'ERR_TOO_EARLY', message: message },
+          { status: 400 }
+        );
+      }
+
+      if (maxBookingDate && checkInDateNormalized > maxBookingDate) {
+        const message = "Per queste date future non è stata ancora stabilita la disponibilità. Prova a cercare per date più vicine o contattaci.";
+        return NextResponse.json(
+          { errorCode: 'ERR_TOO_LATE', message: message },
+          { status: 400 }
+        );
+      }
+    }
+    // END: minDaysInAdvance and maxDaysInAdvance logic
     
     // Ottieni tutti gli appartamenti
     const apartments = await ApartmentModel.find({}).sort({ maxGuests: -1 });
