@@ -1,60 +1,123 @@
-import mongoose, { Schema } from 'mongoose';
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import connectDB from '@/lib/db';
+import NotificationModel from '@/models/Notification';
 
-export interface INotification {
-  _id?: string;
-  userId: string; // ID dell'utente admin che riceve la notifica
-  type: 'new_booking' | 'new_checkin' | 'ical_import' | 'booking_inquiry';
-  title: string;
-  message: string;
-  relatedModel: 'Booking' | 'CheckIn';
-  relatedId: string; // ID della prenotazione o check-in correlato
-  apartmentId?: string; // Per facilitare il filtraggio per appartamento
-  isRead: boolean;
-  readAt?: Date;
-  metadata?: {
-    guestName?: string;
-    checkIn?: Date;
-    checkOut?: Date;
-    source?: string;
-    apartmentName?: string;
-  };
-  createdAt?: Date;
-  updatedAt?: Date;
+// GET: Recupera le notifiche per l'utente corrente
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    await connectDB();
+
+    const url = new URL(req.url);
+    const unreadOnly = url.searchParams.get('unreadOnly') === 'true';
+    const limit = parseInt(url.searchParams.get('limit') || '20');
+    const skip = parseInt(url.searchParams.get('skip') || '0');
+
+    // Costruisci la query
+    const query: any = { userId: session.user?.id || '1' }; // Usa l'ID dell'utente dalla sessione
+    if (unreadOnly) {
+      query.isRead = false;
+    }
+
+    // Recupera le notifiche con paginazione
+    const notifications = await NotificationModel
+      .find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip);
+
+    // Conta il totale delle notifiche non lette
+    const unreadCount = await NotificationModel.countDocuments({
+      userId: session.user?.id || '1',
+      isRead: false
+    });
+
+    // Conta il totale per la paginazione
+    const totalCount = await NotificationModel.countDocuments(query);
+
+    return NextResponse.json({
+      notifications,
+      unreadCount,
+      totalCount,
+      hasMore: skip + notifications.length < totalCount
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
 }
 
-const NotificationSchema = new Schema<INotification>(
-  {
-    userId: { type: String, required: true },
-    type: {
-      type: String,
-      enum: ['new_booking', 'new_checkin', 'ical_import', 'booking_inquiry'],
-      required: true
-    },
-    title: { type: String, required: true },
-    message: { type: String, required: true },
-    relatedModel: {
-      type: String,
-      enum: ['Booking', 'CheckIn'],
-      required: true
-    },
-    relatedId: { type: String, required: true },
-    apartmentId: { type: String },
-    isRead: { type: Boolean, default: false },
-    readAt: { type: Date },
-    metadata: {
-      guestName: { type: String },
-      checkIn: { type: Date },
-      checkOut: { type: Date },
-      source: { type: String },
-      apartmentName: { type: String }
+// POST: Crea una nuova notifica (solo per uso interno, non esposta all'utente)
+export async function POST(req: NextRequest) {
+  try {
+    // Questa API dovrebbe essere chiamata solo internamente
+    // In produzione, potresti voler aggiungere una chiave API o altro meccanismo di autenticazione
+    const data = await req.json();
+    
+    await connectDB();
+
+    const notification = await NotificationModel.create({
+      ...data,
+      userId: data.userId || '1' // Default all'admin se non specificato
+    });
+
+    return NextResponse.json({
+      success: true,
+      notification
+    }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH: Marca tutte le notifiche come lette
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await getServerSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
-  },
-  { timestamps: true }
-);
 
-// Indici per query efficienti
-NotificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
-NotificationSchema.index({ userId: 1, createdAt: -1 });
-NotificationSchema.index({ relatedId: 1, relatedModel: 1 });
+    await connectDB();
 
-export default mongoose.models.Notification || mongoose.model<INotification>('Notification', NotificationSchema);
+    const result = await NotificationModel.updateMany(
+      { 
+        userId: session.user?.id || '1',
+        isRead: false 
+      },
+      { 
+        isRead: true,
+        readAt: new Date()
+      }
+    );
+
+    return NextResponse.json({
+      success: true,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}
