@@ -570,39 +570,43 @@ export default function BookingPage() {
                         {/* Informazioni sul prezzo */}
                         <div className="mt-2 text-sm text-gray-600">
                           {(() => { // IIFE to handle logic cleanly in JSX
-                            const effectiveGuestsInSearch = search.adults + search.children;
+                            const effectiveGuestsInSearch = search.adults + search.children; // Ensure it's defined here or accessible
+
+                            const effectiveGuestsForReference = Math.min(effectiveGuestsInSearch, apartment.maxGuests);
+                            const localReferenceBaseNightlyPrice = calculateBasePriceLogic( // Renamed
+                              {
+                                price: apartment.price,
+                                priceType: apartment.priceType,
+                                baseGuests: apartment.baseGuests,
+                                extraGuestPrice: apartment.extraGuestPrice,
+                                extraGuestPriceType: apartment.extraGuestPriceType,
+                              },
+                              effectiveGuestsForReference,
+                              1 // Calculate for one night as reference
+                            );
+
                             if (apartment.calculatedPriceForStay !== null && apartment.nights > 0) {
                               const averagePricePerNight = apartment.calculatedPriceForStay / apartment.nights;
-
-                              const effectiveGuestsForReference = Math.min(effectiveGuestsInSearch, apartment.maxGuests);
-                              const referenceBaseNightlyPrice = calculateBasePriceLogic(
-                                {
-                                  price: apartment.price,
-                                  priceType: apartment.priceType,
-                                  baseGuests: apartment.baseGuests,
-                                  extraGuestPrice: apartment.extraGuestPrice,
-                                  extraGuestPriceType: apartment.extraGuestPriceType,
-                                },
-                                effectiveGuestsForReference,
-                                1
-                              );
-
                               const tolerance = 0.01;
+
+                              // Note: effectiveGuestsForReference and localReferenceBaseNightlyPrice are already calculated above
+                              // No need to redefine effectiveGuestsForReference or the original referenceBaseNightlyPrice here
+
                               if (apartment.priceType === 'per_person') {
                                 const perPersonNightly = effectiveGuestsForReference > 0 ? averagePricePerNight / effectiveGuestsForReference : apartment.price;
                                 return <p>€{perPersonNightly.toFixed(2)} per persona per notte, per {effectiveGuestsInSearch} persone</p>;
-                              } else if (Math.abs(averagePricePerNight - referenceBaseNightlyPrice) > tolerance) {
+                              } else if (Math.abs(averagePricePerNight - localReferenceBaseNightlyPrice) > tolerance) { // Use localReferenceBaseNightlyPrice
                                 return <p>€{averagePricePerNight.toFixed(2)} per notte, per {effectiveGuestsInSearch} persone</p>;
                               } else {
                                 return (
-                                  <p>€{referenceBaseNightlyPrice.toFixed(2)} per notte, per {effectiveGuestsInSearch} persone</p>
+                                  <p>€{localReferenceBaseNightlyPrice.toFixed(2)} per notte, per {effectiveGuestsInSearch} persone</p> // Use localReferenceBaseNightlyPrice
                                 );
                               }
                             } else if (apartment.priceType === 'per_person') {
                                 return <p>€{apartment.price.toFixed(2)} per persona per notte, per {effectiveGuestsInSearch} persone</p>;
                             } else {
                                  return (
-                                  <p>€{referenceBaseNightlyPrice.toFixed(2)} per notte, per {effectiveGuestsInSearch} persone</p>
+                                  <p>€{localReferenceBaseNightlyPrice.toFixed(2)} per notte, per {effectiveGuestsInSearch} persone</p> // Use localReferenceBaseNightlyPrice
                                 );
                             }
                           })()}
