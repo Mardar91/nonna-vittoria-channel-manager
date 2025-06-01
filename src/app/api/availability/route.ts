@@ -255,20 +255,25 @@ export async function POST(req: NextRequest) {
         if (guestsToCoverByCombination <= 0 && combinationSourceAptsData.length > 0) {
             const nights = Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
 
-            // Ensure objects in combinationSourceAptsData have all necessary fields for ApartmentForDistribution
-            // and add 'nights' to each.
-            const combinationForDistribution: ApartmentForDistribution[] = combinationSourceAptsData.map(apt => ({
-              ...apt, // Spread all fields from IApartment
-              _id: apt._id.toString(), // ensure _id is string
+            // FILTRA QUI per assicurarti che apt e apt._id siano definiti
+            const validCombinationSourceAptsData = combinationSourceAptsData.filter(
+                apt => apt && typeof apt._id !== 'undefined'
+            );
+
+            // Ora mappa usando validCombinationSourceAptsData
+            const combinationForDistribution: ApartmentForDistribution[] = validCombinationSourceAptsData.map(apt => ({
+              ...apt,
+              _id: apt._id!.toString(), // Usare l'operatore 'non-null assertion' (!) qui è più sicuro dopo il filtro
               nights: nights,
-              // Ensure all fields required by ApartmentForDistribution are mapped if IApartment structure differs
-              price: apt.price,
-              priceType: apt.priceType as 'per_night' | 'per_person' | 'flat',
+              name: apt.name || 'Nome non disponibile',
+              maxGuests: apt.maxGuests || 0,
+              price: apt.price || 0,
+              priceType: (apt.priceType as 'per_night' | 'per_person' | 'flat') || 'per_night',
               baseGuests: apt.baseGuests,
               extraGuestPrice: apt.extraGuestPrice,
-              extraGuestPriceType: apt.extraGuestPriceType as 'fixed' | 'percentage',
-              seasonalPrices: apt.seasonalPrices,
-              minStay: apt.minStay,
+              extraGuestPriceType: apt.extraGuestPriceType as 'fixed' | 'percentage' | undefined,
+              seasonalPrices: apt.seasonalPrices || [],
+              minStay: apt.minStay || 1, // Fallback per minStay se opzionale
             }));
 
             const distributedApartmentsInCombination = distributeGuestsForCombination(combinationForDistribution, totalGuests);
