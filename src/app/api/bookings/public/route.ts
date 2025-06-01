@@ -4,7 +4,8 @@ import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import PublicProfileModel from '@/models/PublicProfile';
 import { checkAvailability } from '@/lib/ical';
-import { calculateTotalPrice } from '@/lib/utils';
+import { calculateTotalPrice } from '@/lib/utils'; // This might be kept if other parts use it, or removed if not.
+import { calculateDynamicPriceForStay } from '@/lib/pricing';
 
 export async function POST(req: NextRequest) {
   try {
@@ -90,7 +91,23 @@ export async function POST(req: NextRequest) {
       // Limita il numero di ospiti alla capacità massima dell'appartamento
       const effectiveGuests = Math.min(numberOfGuests, apartment.maxGuests);
       
-      const totalPrice = calculateTotalPrice(apartment, effectiveGuests, nights);
+      // Ensure apartment object is available (it's fetched just before)
+      if (!apartment) { /* This should be handled, but as a safeguard */
+          return NextResponse.json({ error: 'Apartment data missing for price calculation' }, { status: 500 });
+      }
+
+      let authoritativeTotalPrice;
+      try {
+          authoritativeTotalPrice = await calculateDynamicPriceForStay(
+              apartmentId, // or apartment._id.toString()
+              startDate,   // Date object
+              endDate,     // Date object
+              effectiveGuests
+          );
+      } catch (priceError) {
+          console.error(`Error calculating dynamic price for booking (apartment ${apartmentId}):`, priceError);
+          return NextResponse.json({ error: 'Error calculating price for booking.' }, { status: 500 });
+      }
       
       // Crea la prenotazione con stato 'inquiry'
       const booking = await BookingModel.create({
@@ -100,7 +117,7 @@ export async function POST(req: NextRequest) {
         guestPhone,
         checkIn: startDate,
         checkOut: endDate,
-        totalPrice,
+        totalPrice: authoritativeTotalPrice,
         numberOfGuests: effectiveGuests, // Salva il numero effettivo di ospiti
         status: 'inquiry', // Modifica: inizialmente è una richiesta, non una prenotazione in attesa
         paymentStatus: 'pending',
@@ -168,8 +185,25 @@ export async function POST(req: NextRequest) {
         
         // Calcola prezzo totale per questo appartamento con la nuova funzione
         const nights = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-        const totalPrice = calculateTotalPrice(apartment, numberOfGuests, nights);
-        totalGroupPrice += totalPrice;
+
+        if (!apartment) { /* Safeguard */
+            return NextResponse.json({ error: `Apartment ${groupItem.apartmentId} data missing for group price calculation` }, { status: 500 });
+        }
+
+        let singleApartmentPriceInGroup;
+        try {
+            singleApartmentPriceInGroup = await calculateDynamicPriceForStay(
+                groupItem.apartmentId, // or apartment._id.toString()
+                startDate,
+                endDate,
+                numberOfGuests // Use guests for this specific apartment in the group
+            );
+        } catch (priceError) {
+            console.error(`Error calculating dynamic price for group booking (apartment ${groupItem.apartmentId}):`, priceError);
+            return NextResponse.json({ error: `Error calculating price for apartment ${apartment.name} in group.` }, { status: 500 });
+        }
+
+        totalGroupPrice += singleApartmentPriceInGroup;
         
         // Prepara la prenotazione da creare con stato 'inquiry'
         bookingsToCreate.push({
@@ -179,7 +213,7 @@ export async function POST(req: NextRequest) {
           guestPhone,
           checkIn: startDate,
           checkOut: endDate,
-          totalPrice,
+          totalPrice: singleApartmentPriceInGroup,
           numberOfGuests,
           status: 'inquiry',
           paymentStatus: 'pending',

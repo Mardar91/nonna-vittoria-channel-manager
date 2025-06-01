@@ -5,6 +5,7 @@ import BookingModel from '@/models/Booking';
 import DailyRateModel from '@/models/DailyRate';
 import PublicProfileModel from '@/models/PublicProfile';
 import { checkAvailability } from '@/lib/ical';
+import { calculateDynamicPriceForStay } from '@/lib/pricing';
 
 // Funzione per verificare la disponibilità di un appartamento
 async function checkApartmentAvailability(
@@ -146,9 +147,25 @@ export async function POST(req: NextRequest) {
         );
         
         if (result.available) {
+          const nights = Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          let priceForStay;
+          try {
+            priceForStay = await calculateDynamicPriceForStay(
+              apartment._id.toString(),
+              checkInDate, // This is the Date object from the request
+              checkOutDate, // This is the Date object from the request
+              totalGuests
+            );
+          } catch (priceError) {
+            console.error(`Error calculating dynamic price for apartment ${apartment._id}:`, priceError);
+            priceForStay = null;
+          }
+
           availableApartments.push({
             ...apartment.toObject(),
-            nights: Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)),
+            nights: nights,
+            calculatedPriceForStay: priceForStay, // Add the new calculated price
           });
         }
       }
@@ -167,9 +184,23 @@ export async function POST(req: NextRequest) {
         );
         
         if (result.available) {
+          const nightsForGroupApt = Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+          let priceForGroupAptStay = null;
+          try {
+              priceForGroupAptStay = await calculateDynamicPriceForStay(
+                  apartment._id.toString(),
+                  checkInDate,
+                  checkOutDate,
+                  Math.min(totalGuests, apartment.maxGuests)
+              );
+          } catch (priceError) {
+              console.error(`Error calculating dynamic price for group option apartment ${apartment._id}:`, priceError);
+          }
+
           allAvailableApts.push({
             ...apartment.toObject(),
-            nights: Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)),
+            nights: nightsForGroupApt,
+            calculatedPriceForStay: priceForGroupAptStay, // Add calculated price
           });
         }
       }
