@@ -422,7 +422,7 @@ export default function OnlineProfilePage() {
                     name="minDaysInAdvance"
                     id="minDaysInAdvance"
                     min="0"
-                    value={profile.minDaysInAdvance || 1}
+                    value={profile.minDaysInAdvance ?? 0}
                     onChange={handleChange}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                   />
@@ -440,7 +440,7 @@ export default function OnlineProfilePage() {
                     name="maxDaysInAdvance"
                     id="maxDaysInAdvance"
                     min="1"
-                    value={profile.maxDaysInAdvance || 365}
+                    value={profile.maxDaysInAdvance ?? 365}
                     onChange={handleChange}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                   />

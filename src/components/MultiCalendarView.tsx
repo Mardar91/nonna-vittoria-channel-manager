@@ -204,7 +204,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         
         if (isNearBottom) {
           // Posiziona il dropdown sopra la cella
-          dropdown.style.top = `${rect.top - dropdownHeight}px`;
+          dropdown.style.top = `${rect.top - dropdownHeight + (rect.height / 1.5)}px`;
         } else {
           // Posiziona il dropdown sotto la cella
           dropdown.style.top = `${rect.bottom}px`;
