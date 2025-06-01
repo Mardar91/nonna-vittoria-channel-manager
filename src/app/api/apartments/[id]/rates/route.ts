@@ -29,7 +29,7 @@ export async function GET(
     }
 
     const normalizedQueryStartDate = new Date(startDateParam);
-    normalizedQueryStartDate.setUTCHours(0,0,0,0);
+    normalizedQueryStartDate.setUTCHours(0,0,0,0); // Mantenuta la versione da feat/update-booking-on-checkin
 
     const normalizedQueryEndDate = new Date(endDateParam);
     normalizedQueryEndDate.setUTCHours(0,0,0,0);
@@ -72,7 +72,7 @@ export async function POST(
 
     // !! LOG AGGIUNTO QUI !!
     console.log(`[Rates API POST] Received data.date: ${data.date}, Type: ${typeof data.date}`);
-    if (data.date && typeof data.date === 'object' && data.date.toISOString) {
+    if (data.date && typeof data.date === 'object' && data.date.toISOString) { // Mantenuta la versione da feat/update-booking-on-checkin
       // If data.date is already a Date object or something that behaves like one (e.g. from Firestore timestamp)
       console.log(`[Rates API POST] data.date as Date object methods: toISOString: ${new Date(data.date).toISOString()}, toString: ${new Date(data.date).toString()}`);
     } else if (typeof data.date === 'string') {
@@ -93,7 +93,7 @@ export async function POST(
     }
 
     // Refined date parsing for POST
-    const dateStringFromRequest = data.date;
+    const dateStringFromRequest = data.date; // Mantenuta la versione da feat/update-booking-on-checkin
     let normalizedDate;
 
     if (typeof dateStringFromRequest === 'string') {

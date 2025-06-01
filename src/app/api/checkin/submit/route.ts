@@ -147,6 +147,9 @@ export async function POST(req: NextRequest) {
       } else {
         console.warn(`Attempted online check-in for booking ID ${booking._id} without a valid identificationEmail. Booking email not updated.`);
       }
+      
+      const updateNote = `Dati aggiornati dopo check-in online: ${mainGuestFullName}`;
+      booking.notes = booking.notes ? `${booking.notes}\n${updateNote}` : updateNote;
 
       const updateNote = `Dati aggiornati dopo check-in online: ${mainGuestFullName}`;
       booking.notes = booking.notes ? `${booking.notes}\n${updateNote}` : updateNote;
