@@ -201,15 +201,24 @@ export async function POST(req: NextRequest) {
       checkInDateNormalized.setUTCHours(0, 0, 0, 0);
 
       if (checkInDateNormalized < minBookingDate) {
+        let message: string;
+        const minDays = profile.minDaysInAdvance || 0;
+        if (minDays > 0) {
+          message = `La data di check-in deve essere almeno ${minDays} giorni dopo la data odierna.`;
+        } else {
+          // This condition implies checkInDateNormalized < currentDateUtc because minBookingDate is currentDateUtc when minDaysInAdvance is 0
+          message = "Non è possibile prenotare per date passate.";
+        }
         return NextResponse.json(
-          { error: `La data di check-in deve essere almeno ${profile.minDaysInAdvance} giorni dopo la data odierna.` },
+          { errorCode: 'ERR_TOO_EARLY', message: message },
           { status: 400 }
         );
       }
 
       if (maxBookingDate && checkInDateNormalized > maxBookingDate) {
+        const message = "Per queste date future non è stata ancora stabilita la disponibilità. Prova a cercare per date più vicine o contattaci.";
         return NextResponse.json(
-          { error: `La data di check-in non può essere oltre ${profile.maxDaysInAdvance} giorni dalla data odierna.` },
+          { errorCode: 'ERR_TOO_LATE', message: message },
           { status: 400 }
         );
       }

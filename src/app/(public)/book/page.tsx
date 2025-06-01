@@ -194,15 +194,23 @@ export default function BookingPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Errore nella ricerca');
+        if (errorData.errorCode && (errorData.errorCode === 'ERR_TOO_EARLY' || errorData.errorCode === 'ERR_TOO_LATE')) {
+          throw { errorCode: errorData.errorCode, message: errorData.message };
+        } else {
+          throw new Error(errorData.error || 'Errore sconosciuto dal server');
+        }
       }
 
       const data = await response.json();
       setResults(data);
       setShowResults(true);
-    } catch (error) {
+    } catch (error: any) { // Added :any to allow checking for errorCode
       console.error('Error searching availability:', error);
-      toast.error('Errore nella ricerca della disponibilità');
+      if (error.errorCode && (error.errorCode === 'ERR_TOO_EARLY' || error.errorCode === 'ERR_TOO_LATE')) {
+        toast.error(error.message);
+      } else {
+        toast.error('Errore nella ricerca della disponibilità. Riprova o modifica i parametri.');
+      }
       setShowResults(false);
     } finally {
       setSearchLoading(false);
