@@ -570,57 +570,43 @@ export default function BookingPage() {
                         {/* Informazioni sul prezzo */}
                         <div className="mt-2 text-sm text-gray-600">
                           {(() => { // IIFE to handle logic cleanly in JSX
-                            const effectiveGuestsInSearch = search.adults + search.children;
+                            const effectiveGuestsInSearch = search.adults + search.children; // Ensure it's defined here or accessible
+
+                            const effectiveGuestsForReference = Math.min(effectiveGuestsInSearch, apartment.maxGuests);
+                            const localReferenceBaseNightlyPrice = calculateBasePriceLogic( // Renamed
+                              {
+                                price: apartment.price,
+                                priceType: apartment.priceType,
+                                baseGuests: apartment.baseGuests,
+                                extraGuestPrice: apartment.extraGuestPrice,
+                                extraGuestPriceType: apartment.extraGuestPriceType,
+                              },
+                              effectiveGuestsForReference,
+                              1 // Calculate for one night as reference
+                            );
+
                             if (apartment.calculatedPriceForStay !== null && apartment.nights > 0) {
                               const averagePricePerNight = apartment.calculatedPriceForStay / apartment.nights;
-
-                              const effectiveGuestsForReference = Math.min(effectiveGuestsInSearch, apartment.maxGuests);
-                              const referenceBaseNightlyPrice = calculateBasePriceLogic(
-                                {
-                                  price: apartment.price,
-                                  priceType: apartment.priceType,
-                                  baseGuests: apartment.baseGuests,
-                                  extraGuestPrice: apartment.extraGuestPrice,
-                                  extraGuestPriceType: apartment.extraGuestPriceType,
-                                },
-                                effectiveGuestsForReference,
-                                1
-                              );
-
                               const tolerance = 0.01;
+
+                              // Note: effectiveGuestsForReference and localReferenceBaseNightlyPrice are already calculated above
+                              // No need to redefine effectiveGuestsForReference or the original referenceBaseNightlyPrice here
+
                               if (apartment.priceType === 'per_person') {
                                 const perPersonNightly = effectiveGuestsForReference > 0 ? averagePricePerNight / effectiveGuestsForReference : apartment.price;
-                                return <p>€{perPersonNightly.toFixed(2)} per persona per notte</p>;
-                              } else if (Math.abs(averagePricePerNight - referenceBaseNightlyPrice) > tolerance) {
-                                return <p>€{averagePricePerNight.toFixed(2)} per notte (prezzo medio)</p>;
+                                return <p>€{perPersonNightly.toFixed(2)} per persona per notte, per {effectiveGuestsInSearch} persone</p>;
+                              } else if (Math.abs(averagePricePerNight - localReferenceBaseNightlyPrice) > tolerance) { // Use localReferenceBaseNightlyPrice
+                                return <p>€{averagePricePerNight.toFixed(2)} per notte, per {effectiveGuestsInSearch} persone</p>;
                               } else {
                                 return (
-                                  <>
-                                    <p>€{apartment.price.toFixed(2)} per notte (fino a {apartment.baseGuests} ospiti)</p>
-                                    {apartment.extraGuestPrice > 0 && effectiveGuestsInSearch > apartment.baseGuests && (
-                                      <p className="text-xs text-gray-500">
-                                        {apartment.extraGuestPriceType === 'fixed'
-                                          ? `+€${apartment.extraGuestPrice.toFixed(2)} per ogni ospite extra (max ${apartment.maxGuests} ospiti)`
-                                          : `+${apartment.extraGuestPrice}% per ogni ospite extra (max ${apartment.maxGuests} ospiti)`}
-                                      </p>
-                                    )}
-                                  </>
+                                  <p>€{localReferenceBaseNightlyPrice.toFixed(2)} per notte, per {effectiveGuestsInSearch} persone</p> // Use localReferenceBaseNightlyPrice
                                 );
                               }
                             } else if (apartment.priceType === 'per_person') {
-                                return <p>€{apartment.price.toFixed(2)} per persona per notte (max {apartment.maxGuests} ospiti)</p>;
+                                return <p>€{apartment.price.toFixed(2)} per persona per notte, per {effectiveGuestsInSearch} persone</p>;
                             } else {
                                  return (
-                                  <>
-                                    <p>€{apartment.price.toFixed(2)} per notte (fino a {apartment.baseGuests} ospiti)</p>
-                                    {apartment.extraGuestPrice > 0 && (
-                                      <p className="text-xs text-gray-500">
-                                        {apartment.extraGuestPriceType === 'fixed'
-                                          ? `+€${apartment.extraGuestPrice.toFixed(2)} per ogni ospite extra (max ${apartment.maxGuests} ospiti)`
-                                          : `+${apartment.extraGuestPrice}% per ogni ospite extra (max ${apartment.maxGuests} ospiti)`}
-                                      </p>
-                                    )}
-                                  </>
+                                  <p>€{localReferenceBaseNightlyPrice.toFixed(2)} per notte, per {effectiveGuestsInSearch} persone</p> // Use localReferenceBaseNightlyPrice
                                 );
                             }
                           })()}
@@ -818,8 +804,8 @@ export default function BookingPage() {
                             <p>
                               <span className="font-medium">Ospiti:</span> {
                                 selectedApartment ? 
-                                  `${Math.min(search.adults + search.children, selectedApartment.maxGuests)} (max ${selectedApartment.maxGuests})` :
-                                  `${search.adults} adulti${search.children > 0 ? `, ${search.children} bambini` : ''}`
+                                  search.adults + search.children : // Mostra solo il numero di ospiti della ricerca
+                                  `${search.adults} adulti${search.children > 0 ? `, ${search.children} bambini` : ''}` // Logica per prenotazione di gruppo rimane invariata
                               }
                             </p>
                             {selectedApartment && search.adults + search.children > selectedApartment.maxGuests && (
@@ -837,20 +823,64 @@ export default function BookingPage() {
                               
                               {/* Info prezzo dinamico */}
                               <div className="mt-2 text-sm text-gray-600">
-                                {selectedApartment.priceType === 'per_person' ? (
-                                  <p>€{selectedApartment.price.toFixed(2)} per persona per notte</p>
-                                ) : (
-                                  <>
-                                    <p>€{selectedApartment.price.toFixed(2)} per notte (fino a {selectedApartment.baseGuests} ospiti)</p>
-                                    {selectedApartment.extraGuestPrice > 0 && (
-                                      <p className="text-xs text-gray-500">
-                                        {selectedApartment.extraGuestPriceType === 'fixed' 
-                                          ? `+€${selectedApartment.extraGuestPrice.toFixed(2)} per ogni ospite extra`
-                                          : `+${selectedApartment.extraGuestPrice}% per ogni ospite extra`}
-                                      </p>
-                                    )}
-                                  </>
-                                )}
+                                {(() => {
+                                  // Assicurati che selectedApartment, calculatedPriceForStay e nights siano disponibili e validi.
+                                  // selectedApartment è già verificato da `{selectedApartment && ...}`
+                                  // calculatedPriceForStay è usato per il prezzo totale, quindi dovrebbe essere disponibile.
+                                  // nights è parte di ApartmentWithCalculatedPrice.
+
+                                  if (selectedApartment.calculatedPriceForStay !== null && typeof selectedApartment.nights === 'number' && selectedApartment.nights > 0) {
+                                    const averagePricePerNightForModal = selectedApartment.calculatedPriceForStay / selectedApartment.nights;
+                                    const guestsForModal = search.adults + search.children;
+
+                                    if (selectedApartment.priceType === 'per_person') {
+                                      // Se il priceType è 'per_person', il prezzo per notte per persona è già l'averagePricePerNightForModal diviso per il numero di ospiti.
+                                      // O, se il backend calcola calculatedPriceForStay già normalizzato per persona, allora averagePricePerNightForModal è già il prezzo per persona per notte.
+                                      // Per coerenza con la logica dei risultati di ricerca, ricalcoliamo qui:
+                                      const perPersonNightlyForModal = guestsForModal > 0 ? averagePricePerNightForModal / guestsForModal : selectedApartment.price; // fallback a selectedApartment.price se guestsForModal è 0
+                                      return <p>€{perPersonNightlyForModal.toFixed(2)} per persona per notte, per {guestsForModal} persone</p>;
+                                    } else {
+                                      // Per priceType 'per_night'
+                                      return <p>€{averagePricePerNightForModal.toFixed(2)} per notte, per {guestsForModal} persone</p>;
+                                    }
+                                  } else {
+                                    // Fallback nel caso in cui calculatedPriceForStay o nights non siano disponibili,
+                                    // anche se non dovrebbe succedere se selectedApartment è di tipo ApartmentWithCalculatedPrice
+                                    // e la logica a monte ha funzionato.
+                                    // Manteniamo una visualizzazione di fallback simile alla precedente o un messaggio di errore.
+                                    // Per ora, replichiamo la vecchia logica di fallback basata su selectedApartment.price
+                                    // ma aggiungendo il numero di ospiti.
+                                    const guestsForModalFallback = search.adults + search.children;
+                                    if (selectedApartment.priceType === 'per_person') {
+                                      return <p>€{selectedApartment.price.toFixed(2)} per persona per notte, per {guestsForModalFallback} persone</p>;
+                                    } else {
+                                      // Per questo fallback, non abbiamo un prezzo calcolato per notte per gli ospiti esatti,
+                                      // quindi mostriamo il prezzo base dell'appartamento e il numero di ospiti.
+                                      // Questo potrebbe non essere l'ideale ma è un fallback.
+                                      // La richiesta era di essere coerenti, quindi idealmente questo blocco non viene mai raggiunto.
+                                      // Una rappresentazione migliore sarebbe calcolare il prezzo qui usando calculateBasePriceLogic
+                                      // se questo scenario fosse comune.
+                                      // Data la struttura, calculatedPriceForStay dovrebbe sempre esserci.
+                                      // Quindi questo fallback è più una precauzione.
+                                      // Per semplicità, se entriamo qui, indichiamo che il prezzo dettagliato per notte non è calcolabile in questo contesto.
+                                      // return <p>Prezzo base: €{selectedApartment.price.toFixed(2)} per notte (configurazione base)</p>;
+                                      // O, per cercare di aderire:
+                                      // Calcoliamo al volo il prezzo base per gli ospiti:
+                                       const fallbackBasePriceNightly = calculateBasePriceLogic(
+                                          {
+                                            price: selectedApartment.price,
+                                            priceType: selectedApartment.priceType,
+                                            baseGuests: selectedApartment.baseGuests,
+                                            extraGuestPrice: selectedApartment.extraGuestPrice,
+                                            extraGuestPriceType: selectedApartment.extraGuestPriceType,
+                                          },
+                                          guestsForModalFallback,
+                                          1
+                                        );
+                                      return <p>€{fallbackBasePriceNightly.toFixed(2)} per notte, per {guestsForModalFallback} persone (calcolo di fallback)</p>;
+                                    }
+                                  }
+                                })()}
                               </div>
                               
                               <div className="flex justify-between items-center font-medium mt-2">
