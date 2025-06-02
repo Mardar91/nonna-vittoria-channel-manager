@@ -221,7 +221,7 @@ export default function CheckInFormPage() {
               </p>
               <p className="text-yellow-700 mt-2">
                 Il tuo check-in verrà registrato e sarà verificato e assegnato manualmente dal nostro staff.
-                Riceverai una conferma non appena l'assegnazione sarà completata.
+                Riceverai una conferma non appena l&apos;assegnazione sarà completata.
               </p>
             </div>
           ) : bookingData && (
@@ -244,7 +244,7 @@ export default function CheckInFormPage() {
             <p className="text-sm text-gray-600 mb-6">
               Per legge, siamo tenuti a registrare i dati di tutti gli ospiti.
               Per famiglie o gruppi, è necessario fornire i dettagli completi del documento
-              solo per l'ospite principale (se non diversamente specificato dai termini).
+              solo per l&apos;ospite principale (se non diversamente specificato dai termini).
             </p>
 
             <CheckInForm
