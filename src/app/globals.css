@@ -29,3 +29,36 @@ body {
 .react-select-container .react-select__placeholder {
   color: #6B7280; /* text-gray-500 */
 }
+
+/* Custom styles for react-phone-number-input */
+.custom-phone-input .PhoneInputInput {
+  border-radius: 0.375rem; /* rounded-md */
+  border-width: 1px;
+  border-color: #D1D5DB; /* border-gray-300 */
+  padding-top: 0.5rem; /* py-2 */
+  padding-bottom: 0.5rem; /* py-2 */
+  padding-left: 0.75rem; /* px-3 */
+  padding-right: 0.75rem; /* px-3 */
+  font-size: 0.875rem; /* sm:text-sm */
+  line-height: 1.25rem; /* sm:text-sm */
+  width: 100%; /* block w-full */
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); /* shadow-sm */
+}
+
+.custom-phone-input .PhoneInputInput:focus {
+  border-color: #3B82F6; /* focus:border-blue-500 */
+  box-shadow: 0 0 0 1px #3B82F6; /* focus:ring-blue-500 (simulato con box-shadow) */
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.custom-phone-input.border-red-300 .PhoneInputInput {
+  border-color: #FCA5A5; /* Colore bordo rosso Tailwind (red-300) */
+}
+
+/* Stile per l'icona del paese (flag) per allinearla verticalmente se necessario */
+.custom-phone-input .PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  margin-right: 0.5rem; /* Aggiunge un po' di spazio tra la bandiera e l'input */
+}

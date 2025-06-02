@@ -232,7 +232,9 @@ export default function CheckInFormPage() {
                 <div><p className="text-sm text-gray-600">Appartamento</p><p className="font-medium">{bookingData.apartmentName}</p></div>
                 <div><p className="text-sm text-gray-600">Check-in</p><p className="font-medium">{formatDate(bookingData.checkIn)}</p></div>
                 <div><p className="text-sm text-gray-600">Check-out</p><p className="font-medium">{formatDate(bookingData.checkOut)}</p></div>
-                <div><p className="text-sm text-gray-600">Numero ospiti</p><p className="font-medium">{bookingData.numberOfGuests}</p></div>
+                {bookingData && bookingData.source !== 'ical' && (
+                  <div><p className="text-sm text-gray-600">Numero ospiti</p><p className="font-medium">{bookingData.numberOfGuests}</p></div>
+                )}
               </div>
             </div>
           )}
@@ -251,7 +253,8 @@ export default function CheckInFormPage() {
               isSubmitting={isSubmitting}
               checkInTerms={checkInTerms}
               mode={checkInMode}
-              defaultCheckInTime={profile?.defaultCheckInTime} // << MODIFICA/AGGIUNTA QUI
+              defaultCheckInTime={profile?.defaultCheckInTime}
+              bookingSource={bookingData?.source}
             />
           </div>
         </div>

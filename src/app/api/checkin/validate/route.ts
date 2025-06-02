@@ -114,6 +114,7 @@ export async function POST(req: NextRequest) {
           checkOut: booking.checkOut.toISOString(), // Assicurati che checkOut sia una data valida
           numberOfGuests: booking.numberOfGuests,
           hasCheckedIn: !!existingCheckIn, 
+          source: booking.source,
         }
       } as BookingValidationResponse);
 
