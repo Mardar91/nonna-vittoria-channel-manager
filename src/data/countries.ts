@@ -1,6 +1,6 @@
 export interface Country {
-  code: string;
-  name: string;
+  code: string; 
+  name: string; 
 }
 
 export const COUNTRIES: Country[] = [

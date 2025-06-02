@@ -436,7 +436,7 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
           )}
       <div>
         <p className="text-sm font-medium text-gray-500">Orario Previsto Arrivo</p>
-        <p className="mt-1 text-lg">{checkIn.expectedArrivalTime ? formatTime(checkIn.expectedArrivalTime) : 'N/A'}</p>
+        <p className="mt-1 text-lg">{checkIn.expectedArrivalTime ? formatTime(checkIn.expectedArrivalTime) : 'N/A'}</p> 
         {/* Usa formatDateTime(checkIn.expectedArrivalTime) se preferisci data e ora */}
       </div>
         </div>

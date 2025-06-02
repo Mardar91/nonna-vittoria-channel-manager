@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
         const checkInDateObj = new Date(data.checkInDate);
         if (!isNaN(checkInDateObj.getTime())) {
           finalExpectedArrivalTime = new Date(checkInDateObj);
-          finalExpectedArrivalTime.setHours(hours, minutes, 0, 0);
+          finalExpectedArrivalTime.setHours(hours, minutes, 0, 0); 
         } else {
           // Fallback o gestione errore se data.checkInDate non è valida
           // Potrebbe essere necessario creare una data basata sul giorno corrente se checkInDate non è affidabile qui

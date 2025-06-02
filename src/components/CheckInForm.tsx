@@ -3,25 +3,27 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import { CheckInFormData, DOCUMENT_TYPES, SEX_OPTIONS, IGuestData } from '@/types/checkin';
-import { validateCheckInForm, ITALIAN_PROVINCES } from '@/lib/checkin-validator';
+import { validateCheckInForm } from '@/lib/checkin-validator'; // ITALIAN_PROVINCES might not be needed directly here anymore
 import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { ITALIAN_MUNICIPALITIES, ItalianMunicipality } from '@/data/italianMunicipalities';
 import { COUNTRIES } from '@/data/countries';
 
+const ITALIA_COUNTRY_CODE = '100000100'; 
+
 interface CommuneOption {
-  value: string; // Codice del comune
-  label: string; // Nome del comune (es. "ROMA (RM)")
+  value: string; 
+  label: string; 
   province: string;
 }
 
 export interface CheckInFormProps {
-  numberOfGuests: number;
+  numberOfGuests: number; 
   onSubmit: (data: CheckInFormData) => void;
   isSubmitting: boolean;
   checkInTerms?: string;
   mode: 'normal' | 'unassigned_checkin';
   bookingSource?: string;
-  defaultCheckInTime?: string;
+  defaultCheckInTime?: string; 
 }
 
 export default function CheckInForm({ 
@@ -31,7 +33,7 @@ export default function CheckInForm({
   checkInTerms,
   mode,
   bookingSource,
-  defaultCheckInTime
+  defaultCheckInTime 
 }: CheckInFormProps) {
 
   const [editableNumberOfGuests, setEditableNumberOfGuests] = useState(initialNumberOfGuests || 1);
@@ -53,22 +55,22 @@ export default function CheckInForm({
       dateOfBirth: '',
       placeOfBirth: '',
       provinceOfBirth: '',
-      countryOfBirth: 'IT',
-      citizenship: 'IT',
+      countryOfBirth: ITALIA_COUNTRY_CODE, // Default to Italy
+      citizenship: ITALIA_COUNTRY_CODE,   // Default to Italy
       documentType: '',
       documentNumber: '',
       documentIssuePlace: '',
       documentIssueProvince: '',
-      documentIssueCountry: 'IT',
+      documentIssueCountry: ITALIA_COUNTRY_CODE, // Default to Italy
       isMainGuest: true,
-      phoneNumber: '',
+      phoneNumber: '', 
     },
-    additionalGuests: [],
+    additionalGuests: [], 
     acceptTerms: false,
     numberOfGuests: initialNumberOfGuests || 1,
     notes: '',
-    expectedArrivalTime: '',
-    phoneNumber: '',
+    expectedArrivalTime: '', 
+    phoneNumber: '', 
   });
 
   useEffect(() => {
@@ -81,9 +83,9 @@ export default function CheckInForm({
         for (let i = currentAdditionalGuests.length; i < newAdditionalGuestCount; i++) {
           updatedAdditionalGuests.push({
             lastName: '', firstName: '', sex: '', dateOfBirth: '',
-            placeOfBirth: '', provinceOfBirth: '', countryOfBirth: 'IT', citizenship: 'IT',
+            placeOfBirth: '', provinceOfBirth: '', countryOfBirth: ITALIA_COUNTRY_CODE, citizenship: ITALIA_COUNTRY_CODE,
             documentType: '', documentNumber: '', documentIssuePlace: '', 
-            documentIssueProvince: '', documentIssueCountry: 'IT',
+            documentIssueProvince: '', documentIssueCountry: ITALIA_COUNTRY_CODE,
             isMainGuest: false,
           });
         }
@@ -92,7 +94,7 @@ export default function CheckInForm({
       }
       return {
         ...prev,
-        numberOfGuests: editableNumberOfGuests,
+        numberOfGuests: editableNumberOfGuests, 
         additionalGuests: updatedAdditionalGuests
       };
     });
@@ -106,10 +108,19 @@ export default function CheckInForm({
         ...prev.mainGuest,
         [field]: value
       };
+      // Reset dependent fields if country changes
+      if (field === 'countryOfBirth') {
+        updatedMainGuest.placeOfBirth = '';
+        updatedMainGuest.provinceOfBirth = '';
+      }
+      if (field === 'documentIssueCountry') {
+        updatedMainGuest.documentIssuePlace = '';
+        updatedMainGuest.documentIssueProvince = '';
+      }
       return {
         ...prev,
         mainGuest: updatedMainGuest,
-        ...(field === 'phoneNumber' && { phoneNumber: value })
+        ...(field === 'phoneNumber' && { phoneNumber: value }) 
       };
     });
     if (errors[`mainGuest.${field}`]) {
@@ -120,9 +131,21 @@ export default function CheckInForm({
   const handleAdditionalGuestChange = (index: number, field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
-      additionalGuests: prev.additionalGuests.map((guest, i) => 
-        i === index ? { ...guest, [field]: value } : guest
-      )
+      additionalGuests: prev.additionalGuests.map((guest, i) => {
+        if (i === index) {
+          const updatedGuest = { ...guest, [field]: value };
+          if (field === 'countryOfBirth') {
+            updatedGuest.placeOfBirth = '';
+            updatedGuest.provinceOfBirth = '';
+          }
+          if (field === 'documentIssueCountry') {
+            updatedGuest.documentIssuePlace = '';
+            updatedGuest.documentIssueProvince = '';
+          }
+          return updatedGuest;
+        }
+        return guest;
+      })
     }));
     if (errors[`additionalGuests.${index}.${field}`]) {
       setErrors(prevErrs => ({ ...prevErrs, [`additionalGuests.${index}.${field}`]: '' }));
@@ -157,7 +180,7 @@ export default function CheckInForm({
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const validationErrors = validateCheckInForm(formData, mode === 'unassigned_checkin' ? 'unassigned' : bookingSource, defaultCheckInTime);
+    const validationErrors = validateCheckInForm(formData, mode === 'unassigned_checkin' ? 'unassigned' : bookingSource, defaultCheckInTime); 
     if (validationErrors.length > 0) {
       const errorMap: Record<string, string> = {};
       validationErrors.forEach(error => {
@@ -186,7 +209,7 @@ export default function CheckInForm({
       [startHour, startMinute] = defaultMinTime.split(':').map(Number);
     }
 
-    if (defaultMinTime) {
+    if (defaultMinTime) { 
       if (startMinute > 0 && startMinute < 30) {
           startMinute = 30;
       } else if (startMinute > 30) {
@@ -195,7 +218,7 @@ export default function CheckInForm({
       }
     }
 
-    if (startHour >= 24) return options;
+    if (startHour >= 24) return options; 
 
     for (let h = startHour; h < 24; h++) {
       for (let m = (h === startHour ? startMinute : 0); m < 60; m += 30) {
@@ -210,6 +233,8 @@ export default function CheckInForm({
 
   const timeOptions = generateTimeOptions(defaultCheckInTime);
   
+  const baseSelectClasses = "mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="bg-white p-6 rounded-lg shadow">
@@ -239,11 +264,11 @@ export default function CheckInForm({
         </div>
         <div className="mt-4">
           <label htmlFor="expectedArrivalTime" className="block text-sm font-medium text-gray-700">Orario Previsto d'Arrivo *</label>
-          <select
+          <select 
             id="expectedArrivalTime"
             value={formData.expectedArrivalTime || ''}
             onChange={(e) => setFormData(prev => ({ ...prev, expectedArrivalTime: e.target.value }))}
-            className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3 ${errors.expectedArrivalTime ? 'border-red-300' : 'border-gray-300'}`}
+            className={`${baseSelectClasses} ${errors.expectedArrivalTime ? 'border-red-300' : 'border-gray-300'}`}
           >
             {timeOptions.map(option => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -271,7 +296,7 @@ export default function CheckInForm({
           <div>
             <label className="block text-sm font-medium text-gray-700">Sesso *</label>
             <select value={formData.mainGuest.sex} onChange={(e) => handleMainGuestChange('sex', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3 ${errors['mainGuest.sex'] ? 'border-red-300' : 'border-gray-300'}`}>
+                    className={`${baseSelectClasses} ${errors['mainGuest.sex'] ? 'border-red-300' : 'border-gray-300'}`}>
               <option value="">Seleziona</option>
               {Object.entries(SEX_OPTIONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
@@ -285,15 +310,10 @@ export default function CheckInForm({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Paese di nascita *</label>
-            <select
-              value={formData.mainGuest.countryOfBirth}
-              onChange={(e) => {
-                const newCountry = e.target.value;
-                handleMainGuestChange('countryOfBirth', newCountry);
-                handleMainGuestChange('placeOfBirth', '');
-                handleMainGuestChange('provinceOfBirth', '');
-              }}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3 ${errors['mainGuest.countryOfBirth'] ? 'border-red-300' : 'border-gray-300'}`}
+            <select 
+              value={formData.mainGuest.countryOfBirth} 
+              onChange={(e) => handleMainGuestChange('countryOfBirth', e.target.value)}
+              className={`${baseSelectClasses} ${errors['mainGuest.countryOfBirth'] ? 'border-red-300' : 'border-gray-300'}`}
             >
               <option value="">Seleziona Paese</option>
               {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
@@ -302,7 +322,7 @@ export default function CheckInForm({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Luogo di nascita *</label>
-            {formData.mainGuest.countryOfBirth === 'IT' ? (
+            {formData.mainGuest.countryOfBirth === ITALIA_COUNTRY_CODE ? (
               <Select<CommuneOption>
                 options={communeOptions}
                 value={communeOptions.find(option => option.value === formData.mainGuest.placeOfBirth) || null}
@@ -321,41 +341,41 @@ export default function CheckInForm({
                 classNamePrefix="react-select"
                 noOptionsMessage={() => "Nessun comune trovato"}
               />
-            ) : formData.mainGuest.countryOfBirth && formData.mainGuest.countryOfBirth !== 'IT' ? (
-              <input
-                type="text"
+            ) : formData.mainGuest.countryOfBirth && formData.mainGuest.countryOfBirth !== ITALIA_COUNTRY_CODE ? (
+              <input 
+                type="text" 
                 value={formData.mainGuest.placeOfBirth}
                 onChange={(e) => handleMainGuestChange('placeOfBirth', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.placeOfBirth'] ? 'border-red-300' : 'border-gray-300'}`}
               />
             ) : (
-              <input
-                type="text"
-                disabled
+              <input 
+                type="text" 
+                disabled 
                 placeholder="Seleziona prima il paese di nascita"
                 className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
               />
             )}
             {errors['mainGuest.placeOfBirth'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.placeOfBirth']}</p>}
           </div>
-          {formData.mainGuest.countryOfBirth === 'IT' && (
+          {formData.mainGuest.countryOfBirth === ITALIA_COUNTRY_CODE && (
             <div>
               <label className="block text-sm font-medium text-gray-700">Provincia di nascita *</label>
-              <input
-                type="text"
-                value={formData.mainGuest.provinceOfBirth || ''}
-                readOnly
-                className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
+              <input 
+                type="text" 
+                value={formData.mainGuest.provinceOfBirth || ''} 
+                readOnly 
+                className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300" 
               />
               {errors['mainGuest.provinceOfBirth'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.provinceOfBirth']}</p>}
             </div>
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700">Cittadinanza *</label>
-            <select
-              value={formData.mainGuest.citizenship}
+            <select 
+              value={formData.mainGuest.citizenship} 
               onChange={(e) => handleMainGuestChange('citizenship', e.target.value)}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3 ${errors['mainGuest.citizenship'] ? 'border-red-300' : 'border-gray-300'}`}
+              className={`${baseSelectClasses} ${errors['mainGuest.citizenship'] ? 'border-red-300' : 'border-gray-300'}`}
             >
               <option value="">Seleziona Cittadinanza</option>
               {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
@@ -364,10 +384,10 @@ export default function CheckInForm({
           </div>
           <div>
             <label htmlFor="mainGuestPhoneNumber" className="block text-sm font-medium text-gray-700">Numero di telefono</label>
-            <input
-              type="tel"
+            <input 
+              type="tel" 
               id="mainGuestPhoneNumber"
-              value={formData.mainGuest.phoneNumber || ''}
+              value={formData.mainGuest.phoneNumber || ''} 
               onChange={(e) => handleMainGuestChange('phoneNumber', e.target.value)}
               className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.phoneNumber'] ? 'border-red-300' : 'border-gray-300'}`}
               placeholder="Es. 3331234567"
@@ -381,7 +401,7 @@ export default function CheckInForm({
           <div>
             <label className="block text-sm font-medium text-gray-700">Tipo documento *</label>
             <select value={formData.mainGuest.documentType} onChange={(e) => handleMainGuestChange('documentType', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3 ${errors['mainGuest.documentType'] ? 'border-red-300' : 'border-gray-300'}`}>
+                    className={`${baseSelectClasses} ${errors['mainGuest.documentType'] ? 'border-red-300' : 'border-gray-300'}`}>
               <option value="">Seleziona</option>
               {Object.entries(DOCUMENT_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
@@ -395,15 +415,10 @@ export default function CheckInForm({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Paese di rilascio *</label>
-            <select
-              value={formData.mainGuest.documentIssueCountry}
-              onChange={(e) => {
-                const newCountry = e.target.value;
-                handleMainGuestChange('documentIssueCountry', newCountry);
-                handleMainGuestChange('documentIssuePlace', '');
-                handleMainGuestChange('documentIssueProvince', '');
-              }}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3 ${errors['mainGuest.documentIssueCountry'] ? 'border-red-300' : 'border-gray-300'}`}
+            <select 
+              value={formData.mainGuest.documentIssueCountry} 
+              onChange={(e) => handleMainGuestChange('documentIssueCountry', e.target.value)}
+              className={`${baseSelectClasses} ${errors['mainGuest.documentIssueCountry'] ? 'border-red-300' : 'border-gray-300'}`}
             >
               <option value="">Seleziona Paese</option>
               {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
@@ -412,7 +427,7 @@ export default function CheckInForm({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Luogo di rilascio *</label>
-            {formData.mainGuest.documentIssueCountry === 'IT' ? (
+            {formData.mainGuest.documentIssueCountry === ITALIA_COUNTRY_CODE ? (
               <Select<CommuneOption>
                 options={communeOptions}
                 value={communeOptions.find(option => option.value === formData.mainGuest.documentIssuePlace) || null}
@@ -431,31 +446,31 @@ export default function CheckInForm({
                 classNamePrefix="react-select"
                 noOptionsMessage={() => "Nessun comune trovato"}
               />
-            ) : formData.mainGuest.documentIssueCountry && formData.mainGuest.documentIssueCountry !== 'IT' ? (
-              <input
-                type="text"
-                value={formData.mainGuest.documentIssuePlace}
+            ) : formData.mainGuest.documentIssueCountry && formData.mainGuest.documentIssueCountry !== ITALIA_COUNTRY_CODE ? (
+              <input 
+                type="text" 
+                value={formData.mainGuest.documentIssuePlace} 
                 onChange={(e) => handleMainGuestChange('documentIssuePlace', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.documentIssuePlace'] ? 'border-red-300' : 'border-gray-300'}`}
               />
             ) : (
-              <input
-                type="text"
-                disabled
+              <input 
+                type="text" 
+                disabled 
                 placeholder="Seleziona prima il paese di rilascio"
                 className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
               />
             )}
             {errors['mainGuest.documentIssuePlace'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentIssuePlace']}</p>}
           </div>
-          {formData.mainGuest.documentIssueCountry === 'IT' && (
+          {formData.mainGuest.documentIssueCountry === ITALIA_COUNTRY_CODE && (
             <div>
               <label className="block text-sm font-medium text-gray-700">Provincia di rilascio *</label>
-              <input
-                type="text"
-                value={formData.mainGuest.documentIssueProvince || ''}
-                readOnly
-                className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
+              <input 
+                type="text" 
+                value={formData.mainGuest.documentIssueProvince || ''} 
+                readOnly 
+                className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300" 
               />
               {errors['mainGuest.documentIssueProvince'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentIssueProvince']}</p>}
             </div>
@@ -490,7 +505,7 @@ export default function CheckInForm({
             <div>
               <label className="block text-sm font-medium text-gray-700">Sesso *</label>
               <select value={guest.sex} onChange={(e) => handleAdditionalGuestChange(index, 'sex', e.target.value)}
-                      className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3 ${errors[`additionalGuests.${index}.sex`] ? 'border-red-300' : 'border-gray-300'}`}>
+                      className={`${baseSelectClasses} ${errors[`additionalGuests.${index}.sex`] ? 'border-red-300' : 'border-gray-300'}`}>
                 <option value="">Seleziona</option>
                 {Object.entries(SEX_OPTIONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
@@ -504,15 +519,10 @@ export default function CheckInForm({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Paese di nascita *</label>
-              <select
-                value={guest.countryOfBirth}
-                onChange={(e) => {
-                  const newCountry = e.target.value;
-                  handleAdditionalGuestChange(index, 'countryOfBirth', newCountry);
-                  handleAdditionalGuestChange(index, 'placeOfBirth', '');
-                  handleAdditionalGuestChange(index, 'provinceOfBirth', '');
-                }}
-                className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3 ${errors[`additionalGuests.${index}.countryOfBirth`] ? 'border-red-300' : 'border-gray-300'}`}
+              <select 
+                value={guest.countryOfBirth} 
+                onChange={(e) => handleAdditionalGuestChange(index, 'countryOfBirth', e.target.value)}
+                className={`${baseSelectClasses} ${errors[`additionalGuests.${index}.countryOfBirth`] ? 'border-red-300' : 'border-gray-300'}`}
               >
                 <option value="">Seleziona Paese</option>
                 {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
@@ -521,7 +531,7 @@ export default function CheckInForm({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Luogo di nascita *</label>
-              {guest.countryOfBirth === 'IT' ? (
+              {guest.countryOfBirth === ITALIA_COUNTRY_CODE ? (
                 <Select<CommuneOption>
                   options={communeOptions}
                   value={communeOptions.find(option => option.value === guest.placeOfBirth) || null}
@@ -540,41 +550,41 @@ export default function CheckInForm({
                   classNamePrefix="react-select"
                   noOptionsMessage={() => "Nessun comune trovato"}
                 />
-              ) : guest.countryOfBirth && guest.countryOfBirth !== 'IT' ? (
-                <input
-                  type="text"
-                  value={guest.placeOfBirth}
+              ) : guest.countryOfBirth && guest.countryOfBirth !== ITALIA_COUNTRY_CODE ? (
+                <input 
+                  type="text" 
+                  value={guest.placeOfBirth} 
                   onChange={(e) => handleAdditionalGuestChange(index, 'placeOfBirth', e.target.value)}
                   className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.placeOfBirth`] ? 'border-red-300' : 'border-gray-300'}`}
                 />
               ) : (
-                <input
-                  type="text"
-                  disabled
+                <input 
+                  type="text" 
+                  disabled 
                   placeholder="Seleziona prima il paese di nascita"
                   className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
                 />
               )}
               {errors[`additionalGuests.${index}.placeOfBirth`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.placeOfBirth`]}</p>}
             </div>
-            {guest.countryOfBirth === 'IT' && (
+            {guest.countryOfBirth === ITALIA_COUNTRY_CODE && (
               <div>
                 <label className="block text-sm font-medium text-gray-700">Provincia di nascita *</label>
-                <input
-                  type="text"
-                  value={guest.provinceOfBirth || ''}
-                  readOnly
-                  className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
+                <input 
+                  type="text" 
+                  value={guest.provinceOfBirth || ''} 
+                  readOnly 
+                  className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300" 
                 />
                 {errors[`additionalGuests.${index}.provinceOfBirth`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.provinceOfBirth`]}</p>}
               </div>
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700">Cittadinanza *</label>
-              <select
-                value={guest.citizenship}
+              <select 
+                value={guest.citizenship} 
                 onChange={(e) => handleAdditionalGuestChange(index, 'citizenship', e.target.value)}
-                className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3 ${errors[`additionalGuests.${index}.citizenship`] ? 'border-red-300' : 'border-gray-300'}`}
+                className={`${baseSelectClasses} ${errors[`additionalGuests.${index}.citizenship`] ? 'border-red-300' : 'border-gray-300'}`}
               >
                 <option value="">Seleziona Cittadinanza</option>
                 {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
@@ -587,7 +597,7 @@ export default function CheckInForm({
               <div>
                 <label className="block text-sm font-medium text-gray-700">Tipo documento</label>
                 <select value={guest.documentType || ''} onChange={(e) => handleAdditionalGuestChange(index, 'documentType', e.target.value)}
-                        className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3 ${errors[`additionalGuests.${index}.documentType`] ? 'border-red-300' : 'border-gray-300'}`}>
+                        className={`${baseSelectClasses} ${errors[`additionalGuests.${index}.documentType`] ? 'border-red-300' : 'border-gray-300'}`}>
                   <option value="">Seleziona</option>
                   {Object.entries(DOCUMENT_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
@@ -601,15 +611,10 @@ export default function CheckInForm({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Paese di rilascio</label>
-                <select
-                  value={guest.documentIssueCountry || 'IT'}
-                  onChange={(e) => {
-                    const newCountry = e.target.value;
-                    handleAdditionalGuestChange(index, 'documentIssueCountry', newCountry);
-                    handleAdditionalGuestChange(index, 'documentIssuePlace', '');
-                    handleAdditionalGuestChange(index, 'documentIssueProvince', '');
-                  }}
-                  className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3 ${errors[`additionalGuests.${index}.documentIssueCountry`] ? 'border-red-300' : 'border-gray-300'}`}
+                <select 
+                  value={guest.documentIssueCountry || 'IT'} 
+                  onChange={(e) => handleAdditionalGuestChange(index, 'documentIssueCountry', e.target.value)}
+                  className={`${baseSelectClasses} ${errors[`additionalGuests.${index}.documentIssueCountry`] ? 'border-red-300' : 'border-gray-300'}`}
                 >
                   <option value="">Seleziona Paese</option>
                   {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
@@ -618,7 +623,7 @@ export default function CheckInForm({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Luogo di rilascio</label>
-                {guest.documentIssueCountry === 'IT' ? (
+                {guest.documentIssueCountry === ITALIA_COUNTRY_CODE ? (
                   <Select<CommuneOption>
                     options={communeOptions}
                     value={communeOptions.find(option => option.value === guest.documentIssuePlace) || null}
@@ -637,31 +642,31 @@ export default function CheckInForm({
                     classNamePrefix="react-select"
                     noOptionsMessage={() => "Nessun comune trovato"}
                   />
-                ) : guest.documentIssueCountry && guest.documentIssueCountry !== 'IT' ? (
-                  <input
-                    type="text"
-                    value={guest.documentIssuePlace || ''}
+                ) : guest.documentIssueCountry && guest.documentIssueCountry !== ITALIA_COUNTRY_CODE ? (
+                  <input 
+                    type="text" 
+                    value={guest.documentIssuePlace || ''} 
                     onChange={(e) => handleAdditionalGuestChange(index, 'documentIssuePlace', e.target.value)}
                     className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.documentIssuePlace`] ? 'border-red-300' : 'border-gray-300'}`}
                   />
                 ) : (
-                  <input
-                    type="text"
-                    disabled
+                  <input 
+                    type="text" 
+                    disabled 
                     placeholder="Seleziona prima il paese di rilascio"
                     className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
                   />
                 )}
                 {errors[`additionalGuests.${index}.documentIssuePlace`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.documentIssuePlace`]}</p>}
               </div>
-              {(guest.documentIssueCountry === 'IT' || !guest.documentIssueCountry) && (
+              {(guest.documentIssueCountry === ITALIA_COUNTRY_CODE || !guest.documentIssueCountry) && ( 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Provincia di rilascio</label>
-                  <input
-                    type="text"
-                    value={guest.documentIssueProvince || ''}
-                    readOnly
-                    className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
+                  <input 
+                    type="text" 
+                    value={guest.documentIssueProvince || ''} 
+                    readOnly 
+                    className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300" 
                   />
                   {errors[`additionalGuests.${index}.documentIssueProvince`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.documentIssueProvince`]}</p>}
                 </div>
