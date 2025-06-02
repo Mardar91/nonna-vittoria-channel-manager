@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
-import PublicProfileModel from '@/models/PublicProfile';
-import SettingsModel from '@/models/Settings'; // Import SettingsModel
+import PublicProfileModel, { IPublicProfile } from '@/models/PublicProfile';
+import SettingsModel, { ISettings } from '@/models/Settings'; // Import SettingsModel
 
 // GET: Ottenere il profilo pubblico
 export async function GET() {
@@ -10,7 +10,7 @@ export async function GET() {
     await connectDB();
     
     // Troviamo l'unico profilo pubblico, o ne creiamo uno se non esiste
-    let profile = await PublicProfileModel.findOne({}).lean(); // Use lean() for plain JS object
+    let profile: IPublicProfile | null = await PublicProfileModel.findOne({}).lean(); // Use lean() for plain JS object
     
     if (!profile) {
       // Se il profilo non esiste, ne creiamo uno di default MA NON lo salviamo qui.
@@ -24,13 +24,22 @@ export async function GET() {
     }
 
     // Recupera le impostazioni generali
-    let settings = await SettingsModel.findOne({}).lean();
+    let settings: ISettings | null = await SettingsModel.findOne({}).lean();
     if (!settings) {
       // Se non esistono impostazioni, creane di default (ma non salvarle qui)
       // o usa valori di fallback
       settings = {
         defaultCheckInTime: '14:00', // Valore di fallback
         // Aggiungi altri campi di fallback se necessario
+        // defaultCheckOutTime, timezone, autoSync, syncInterval are not strictly needed here
+        // as they have defaults in the schema and are not directly used in the responsePayload
+        // However, to fully conform to ISettings if it were to be used more broadly here,
+        // they would be needed if they were not optional or lacked schema defaults.
+        // For current usage, this is sufficient.
+        defaultCheckOutTime: '10:00', // Example, though schema default exists
+        timezone: 'Europe/Rome', // Example, though schema default exists
+        autoSync: true, // Example, though schema default exists
+        syncInterval: 10, // Example, though schema default exists
       };
     }
     
