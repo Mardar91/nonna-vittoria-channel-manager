@@ -1,27 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Select from 'react-select';
 import { CheckInFormData, DOCUMENT_TYPES, SEX_OPTIONS, IGuestData } from '@/types/checkin';
 import { validateCheckInForm, ITALIAN_PROVINCES } from '@/lib/checkin-validator';
 import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { ITALIAN_MUNICIPALITIES, ItalianMunicipality } from '../../data/italianMunicipalities';
+import { COUNTRIES } from '../../data/countries';
 
-const ITALIAN_MUNICIPALITIES_PLACEHOLDER = [
-  { code: '405028001', name: 'ABANO TERME', province: 'PD' },
-  { code: '416072028', name: 'MOLA DI BARI', province: 'BA' },
-  { code: '015146', name: 'MILANO', province: 'MI' }, // Esempio Milano
-  { code: '058091', name: 'ROMA', province: 'RM' }    // Esempio Roma
-];
-
-const COUNTRIES_PLACEHOLDER = [
-  { code: 'IT', name: 'Italia' },
-  { code: 'FR', name: 'Francia' },
-  { code: 'DE', name: 'Germania' },
-  { code: 'ES', name: 'Spagna' },
-  { code: 'GB', name: 'Regno Unito' },
-  { code: 'US', name: 'Stati Uniti D\'America' },
-  { code: 'AFGHANISTAN', name: 'AFGHANISTAN' }, // Dalla lista fornita
-  { code: 'ALBANIA', name: 'ALBANIA' },       // Dalla lista fornita
-];
+interface CommuneOption {
+  value: string; // Codice del comune
+  label: string; // Nome del comune (es. "ROMA (RM)")
+  province: string;
+}
 
 // Modifica: Aggiunto 'export' per rendere l'interfaccia importabile
 export interface CheckInFormProps {
@@ -196,6 +187,12 @@ export default function CheckInForm({
   };
   
   const maxDate = new Date().toISOString().split('T')[0];
+
+  const communeOptions: CommuneOption[] = ITALIAN_MUNICIPALITIES.map(comune => ({
+    value: comune.code,
+    label: `${comune.name.toUpperCase()} (${comune.province.toUpperCase()})`,
+    province: comune.province.toUpperCase()
+  }));
   
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -287,7 +284,7 @@ export default function CheckInForm({
               className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.countryOfBirth'] ? 'border-red-300' : 'border-gray-300'}`}
             >
               <option value="">Seleziona Paese</option>
-              {COUNTRIES_PLACEHOLDER.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
+              {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
             </select>
             {errors['mainGuest.countryOfBirth'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.countryOfBirth']}</p>}
           </div>
@@ -295,23 +292,28 @@ export default function CheckInForm({
           <div>
             <label className="block text-sm font-medium text-gray-700">Luogo di nascita *</label>
             {formData.mainGuest.countryOfBirth === 'IT' ? (
-              <select
-                value={formData.mainGuest.placeOfBirth} // Qui il valore sarà il CODICE del comune
-                onChange={(e) => {
-                  const selectedCommuneCode = e.target.value;
-                  const selectedCommune = ITALIAN_MUNICIPALITIES_PLACEHOLDER.find(c => c.code === selectedCommuneCode);
-                  handleMainGuestChange('placeOfBirth', selectedCommuneCode); // Salva il codice del comune
-                  handleMainGuestChange('provinceOfBirth', selectedCommune ? selectedCommune.province : '');
+              <Select<CommuneOption>
+                options={communeOptions}
+                value={communeOptions.find(option => option.value === formData.mainGuest.placeOfBirth) || null}
+                onChange={(selectedOption) => {
+                  if (selectedOption) {
+                    handleMainGuestChange('placeOfBirth', selectedOption.value);
+                    handleMainGuestChange('provinceOfBirth', selectedOption.province);
+                  } else {
+                    handleMainGuestChange('placeOfBirth', '');
+                    handleMainGuestChange('provinceOfBirth', '');
+                  }
                 }}
-                className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.placeOfBirth'] ? 'border-red-300' : 'border-gray-300'}`}
-              >
-                <option value="">Seleziona Comune</option>
-                {ITALIAN_MUNICIPALITIES_PLACEHOLDER.map(comune => <option key={comune.code} value={comune.code}>{comune.name}</option>)}
-              </select>
+                placeholder="Digita per cercare un comune..."
+                isClearable
+                className={`mt-1 react-select-container ${errors['mainGuest.placeOfBirth'] ? 'react-select-error' : ''}`}
+                classNamePrefix="react-select"
+                noOptionsMessage={() => "Nessun comune trovato"}
+              />
             ) : (
               <input
                 type="text"
-                value={formData.mainGuest.placeOfBirth} // Qui il valore sarà il nome del luogo estero
+                value={formData.mainGuest.placeOfBirth}
                 onChange={(e) => handleMainGuestChange('placeOfBirth', e.target.value)}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.placeOfBirth'] ? 'border-red-300' : 'border-gray-300'}`}
               />
@@ -341,7 +343,7 @@ export default function CheckInForm({
               className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.citizenship'] ? 'border-red-300' : 'border-gray-300'}`}
             >
               <option value="">Seleziona Cittadinanza</option>
-              {COUNTRIES_PLACEHOLDER.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
+              {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
             </select>
             {errors['mainGuest.citizenship'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.citizenship']}</p>}
           </div>
@@ -393,7 +395,7 @@ export default function CheckInForm({
               className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.documentIssueCountry'] ? 'border-red-300' : 'border-gray-300'}`}
             >
               <option value="">Seleziona Paese</option>
-              {COUNTRIES_PLACEHOLDER.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
+              {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
             </select>
             {errors['mainGuest.documentIssueCountry'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentIssueCountry']}</p>}
           </div>
@@ -401,19 +403,24 @@ export default function CheckInForm({
           <div>
             <label className="block text-sm font-medium text-gray-700">Luogo di rilascio *</label>
             {formData.mainGuest.documentIssueCountry === 'IT' ? (
-              <select
-                value={formData.mainGuest.documentIssuePlace} // Salva il CODICE del comune
-                onChange={(e) => {
-                  const selectedCommuneCode = e.target.value;
-                  const selectedCommune = ITALIAN_MUNICIPALITIES_PLACEHOLDER.find(c => c.code === selectedCommuneCode);
-                  handleMainGuestChange('documentIssuePlace', selectedCommuneCode);
-                  handleMainGuestChange('documentIssueProvince', selectedCommune ? selectedCommune.province : '');
+              <Select<CommuneOption>
+                options={communeOptions}
+                value={communeOptions.find(option => option.value === formData.mainGuest.documentIssuePlace) || null}
+                onChange={(selectedOption) => {
+                  if (selectedOption) {
+                    handleMainGuestChange('documentIssuePlace', selectedOption.value);
+                    handleMainGuestChange('documentIssueProvince', selectedOption.province);
+                  } else {
+                    handleMainGuestChange('documentIssuePlace', '');
+                    handleMainGuestChange('documentIssueProvince', '');
+                  }
                 }}
-                className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.documentIssuePlace'] ? 'border-red-300' : 'border-gray-300'}`}
-              >
-                <option value="">Seleziona Comune</option>
-                {ITALIAN_MUNICIPALITIES_PLACEHOLDER.map(comune => <option key={comune.code} value={comune.code}>{comune.name}</option>)}
-              </select>
+                placeholder="Digita per cercare un comune..."
+                isClearable
+                className={`mt-1 react-select-container ${errors['mainGuest.documentIssuePlace'] ? 'react-select-error' : ''}`}
+                classNamePrefix="react-select"
+                noOptionsMessage={() => "Nessun comune trovato"}
+              />
             ) : (
               <input
                 type="text"
@@ -497,7 +504,7 @@ export default function CheckInForm({
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.countryOfBirth`] ? 'border-red-300' : 'border-gray-300'}`}
               >
                 <option value="">Seleziona Paese</option>
-                {COUNTRIES_PLACEHOLDER.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
+                {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
               </select>
               {errors[`additionalGuests.${index}.countryOfBirth`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.countryOfBirth`]}</p>}
             </div>
@@ -505,19 +512,24 @@ export default function CheckInForm({
             <div>
               <label className="block text-sm font-medium text-gray-700">Luogo di nascita *</label>
               {guest.countryOfBirth === 'IT' ? (
-                <select
-                  value={guest.placeOfBirth}
-                  onChange={(e) => {
-                    const selectedCommuneCode = e.target.value;
-                    const selectedCommune = ITALIAN_MUNICIPALITIES_PLACEHOLDER.find(c => c.code === selectedCommuneCode);
-                    handleAdditionalGuestChange(index, 'placeOfBirth', selectedCommuneCode);
-                    handleAdditionalGuestChange(index, 'provinceOfBirth', selectedCommune ? selectedCommune.province : '');
+                <Select<CommuneOption>
+                  options={communeOptions}
+                  value={communeOptions.find(option => option.value === guest.placeOfBirth) || null}
+                  onChange={(selectedOption) => {
+                    if (selectedOption) {
+                      handleAdditionalGuestChange(index, 'placeOfBirth', selectedOption.value);
+                      handleAdditionalGuestChange(index, 'provinceOfBirth', selectedOption.province);
+                    } else {
+                      handleAdditionalGuestChange(index, 'placeOfBirth', '');
+                      handleAdditionalGuestChange(index, 'provinceOfBirth', '');
+                    }
                   }}
-                  className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.placeOfBirth`] ? 'border-red-300' : 'border-gray-300'}`}
-                >
-                  <option value="">Seleziona Comune</option>
-                  {ITALIAN_MUNICIPALITIES_PLACEHOLDER.map(comune => <option key={comune.code} value={comune.code}>{comune.name}</option>)}
-                </select>
+                  placeholder="Digita per cercare un comune..."
+                  isClearable
+                  className={`mt-1 react-select-container ${errors[`additionalGuests.${index}.placeOfBirth`] ? 'react-select-error' : ''}`}
+                  classNamePrefix="react-select"
+                  noOptionsMessage={() => "Nessun comune trovato"}
+                />
               ) : (
                 <input
                   type="text"
@@ -550,7 +562,7 @@ export default function CheckInForm({
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.citizenship`] ? 'border-red-300' : 'border-gray-300'}`}
               >
                 <option value="">Seleziona Cittadinanza</option>
-                {COUNTRIES_PLACEHOLDER.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
+                {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
               </select>
               {errors[`additionalGuests.${index}.citizenship`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.citizenship`]}</p>}
             </div>
@@ -587,26 +599,31 @@ export default function CheckInForm({
                   className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.documentIssueCountry`] ? 'border-red-300' : 'border-gray-300'}`}
                 >
                   <option value="">Seleziona Paese</option>
-                  {COUNTRIES_PLACEHOLDER.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
+                  {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
                 </select>
                 {errors[`additionalGuests.${index}.documentIssueCountry`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.documentIssueCountry`]}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Luogo di rilascio</label>
                 {guest.documentIssueCountry === 'IT' ? (
-                  <select
-                    value={guest.documentIssuePlace}
-                    onChange={(e) => {
-                      const selectedCommuneCode = e.target.value;
-                      const selectedCommune = ITALIAN_MUNICIPALITIES_PLACEHOLDER.find(c => c.code === selectedCommuneCode);
-                      handleAdditionalGuestChange(index, 'documentIssuePlace', selectedCommuneCode);
-                      handleAdditionalGuestChange(index, 'documentIssueProvince', selectedCommune ? selectedCommune.province : '');
+                  <Select<CommuneOption>
+                    options={communeOptions}
+                    value={communeOptions.find(option => option.value === guest.documentIssuePlace) || null}
+                    onChange={(selectedOption) => {
+                      if (selectedOption) {
+                        handleAdditionalGuestChange(index, 'documentIssuePlace', selectedOption.value);
+                        handleAdditionalGuestChange(index, 'documentIssueProvince', selectedOption.province);
+                      } else {
+                        handleAdditionalGuestChange(index, 'documentIssuePlace', '');
+                        handleAdditionalGuestChange(index, 'documentIssueProvince', '');
+                      }
                     }}
-                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.documentIssuePlace`] ? 'border-red-300' : 'border-gray-300'}`}
-                  >
-                    <option value="">Seleziona Comune</option>
-                    {ITALIAN_MUNICIPALITIES_PLACEHOLDER.map(comune => <option key={comune.code} value={comune.code}>{comune.name}</option>)}
-                  </select>
+                    placeholder="Digita per cercare un comune..."
+                    isClearable
+                    className={`mt-1 react-select-container ${errors[`additionalGuests.${index}.documentIssuePlace`] ? 'react-select-error' : ''}`}
+                    classNamePrefix="react-select"
+                    noOptionsMessage={() => "Nessun comune trovato"}
+                  />
                 ) : (
                   <input
                     type="text"
