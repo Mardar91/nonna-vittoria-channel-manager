@@ -10,7 +10,7 @@ export async function GET() {
     await connectDB();
     
     // Troviamo l'unico profilo pubblico, o ne creiamo uno se non esiste
-    let profile: IPublicProfile | null = await PublicProfileModel.findOne({}).lean(); // Use lean() for plain JS object
+    let profile: IPublicProfile | null = await PublicProfileModel.findOne({}).lean<IPublicProfile>().exec();
     
     if (!profile) {
       // Se il profilo non esiste, ne creiamo uno di default MA NON lo salviamo qui.
@@ -24,7 +24,7 @@ export async function GET() {
     }
 
     // Recupera le impostazioni generali
-    let settings: ISettings | null = await SettingsModel.findOne({}).lean();
+    let settings: ISettings | null = await SettingsModel.findOne({}).lean<ISettings>().exec();
     if (!settings) {
       // Se non esistono impostazioni, creane di default (ma non salvarle qui)
       // o usa valori di fallback
