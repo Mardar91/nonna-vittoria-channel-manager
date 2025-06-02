@@ -232,7 +232,7 @@ export default function CheckInFormPage() {
                 <div><p className="text-sm text-gray-600">Appartamento</p><p className="font-medium">{bookingData.apartmentName}</p></div>
                 <div><p className="text-sm text-gray-600">Check-in</p><p className="font-medium">{formatDate(bookingData.checkIn)}</p></div>
                 <div><p className="text-sm text-gray-600">Check-out</p><p className="font-medium">{formatDate(bookingData.checkOut)}</p></div>
-                {bookingData && bookingData.source !== 'ical' && (
+                {bookingData && bookingData.source === 'direct' && (
                   <div><p className="text-sm text-gray-600">Numero ospiti</p><p className="font-medium">{bookingData.numberOfGuests}</p></div>
                 )}
               </div>
