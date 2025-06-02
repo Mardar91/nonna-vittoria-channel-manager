@@ -120,6 +120,28 @@ export async function POST(req: NextRequest) {
     await connectDB();
     
     const data = await req.json();
+
+    let finalExpectedArrivalTime: Date | undefined = undefined;
+    if (data.expectedArrivalTime && data.checkInDate) {
+      try {
+        const [hours, minutes] = data.expectedArrivalTime.split(':').map(Number);
+        const checkInDateObj = new Date(data.checkInDate);
+        if (!isNaN(checkInDateObj.getTime())) {
+          finalExpectedArrivalTime = new Date(checkInDateObj);
+          finalExpectedArrivalTime.setHours(hours, minutes, 0, 0);
+        } else {
+          // Fallback o gestione errore se data.checkInDate non è valida
+          // Potrebbe essere necessario creare una data basata sul giorno corrente se checkInDate non è affidabile qui
+          console.warn('data.checkInDate non valida per expectedArrivalTime, usando data corrente per l\'orario');
+          const today = new Date();
+          today.setHours(hours, minutes, 0, 0);
+          finalExpectedArrivalTime = today;
+        }
+      } catch (e) {
+        console.error('Errore nel parsing di expectedArrivalTime:', e);
+        // Lascia finalExpectedArrivalTime undefined o gestisci l'errore
+      }
+    }
     
     // Validazione base
     if (!data.guests || data.guests.length === 0) {
@@ -172,20 +194,28 @@ export async function POST(req: NextRequest) {
     
     // Crea il check-in
     const checkIn = new CheckInModel({
-      ...data,
-      completedBy: session.user?.email || 'manual',
-      completedAt: data.status === 'completed' ? new Date() : null,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      ...data, // Mantiene gli altri campi da data
+      guests: data.guests, // Assicurati che guests sia passato correttamente
+      bookingId: data.bookingId, // E altri campi specifici se non tutti in data
+      apartmentId: data.apartmentId,
+      checkInDate: new Date(data.checkInDate), // Assicura che sia un oggetto Date
+      status: data.status || (data.bookingId ? 'pending' : 'pending_assignment'), // Logica di status esistente o da rivedere
+      phoneNumber: data.phoneNumber, // Aggiunto per l'ospite principale
+      expectedArrivalTime: finalExpectedArrivalTime, // Aggiunto
+      completedBy: session.user?.email || 'manual', // Logica esistente
+      completedAt: data.status === 'completed' ? new Date() : null, // Logica esistente
+      // createdAt e updatedAt sono gestiti da { timestamps: true } nello schema
     });
     
     await checkIn.save();
     
     // Se è un check-in completato, aggiorna la prenotazione
     if (data.status === 'completed' && data.bookingId) {
-      await BookingModel.findByIdAndUpdate(data.bookingId, {
-        hasCheckedIn: true
-      });
+      const updateData: any = { hasCheckedIn: true };
+      if (data.phoneNumber) { // Aggiungi phoneNumber solo se presente
+        updateData.guestPhoneNumber = data.phoneNumber;
+      }
+      await BookingModel.findByIdAndUpdate(data.bookingId, updateData);
     }
     
     return NextResponse.json({

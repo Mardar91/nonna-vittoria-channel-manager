@@ -6,6 +6,7 @@ export interface IBooking {
   guestName: string;
   guestEmail: string;
   guestPhone?: string;
+  guestPhoneNumber?: string;
   checkIn: Date;
   checkOut: Date;
   totalPrice: number;
@@ -29,6 +30,7 @@ const BookingSchema = new Schema<IBooking>(
     guestName: { type: String, required: true },
     guestEmail: { type: String, required: true },
     guestPhone: { type: String },
+    guestPhoneNumber: { type: String, required: false },
     checkIn: { type: Date, required: true },
     checkOut: { type: Date, required: true },
     totalPrice: { type: Number, required: true },

@@ -43,6 +43,7 @@ export interface IGuestData { // Renamed from parts of ICheckIn in models for cl
   documentIssueProvince?: string; // Solo per luoghi italiani
   documentIssueCountry?: string;
   isMainGuest?: boolean; // To distinguish main guest in a flat array if needed, or structure implies it
+  phoneNumber?: string;
 }
 
 
@@ -53,6 +54,8 @@ export interface CheckInFormData {
   acceptTerms: boolean;
   numberOfGuests: number; // Total number of guests, reflects editableNumberOfGuests
   notes?: string; // Optional notes from the user
+  expectedArrivalTime?: string;
+  phoneNumber?: string; // Per il numero di telefono dell'ospite principale a livello del form
 }
 
 // Tipi per le richieste API
@@ -70,6 +73,8 @@ export interface CheckInSubmitRequest {
   originalBookingRef?: string;
   numberOfGuests?: number; // Number of guests for unassigned checkin // Può essere numberOfGuests: number; se è sempre obbligatorio nel payload
   identificationEmail?: string;      // <-- MODIFICA QUI: Aggiunta questa riga
+  expectedArrivalTime?: string;
+  phoneNumber?: string; // Per il numero di telefono dell'ospite principale
 }
 
 export interface CheckInSubmitResponse {
@@ -101,8 +106,7 @@ export interface CheckInDetails {
 export const DOCUMENT_TYPES = {
   identity_card: 'Carta d\'Identità',
   passport: 'Passaporto',
-  driving_license: 'Patente di Guida',
-  other: 'Altro'
+  driving_license: 'Patente di Guida'
 } as const;
 
 // Costanti per i sessi
