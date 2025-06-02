@@ -135,7 +135,9 @@ export const validateCheckInForm = (
     errors.push({ field: 'mainGuest.citizenship', message: 'La cittadinanza è obbligatoria' });
   }
 
-  if (mainGuest.phoneNumber && !isValidPhoneNumber(mainGuest.phoneNumber)) {
+  if (!mainGuest.phoneNumber || mainGuest.phoneNumber.trim() === '') {
+    errors.push({ field: 'mainGuest.phoneNumber', message: 'Il numero di telefono è obbligatorio.' });
+  } else if (!isValidPhoneNumber(mainGuest.phoneNumber)) {
     errors.push({ field: 'mainGuest.phoneNumber', message: 'Numero di telefono non valido.' });
   }
   
@@ -274,7 +276,9 @@ export const validateCheckInForm = (
     }
   });
   
-  if (data.expectedArrivalTime && !isValidExpectedTime(data.expectedArrivalTime, defaultCheckInTime)) {
+  if (!data.expectedArrivalTime || data.expectedArrivalTime.trim() === '') {
+    errors.push({ field: 'expectedArrivalTime', message: 'L\'orario previsto d\'arrivo è obbligatorio.' });
+  } else if (!isValidExpectedTime(data.expectedArrivalTime, defaultCheckInTime)) {
     if (defaultCheckInTime && data.expectedArrivalTime < defaultCheckInTime) {
       errors.push({ field: 'expectedArrivalTime', message: `L'orario di arrivo non può essere precedente alle ${defaultCheckInTime}.` });
     } else {

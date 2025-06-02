@@ -54,8 +54,8 @@ export interface CheckInFormData {
   acceptTerms: boolean;
   numberOfGuests: number; // Total number of guests, reflects editableNumberOfGuests
   notes?: string; // Optional notes from the user
-  expectedArrivalTime?: string;
-  phoneNumber?: string; // Per il numero di telefono dell'ospite principale a livello del form
+  expectedArrivalTime: string; // Rimosso ?
+  phoneNumber: string;       // Rimosso ? (per l'ospite principale)
 }
 
 // Tipi per le richieste API
@@ -73,8 +73,8 @@ export interface CheckInSubmitRequest {
   originalBookingRef?: string;
   numberOfGuests?: number; // Number of guests for unassigned checkin // Può essere numberOfGuests: number; se è sempre obbligatorio nel payload
   identificationEmail?: string;      // <-- MODIFICA QUI: Aggiunta questa riga
-  expectedArrivalTime?: string;
-  phoneNumber?: string; // Per il numero di telefono dell'ospite principale
+  expectedArrivalTime: string; // Rimosso ?
+  phoneNumber: string;       // Rimosso ? (per l'ospite principale)
 }
 
 export interface CheckInSubmitResponse {
