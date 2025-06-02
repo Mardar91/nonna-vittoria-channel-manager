@@ -5,8 +5,8 @@ import Select from 'react-select';
 import { CheckInFormData, DOCUMENT_TYPES, SEX_OPTIONS, IGuestData } from '@/types/checkin';
 import { validateCheckInForm, ITALIAN_PROVINCES } from '@/lib/checkin-validator';
 import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
-import { ITALIAN_MUNICIPALITIES, ItalianMunicipality } from '../../data/italianMunicipalities';
-import { COUNTRIES } from '../../data/countries';
+import { ITALIAN_MUNICIPALITIES, ItalianMunicipality } from '@/data/italianMunicipalities';
+import { COUNTRIES } from '@/data/countries';
 
 interface CommuneOption {
   value: string; // Codice del comune
