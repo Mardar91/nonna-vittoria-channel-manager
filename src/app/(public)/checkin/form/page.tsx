@@ -103,6 +103,8 @@ export default function CheckInFormPage() {
       mode: checkInMode,
       acceptTerms: formData.acceptTerms,
       notes: formData.notes,
+      phoneNumber: formData.phoneNumber, // AGGIUNTO
+      expectedArrivalTime: formData.expectedArrivalTime, // AGGIUNTO
       numberOfGuests: formData.numberOfGuests
     };
 
