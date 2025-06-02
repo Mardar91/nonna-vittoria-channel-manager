@@ -24,6 +24,7 @@ interface GuestType {
   documentIssuePlace?: string;
   documentIssueProvince?: string;
   documentIssueCountry?: string;
+  phoneNumber?: string; // Aggiunto
 }
 
 interface CheckInDocument {
@@ -32,6 +33,7 @@ interface CheckInDocument {
   apartmentId: mongoose.Types.ObjectId | string;
   guests: GuestType[];
   checkInDate: Date | string;
+  expectedArrivalTime?: Date | string; // Aggiunto
   completedAt?: Date | string | null;
   completedBy?: 'guest' | string | null;
   ipAddress?: string | null;
@@ -92,6 +94,14 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
     });
   };
   
+  const formatTime = (dateInput: Date | string | undefined | null): string => {
+    if (!dateInput) return 'N/A';
+    return new Date(dateInput).toLocaleTimeString('it-IT', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   const formatDateTime = (dateInput: Date | string | undefined | null): string => {
     if (!dateInput) return 'N/A';
     return new Date(dateInput).toLocaleDateString('it-IT', {
@@ -321,6 +331,11 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
                     <div className="col-span-2">
                       <span className="text-gray-500">Cittadinanza:</span> {guest.citizenship}
                     </div>
+                    {guest.isMainGuest && guest.phoneNumber && (
+                        <div className="col-span-2 mt-1">
+                            <span className="text-gray-500">Telefono:</span> {guest.phoneNumber}
+                        </div>
+                    )}
                   </div>
                 </div>
                 
@@ -419,6 +434,11 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
               </div>
             </div>
           )}
+      <div>
+        <p className="text-sm font-medium text-gray-500">Orario Previsto Arrivo</p>
+        <p className="mt-1 text-lg">{checkIn.expectedArrivalTime ? formatTime(checkIn.expectedArrivalTime) : 'N/A'}</p> 
+        {/* Usa formatDateTime(checkIn.expectedArrivalTime) se preferisci data e ora */}
+      </div>
         </div>
       </div>
     </div>

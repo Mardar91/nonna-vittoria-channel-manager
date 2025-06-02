@@ -103,6 +103,8 @@ export default function CheckInFormPage() {
       mode: checkInMode,
       acceptTerms: formData.acceptTerms,
       notes: formData.notes,
+      phoneNumber: formData.phoneNumber, // AGGIUNTO
+      expectedArrivalTime: formData.expectedArrivalTime, // AGGIUNTO
       numberOfGuests: formData.numberOfGuests
     };
 
@@ -249,6 +251,7 @@ export default function CheckInFormPage() {
               isSubmitting={isSubmitting}
               checkInTerms={checkInTerms}
               mode={checkInMode}
+              defaultCheckInTime={profile?.defaultCheckInTime} // << MODIFICA/AGGIUNTA QUI
             />
           </div>
         </div>

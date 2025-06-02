@@ -19,6 +19,7 @@ export interface IPublicProfile {
   maxDaysInAdvance?: number;
   enableOnlineCheckIn?: boolean;
   checkInTerms?: string;
+  defaultCheckInTime?: string; // << CAMPO AGGIUNTO
   createdAt?: Date;
   updatedAt?: Date;
 }

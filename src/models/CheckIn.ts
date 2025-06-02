@@ -15,6 +15,7 @@ export interface IGuest {
   documentIssueProvince?: string; // Solo per luoghi italiani
   documentIssueCountry?: string;
   isMainGuest: boolean;
+  phoneNumber?: string;
 }
 
 export interface ICheckIn {
@@ -33,6 +34,7 @@ export interface ICheckIn {
   notes?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  expectedArrivalTime?: Date;
 }
 
 const GuestSchema = new Schema<IGuest>({
@@ -52,7 +54,8 @@ const GuestSchema = new Schema<IGuest>({
   documentIssuePlace: { type: String },
   documentIssueProvince: { type: String }, // Solo per luoghi italiani
   documentIssueCountry: { type: String },
-  isMainGuest: { type: Boolean, default: false }
+  isMainGuest: { type: Boolean, default: false },
+  phoneNumber: { type: String, required: false }
 });
 
 const CheckInSchema = new Schema<ICheckIn>(
@@ -73,6 +76,7 @@ const CheckInSchema = new Schema<ICheckIn>(
     ipAddress: { type: String },
     userAgent: { type: String },
     notes: { type: String },
+    expectedArrivalTime: { type: Date, required: false },
   },
   { timestamps: true }
 );

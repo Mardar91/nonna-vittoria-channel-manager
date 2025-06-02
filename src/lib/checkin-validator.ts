@@ -5,6 +5,26 @@ export interface ValidationError {
   message: string;
 }
 
+export const isValidPhoneNumber = (phone: string): boolean => {
+  if (!phone || phone.trim() === '') return true; // Opzionale, quindi valido se vuoto
+  const pattern = /^[+]?[0-9\s-()]{7,20}$/; // Regex semplice per numeri internazionali
+  return pattern.test(phone);
+};
+
+export const isValidExpectedTime = (expectedTime: string, defaultMinTime?: string): boolean => {
+  if (!expectedTime) return true; // Opzionale, quindi valido se vuoto
+  if (!/^[0-9]{2}:[0-9]{2}$/.test(expectedTime)) return false; // Formato HH:mm
+
+  if (defaultMinTime && /^[0-9]{2}:[0-9]{2}$/.test(defaultMinTime)) {
+    const [eh, em] = expectedTime.split(':').map(Number);
+    const [dh, dm] = defaultMinTime.split(':').map(Number);
+    if (eh < dh || (eh === dh && em < dm)) {
+      return false; // Orario previsto è precedente al minimo consentito
+    }
+  }
+  return true;
+};
+
 // Validazione età minima (18 anni per il guest principale)
 export const isAdult = (dateOfBirth: string): boolean => {
   const birthDate = new Date(dateOfBirth);
@@ -58,7 +78,8 @@ export const isValidDocumentNumber = (
 // Validazione del form principale
 export const validateCheckInForm = (
   data: CheckInFormData,
-  context?: 'airbnb' | 'booking' | 'unassigned' | string 
+  context?: 'airbnb' | 'booking' | 'unassigned' | string,
+  defaultCheckInTime?: string // Aggiunto
 ): ValidationError[] => {
   const errors: ValidationError[] = [];
   
@@ -94,21 +115,30 @@ export const validateCheckInForm = (
   } else if (!isAdult(mainGuest.dateOfBirth)) {
     errors.push({ field: 'mainGuest.dateOfBirth', message: 'L\'ospite principale deve essere maggiorenne' });
   }
-  
-  if (!mainGuest.placeOfBirth || mainGuest.placeOfBirth.trim() === '') {
-    errors.push({ field: 'mainGuest.placeOfBirth', message: 'Il luogo di nascita è obbligatorio' });
+
+  if (mainGuest.countryOfBirth === 'IT' && (!mainGuest.placeOfBirth || mainGuest.placeOfBirth.trim() === '')) {
+    errors.push({ field: 'mainGuest.placeOfBirth', message: 'Il comune di nascita è obbligatorio per l\'Italia.' });
+  } else if (mainGuest.countryOfBirth !== 'IT' && (!mainGuest.placeOfBirth || mainGuest.placeOfBirth.trim() === '')) {
+    errors.push({ field: 'mainGuest.placeOfBirth', message: 'Il luogo di nascita è obbligatorio.' });
   }
-  
-  if (!mainGuest.countryOfBirth || mainGuest.countryOfBirth.trim() === '') {
+
+  if (!mainGuest.countryOfBirth || mainGuest.countryOfBirth.trim() === '') { // This might be redundant if countryOfBirth drives placeOfBirth logic
     errors.push({ field: 'mainGuest.countryOfBirth', message: 'Il paese di nascita è obbligatorio' });
   }
   
   if (mainGuest.countryOfBirth === 'IT' && (!mainGuest.provinceOfBirth || mainGuest.provinceOfBirth.trim() === '')) {
-    errors.push({ field: 'mainGuest.provinceOfBirth', message: 'La provincia è obbligatoria per luoghi italiani' });
+    // Questo errore potrebbe indicare un problema nella logica di auto-popolamento
+    errors.push({ field: 'mainGuest.provinceOfBirth', message: 'La provincia di nascita è obbligatoria e dovrebbe essere auto-compilata.' });
   }
   
   if (!mainGuest.citizenship || mainGuest.citizenship.trim() === '') {
     errors.push({ field: 'mainGuest.citizenship', message: 'La cittadinanza è obbligatoria' });
+  }
+
+  if (!mainGuest.phoneNumber || mainGuest.phoneNumber.trim() === '') {
+    errors.push({ field: 'mainGuest.phoneNumber', message: 'Il numero di telefono è obbligatorio.' });
+  } else if (!isValidPhoneNumber(mainGuest.phoneNumber)) {
+    errors.push({ field: 'mainGuest.phoneNumber', message: 'Numero di telefono non valido.' });
   }
   
   // Validazione Documento Ospite Principale
@@ -121,7 +151,6 @@ export const validateCheckInForm = (
   } else { 
     // Qui documentNumber è presente e non vuoto.
     // mainGuestDocType può essere SpecificDocType | '' | undefined.
-    // La riga 122 dell'errore era qui dentro.
     if (typeof mainGuestDocType === 'string' && mainGuestDocType !== '') { 
       // Ora mainGuestDocType è sicuramente uno dei tipi specifici del documento.
       if (!isValidDocumentNumber(mainGuestDocType, mainGuest.documentNumber)) {
@@ -130,16 +159,18 @@ export const validateCheckInForm = (
     }
   }
   
-  if (!mainGuest.documentIssuePlace || mainGuest.documentIssuePlace.trim() === '') {
-    errors.push({ field: 'mainGuest.documentIssuePlace', message: 'Il luogo di rilascio è obbligatorio' });
+  if (mainGuest.documentIssueCountry === 'IT' && (!mainGuest.documentIssuePlace || mainGuest.documentIssuePlace.trim() === '')) {
+    errors.push({ field: 'mainGuest.documentIssuePlace', message: 'Il comune di rilascio del documento è obbligatorio per l\'Italia.' });
+  } else if (mainGuest.documentIssueCountry !== 'IT' && (!mainGuest.documentIssuePlace || mainGuest.documentIssuePlace.trim() === '')) {
+    errors.push({ field: 'mainGuest.documentIssuePlace', message: 'Il luogo di rilascio del documento è obbligatorio.' });
   }
-  
-  if (!mainGuest.documentIssueCountry || mainGuest.documentIssueCountry.trim() === '') {
+
+  if (!mainGuest.documentIssueCountry || mainGuest.documentIssueCountry.trim() === '') { // Similar to countryOfBirth, might be redundant
     errors.push({ field: 'mainGuest.documentIssueCountry', message: 'Il paese di rilascio è obbligatorio' });
   }
   
   if (mainGuest.documentIssueCountry === 'IT' && (!mainGuest.documentIssueProvince || mainGuest.documentIssueProvince.trim() === '')) {
-    errors.push({ field: 'mainGuest.documentIssueProvince', message: 'La provincia di rilascio è obbligatoria per documenti italiani' });
+    errors.push({ field: 'mainGuest.documentIssueProvince', message: 'La provincia di rilascio è obbligatoria e dovrebbe essere auto-compilata.' });
   }
   
   // Validazione Ospiti Aggiuntivi
@@ -165,20 +196,26 @@ export const validateCheckInForm = (
       errors.push({ field: `additionalGuests.${index}.dateOfBirth`, message: 'Data di nascita non valida' });
     }
     
-    if (!guest.placeOfBirth || guest.placeOfBirth.trim() === '') {
-      errors.push({ field: `additionalGuests.${index}.placeOfBirth`, message: 'Il luogo di nascita è obbligatorio' });
+    if (guest.countryOfBirth === 'IT' && (!guest.placeOfBirth || guest.placeOfBirth.trim() === '')) {
+      errors.push({ field: `additionalGuests.${index}.placeOfBirth`, message: 'Il comune di nascita è obbligatorio per l\'Italia.' });
+    } else if (guest.countryOfBirth !== 'IT' && (!guest.placeOfBirth || guest.placeOfBirth.trim() === '')) {
+      errors.push({ field: `additionalGuests.${index}.placeOfBirth`, message: 'Il luogo di nascita è obbligatorio.' });
     }
-    
+
     if (!guest.countryOfBirth || guest.countryOfBirth.trim() === '') {
       errors.push({ field: `additionalGuests.${index}.countryOfBirth`, message: 'Il paese di nascita è obbligatorio' });
     }
     
     if (guest.countryOfBirth === 'IT' && (!guest.provinceOfBirth || guest.provinceOfBirth.trim() === '')) {
-      errors.push({ field: `additionalGuests.${index}.provinceOfBirth`, message: 'La provincia è obbligatoria per luoghi italiani' });
+      errors.push({ field: `additionalGuests.${index}.provinceOfBirth`, message: 'La provincia di nascita è obbligatoria e dovrebbe essere auto-compilata.' });
     }
     
     if (!guest.citizenship || guest.citizenship.trim() === '') {
       errors.push({ field: `additionalGuests.${index}.citizenship`, message: 'La cittadinanza è obbligatoria' });
+    }
+
+    if (guest.phoneNumber && !isValidPhoneNumber(guest.phoneNumber)) {
+      errors.push({ field: `additionalGuests.${index}.phoneNumber`, message: 'Numero di telefono non valido.' });
     }
 
     const isDocumentOptional = context === 'airbnb' || context === 'booking';
@@ -192,7 +229,6 @@ export const validateCheckInForm = (
       if (!guest.documentNumber || guest.documentNumber.trim() === '') {
         errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Il numero del documento è obbligatorio' });
       } else { 
-        // Numero presente. Controlla tipo per validazione incrociata.
         if (typeof guestDocType === 'string' && guestDocType !== '') {
           if (!isValidDocumentNumber(guestDocType, guest.documentNumber)) {
             errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Numero documento non valido per il tipo selezionato' });
@@ -200,8 +236,10 @@ export const validateCheckInForm = (
         }
       }
       
-      if (!guest.documentIssuePlace || guest.documentIssuePlace.trim() === '') {
-        errors.push({ field: `additionalGuests.${index}.documentIssuePlace`, message: 'Il luogo di rilascio è obbligatorio' });
+      if (guest.documentIssueCountry === 'IT' && (!guest.documentIssuePlace || guest.documentIssuePlace.trim() === '')) {
+        errors.push({ field: `additionalGuests.${index}.documentIssuePlace`, message: 'Il comune di rilascio del documento è obbligatorio per l\'Italia.' });
+      } else if (guest.documentIssueCountry !== 'IT' && (!guest.documentIssuePlace || guest.documentIssuePlace.trim() === '')) {
+        errors.push({ field: `additionalGuests.${index}.documentIssuePlace`, message: 'Il luogo di rilascio del documento è obbligatorio.' });
       }
       
       if (!guest.documentIssueCountry || guest.documentIssueCountry.trim() === '') {
@@ -209,23 +247,24 @@ export const validateCheckInForm = (
       }
       
       if (guest.documentIssueCountry === 'IT' && (!guest.documentIssueProvince || guest.documentIssueProvince.trim() === '')) {
-        errors.push({ field: `additionalGuests.${index}.documentIssueProvince`, message: 'La provincia di rilascio è obbligatoria per documenti italiani' });
+        errors.push({ field: `additionalGuests.${index}.documentIssueProvince`, message: 'La provincia di rilascio è obbligatoria e dovrebbe essere auto-compilata.' });
       }
     } else {
       // Documento Opzionale per Ospite Aggiuntivo, ma se il tipo è fornito, il resto diventa condizionatamente obbligatorio.
       if (typeof guestDocType === 'string' && guestDocType !== '') { 
-        // Tipo fornito (ed è uno SpecificType). Il numero diventa obbligatorio.
         if (!guest.documentNumber || guest.documentNumber.trim() === '') {
           errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Il numero del documento è richiesto se si specifica il tipo' });
         } else if (!isValidDocumentNumber(guestDocType, guest.documentNumber)) { 
           errors.push({ field: `additionalGuests.${index}.documentNumber`, message: 'Numero documento non valido per il tipo selezionato' });
         }
         
-        // Se numero e tipo sono forniti e validi, anche luogo/paese/provincia di rilascio diventano richiesti.
         if (guest.documentNumber && guest.documentNumber.trim() !== '' && isValidDocumentNumber(guestDocType, guest.documentNumber)) {
-            if (!guest.documentIssuePlace || guest.documentIssuePlace.trim() === '') {
+            if (guest.documentIssueCountry === 'IT' && (!guest.documentIssuePlace || guest.documentIssuePlace.trim() === '')) {
+                errors.push({ field: `additionalGuests.${index}.documentIssuePlace`, message: 'Comune di rilascio richiesto se tipo/numero sono forniti per l\'Italia' });
+            } else if (guest.documentIssueCountry !== 'IT' && (!guest.documentIssuePlace || guest.documentIssuePlace.trim() === '')) {
                 errors.push({ field: `additionalGuests.${index}.documentIssuePlace`, message: 'Luogo di rilascio richiesto se tipo/numero sono forniti' });
             }
+
             if (!guest.documentIssueCountry || guest.documentIssueCountry.trim() === '') {
                 errors.push({ field: `additionalGuests.${index}.documentIssueCountry`, message: 'Paese di rilascio richiesto se tipo/numero sono forniti' });
             }
@@ -237,6 +276,16 @@ export const validateCheckInForm = (
     }
   });
   
+  if (!data.expectedArrivalTime || data.expectedArrivalTime.trim() === '') {
+    errors.push({ field: 'expectedArrivalTime', message: 'L\'orario previsto d\'arrivo è obbligatorio.' });
+  } else if (!isValidExpectedTime(data.expectedArrivalTime, defaultCheckInTime)) {
+    if (defaultCheckInTime && data.expectedArrivalTime < defaultCheckInTime) {
+      errors.push({ field: 'expectedArrivalTime', message: `L'orario di arrivo non può essere precedente alle ${defaultCheckInTime}.` });
+    } else {
+      errors.push({ field: 'expectedArrivalTime', message: 'Formato orario previsto non valido (HH:mm).' });
+    }
+  }
+
   if (!data.acceptTerms) {
     errors.push({ field: 'acceptTerms', message: 'Devi accettare i termini e le condizioni' });
   }
