@@ -251,6 +251,7 @@ export default function CheckInFormPage() {
               isSubmitting={isSubmitting}
               checkInTerms={checkInTerms}
               mode={checkInMode}
+              defaultCheckInTime={profile?.defaultCheckInTime} // << MODIFICA/AGGIUNTA QUI
             />
           </div>
         </div>

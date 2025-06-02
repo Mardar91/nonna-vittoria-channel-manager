@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import PublicProfileModel from '@/models/PublicProfile';
+import SettingsModel from '@/models/Settings'; // Import SettingsModel
 
 // GET: Ottenere il profilo pubblico
 export async function GET() {
@@ -9,17 +10,37 @@ export async function GET() {
     await connectDB();
     
     // Troviamo l'unico profilo pubblico, o ne creiamo uno se non esiste
-    let profile = await PublicProfileModel.findOne({});
+    let profile = await PublicProfileModel.findOne({}).lean(); // Use lean() for plain JS object
     
     if (!profile) {
-      profile = await PublicProfileModel.create({
+      // Se il profilo non esiste, ne creiamo uno di default MA NON lo salviamo qui.
+      // L'aggiornamento/creazione avviene tramite PUT. Qui forniamo solo dati di default.
+      profile = {
         name: 'Nonna Vittoria Apartments',
         isActive: false,
-        allowGroupBooking: true
-      });
+        allowGroupBooking: true,
+        // Aggiungi altri campi di default se necessario per IPublicProfile
+      };
+    }
+
+    // Recupera le impostazioni generali
+    let settings = await SettingsModel.findOne({}).lean();
+    if (!settings) {
+      // Se non esistono impostazioni, creane di default (ma non salvarle qui)
+      // o usa valori di fallback
+      settings = {
+        defaultCheckInTime: '14:00', // Valore di fallback
+        // Aggiungi altri campi di fallback se necessario
+      };
     }
     
-    return NextResponse.json(profile);
+    // Combina i dati del profilo con defaultCheckInTime dalle impostazioni
+    const responsePayload = {
+      ...profile,
+      defaultCheckInTime: settings?.defaultCheckInTime,
+    };
+    
+    return NextResponse.json(responsePayload);
   } catch (error) {
     console.error('Error fetching public profile:', error);
     return NextResponse.json(
