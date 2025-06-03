@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import { CheckInFormData, DOCUMENT_TYPES, SEX_OPTIONS, IGuestData } from '@/types/checkin';
-import { validateCheckInForm } from '@/lib/checkin-validator'; // ITALIAN_PROVINCES might not be needed directly here anymore
+import { validateCheckInForm } from '@/lib/checkin-validator';
 import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { ITALIAN_MUNICIPALITIES, ItalianMunicipality } from '@/data/italianMunicipalities';
 import { COUNTRIES } from '@/data/countries';
@@ -668,7 +668,8 @@ export default function CheckInForm({
                     onChange={(selectedOption) => {
                       if (selectedOption) {
                         handleAdditionalGuestChange(index, 'documentIssuePlace', selectedOption.value);
-                        handleAdditionalGuestChange(index, 'provinceOfBirth', selectedOption.province); // Attenzione: qui potrebbe esserci un typo, dovrebbe essere documentIssueProvince? Ma il codice originale lo ha così. Lo lascio com'era nel codice fornito.
+                        // !!! CORREZIONE APPLICATA QUI !!!
+                        handleAdditionalGuestChange(index, 'documentIssueProvince', selectedOption.province);
                       } else {
                         handleAdditionalGuestChange(index, 'documentIssuePlace', '');
                         handleAdditionalGuestChange(index, 'documentIssueProvince', '');
@@ -697,7 +698,7 @@ export default function CheckInForm({
                 )}
                 {errors[`additionalGuests.${index}.documentIssuePlace`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.documentIssuePlace`]}</p>}
               </div>
-              {(guest.documentIssueCountry === ITALIA_COUNTRY_CODE || !guest.documentIssueCountry) && (
+              {(guest.documentIssueCountry === ITALIA_COUNTRY_CODE || !guest.documentIssueCountry) && ( // Ho mantenuto la logica originale qui, anche se potrebbe essere !guest.documentIssueCountry if it's always set
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Provincia di rilascio</label>
                   <input
