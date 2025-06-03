@@ -63,6 +63,7 @@ body {
   margin-right: 0.5rem; /* Aggiunge un po' di spazio tra la bandiera e l'input */
 }
 
+
 @layer components {
   .form-input-custom {
     @apply block w-full rounded-md border-gray-300 shadow-sm text-sm;
