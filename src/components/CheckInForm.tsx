@@ -39,6 +39,7 @@ export default function CheckInForm({
 }: CheckInFormProps) {
 
   const [editableNumberOfGuests, setEditableNumberOfGuests] = useState(initialNumberOfGuests || 1);
+  const [additionalGuestDocumentVisible, setAdditionalGuestDocumentVisible] = useState<boolean[]>([]);
   const isNumberOfGuestsEditable = mode === 'unassigned_checkin' || (mode === 'normal' && bookingSource !== 'direct');
 
   useEffect(() => {
@@ -76,10 +77,11 @@ export default function CheckInForm({
   });
 
   useEffect(() => {
-    setFormData(prev => {
-      const currentAdditionalGuests = prev.additionalGuests;
+    // Update formData.additionalGuests
+    setFormData(prevFormData => {
+      const currentAdditionalGuests = prevFormData.additionalGuests;
       const newAdditionalGuestCount = Math.max(0, editableNumberOfGuests - 1);
-      const updatedAdditionalGuests: IGuestData[] = [...currentAdditionalGuests];
+      let updatedAdditionalGuests: IGuestData[] = [...currentAdditionalGuests];
 
       if (newAdditionalGuestCount > currentAdditionalGuests.length) {
         for (let i = currentAdditionalGuests.length; i < newAdditionalGuestCount; i++) {
@@ -92,13 +94,34 @@ export default function CheckInForm({
           });
         }
       } else if (newAdditionalGuestCount < currentAdditionalGuests.length) {
-        updatedAdditionalGuests.splice(newAdditionalGuestCount);
+        updatedAdditionalGuests = updatedAdditionalGuests.slice(0, newAdditionalGuestCount);
       }
+
       return {
-        ...prev,
+        ...prevFormData,
         numberOfGuests: editableNumberOfGuests,
-        additionalGuests: updatedAdditionalGuests
+        additionalGuests: updatedAdditionalGuests,
       };
+    });
+
+    // Update additionalGuestDocumentVisible based on the new number of guests
+    setAdditionalGuestDocumentVisible(prevVisibility => {
+      const newCount = Math.max(0, editableNumberOfGuests - 1);
+      const currentLength = prevVisibility.length;
+      let newVisibility = [...prevVisibility];
+
+      if (newCount > currentLength) {
+        for (let i = currentLength; i < newCount; i++) {
+          newVisibility.push(false);
+        }
+      } else if (newCount < currentLength) {
+        newVisibility = newVisibility.slice(0, newCount);
+      }
+      // Only return a new array if the visibility actually changed to prevent unnecessary re-renders.
+      if (JSON.stringify(prevVisibility) !== JSON.stringify(newVisibility)) {
+        return newVisibility;
+      }
+      return prevVisibility;
     });
   }, [editableNumberOfGuests]);
 
@@ -623,8 +646,39 @@ export default function CheckInForm({
               {errors[`additionalGuests.${index}.citizenship`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.citizenship`]}</p>}
             </div>
 
+            <div
+              className="text-blue-600 hover:text-blue-800 cursor-pointer text-sm mb-2 inline-block sm:col-span-2"
+              onClick={() => {
+                const currentVisibility = additionalGuestDocumentVisible[index];
+                if (currentVisibility) { // If true, it means it's currently visible and will be hidden
+                  setFormData(prevFormData => {
+                    const updatedAdditionalGuests = prevFormData.additionalGuests.map((guest, i) => {
+                      if (i === index) {
+                        return {
+                          ...guest,
+                          documentType: '' as IGuestData['documentType'],
+                          documentNumber: '',
+                          documentIssuePlace: '',
+                          documentIssueProvince: '',
+                          documentIssueCountry: '',
+                        };
+                      }
+                      return guest;
+                    });
+                    return { ...prevFormData, additionalGuests: updatedAdditionalGuests };
+                  });
+                }
+                const newVisibility = [...additionalGuestDocumentVisible];
+                newVisibility[index] = !currentVisibility;
+                setAdditionalGuestDocumentVisible(newVisibility);
+              }}
+            >
+              {additionalGuestDocumentVisible[index] ? "Nascondi Dettagli Documento" : "Mostra Dettagli Documento"}
+            </div>
+
+            {additionalGuestDocumentVisible[index] && (
             <>
-              <h4 className="text-md font-medium mt-6 mb-2 sm:col-span-2">Documento di identità (Ospite {index + 2})</h4>
+              <h4 className="text-md font-medium mt-2 mb-2 sm:col-span-2">Documento di identità (Ospite {index + 2})</h4>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Tipo documento</label>
                 <Select
@@ -711,6 +765,7 @@ export default function CheckInForm({
                 </div>
               )}
             </>
+            )}
           </div>
         </div>
       ))}
