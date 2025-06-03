@@ -77,11 +77,11 @@ export default function CheckInForm({
   });
 
   useEffect(() => {
-    setFormData(prev => {
-      const currentAdditionalGuests = prev.additionalGuests;
+    // Update formData.additionalGuests
+    setFormData(prevFormData => {
+      const currentAdditionalGuests = prevFormData.additionalGuests;
       const newAdditionalGuestCount = Math.max(0, editableNumberOfGuests - 1);
-      const updatedAdditionalGuests: IGuestData[] = [...currentAdditionalGuests];
-      let updatedVisibility: boolean[] = [...additionalGuestDocumentVisible];
+      let updatedAdditionalGuests: IGuestData[] = [...currentAdditionalGuests];
 
       if (newAdditionalGuestCount > currentAdditionalGuests.length) {
         for (let i = currentAdditionalGuests.length; i < newAdditionalGuestCount; i++) {
@@ -92,18 +92,36 @@ export default function CheckInForm({
             documentIssueProvince: '', documentIssueCountry: ITALIA_COUNTRY_CODE,
             isMainGuest: false,
           });
-          updatedVisibility.push(false);
         }
       } else if (newAdditionalGuestCount < currentAdditionalGuests.length) {
-        updatedAdditionalGuests.splice(newAdditionalGuestCount);
-        updatedVisibility.splice(newAdditionalGuestCount);
+        updatedAdditionalGuests = updatedAdditionalGuests.slice(0, newAdditionalGuestCount);
       }
-      setAdditionalGuestDocumentVisible(updatedVisibility);
+
       return {
-        ...prev,
+        ...prevFormData,
         numberOfGuests: editableNumberOfGuests,
-        additionalGuests: updatedAdditionalGuests
+        additionalGuests: updatedAdditionalGuests,
       };
+    });
+
+    // Update additionalGuestDocumentVisible based on the new number of guests
+    setAdditionalGuestDocumentVisible(prevVisibility => {
+      const newCount = Math.max(0, editableNumberOfGuests - 1);
+      const currentLength = prevVisibility.length;
+      let newVisibility = [...prevVisibility];
+
+      if (newCount > currentLength) {
+        for (let i = currentLength; i < newCount; i++) {
+          newVisibility.push(false);
+        }
+      } else if (newCount < currentLength) {
+        newVisibility = newVisibility.slice(0, newCount);
+      }
+      // Only return a new array if the visibility actually changed to prevent unnecessary re-renders.
+      if (JSON.stringify(prevVisibility) !== JSON.stringify(newVisibility)) {
+        return newVisibility;
+      }
+      return prevVisibility;
     });
   }, [editableNumberOfGuests]);
 
@@ -638,7 +656,7 @@ export default function CheckInForm({
                       if (i === index) {
                         return {
                           ...guest,
-                          documentType: '',
+                          documentType: '' as IGuestData['documentType'],
                           documentNumber: '',
                           documentIssuePlace: '',
                           documentIssueProvince: '',
