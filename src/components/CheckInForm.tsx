@@ -7,6 +7,8 @@ import { validateCheckInForm } from '@/lib/checkin-validator'; // ITALIAN_PROVIN
 import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { ITALIAN_MUNICIPALITIES, ItalianMunicipality } from '@/data/italianMunicipalities';
 import { COUNTRIES } from '@/data/countries';
+import PhoneInput, { isValidPhoneNumber as isValidPhoneNumberExternal } from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 
 const ITALIA_COUNTRY_CODE = '100000100'; 
 
@@ -263,7 +265,7 @@ export default function CheckInForm({
           )}
         </div>
         <div className="mt-4">
-          <label htmlFor="expectedArrivalTime" className="block text-sm font-medium text-gray-700">Orario Previsto d'Arrivo *</label>
+          <label htmlFor="expectedArrivalTime" className="block text-sm font-medium text-gray-700">Orario Previsto d&apos;Arrivo *</label>
           <select 
             id="expectedArrivalTime"
             value={formData.expectedArrivalTime || ''}
@@ -383,14 +385,14 @@ export default function CheckInForm({
             {errors['mainGuest.citizenship'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.citizenship']}</p>}
           </div>
           <div>
-            <label htmlFor="mainGuestPhoneNumber" className="block text-sm font-medium text-gray-700">Numero di telefono</label>
-            <input 
-              type="tel" 
+            <label htmlFor="mainGuestPhoneNumber" className="block text-sm font-medium text-gray-700">Numero di telefono *</label>
+            <PhoneInput
               id="mainGuestPhoneNumber"
-              value={formData.mainGuest.phoneNumber || ''} 
-              onChange={(e) => handleMainGuestChange('phoneNumber', e.target.value)}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.phoneNumber'] ? 'border-red-300' : 'border-gray-300'}`}
-              placeholder="Es. 3331234567"
+              international
+              defaultCountry="IT"
+              value={formData.mainGuest.phoneNumber}
+              onChange={(value) => handleMainGuestChange('phoneNumber', value || '')}
+              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm custom-phone-input ${errors['mainGuest.phoneNumber'] ? 'border-red-300' : 'border-gray-300'}`}
             />
             {errors['mainGuest.phoneNumber'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.phoneNumber']}</p>}
           </div>
