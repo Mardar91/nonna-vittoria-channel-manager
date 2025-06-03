@@ -3,39 +3,39 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import { CheckInFormData, DOCUMENT_TYPES, SEX_OPTIONS, IGuestData } from '@/types/checkin';
-import { validateCheckInForm } from '@/lib/checkin-validator'; // ITALIAN_PROVINCES might not be needed directly here anymore
+import { validateCheckInForm } from '@/lib/checkin-validator';
 import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { ITALIAN_MUNICIPALITIES, ItalianMunicipality } from '@/data/italianMunicipalities';
 import { COUNTRIES } from '@/data/countries';
 import PhoneInput, { isValidPhoneNumber as isValidPhoneNumberExternal } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 
-const ITALIA_COUNTRY_CODE = '100000100'; 
+const ITALIA_COUNTRY_CODE = '100000100';
 
 interface CommuneOption {
-  value: string; 
-  label: string; 
+  value: string;
+  label: string;
   province: string;
 }
 
 export interface CheckInFormProps {
-  numberOfGuests: number; 
+  numberOfGuests: number;
   onSubmit: (data: CheckInFormData) => void;
   isSubmitting: boolean;
   checkInTerms?: string;
   mode: 'normal' | 'unassigned_checkin';
   bookingSource?: string;
-  defaultCheckInTime?: string; 
+  defaultCheckInTime?: string;
 }
 
-export default function CheckInForm({ 
+export default function CheckInForm({
   numberOfGuests: initialNumberOfGuests,
-  onSubmit, 
+  onSubmit,
   isSubmitting,
   checkInTerms,
   mode,
   bookingSource,
-  defaultCheckInTime 
+  defaultCheckInTime
 }: CheckInFormProps) {
 
   const [editableNumberOfGuests, setEditableNumberOfGuests] = useState(initialNumberOfGuests || 1);
@@ -48,7 +48,7 @@ export default function CheckInForm({
       setEditableNumberOfGuests(initialNumberOfGuests || 1);
     }
   }, [initialNumberOfGuests, isNumberOfGuestsEditable]);
-  
+
   const [formData, setFormData] = useState<CheckInFormData>({
     mainGuest: {
       lastName: '',
@@ -65,14 +65,14 @@ export default function CheckInForm({
       documentIssueProvince: '',
       documentIssueCountry: ITALIA_COUNTRY_CODE, // Default to Italy
       isMainGuest: true,
-      phoneNumber: '', 
+      phoneNumber: '',
     },
-    additionalGuests: [], 
+    additionalGuests: [],
     acceptTerms: false,
     numberOfGuests: initialNumberOfGuests || 1,
     notes: '',
-    expectedArrivalTime: '', 
-    phoneNumber: '', 
+    expectedArrivalTime: '',
+    phoneNumber: '',
   });
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export default function CheckInForm({
           updatedAdditionalGuests.push({
             lastName: '', firstName: '', sex: '', dateOfBirth: '',
             placeOfBirth: '', provinceOfBirth: '', countryOfBirth: ITALIA_COUNTRY_CODE, citizenship: ITALIA_COUNTRY_CODE,
-            documentType: '', documentNumber: '', documentIssuePlace: '', 
+            documentType: '', documentNumber: '', documentIssuePlace: '',
             documentIssueProvince: '', documentIssueCountry: ITALIA_COUNTRY_CODE,
             isMainGuest: false,
           });
@@ -96,14 +96,14 @@ export default function CheckInForm({
       }
       return {
         ...prev,
-        numberOfGuests: editableNumberOfGuests, 
+        numberOfGuests: editableNumberOfGuests,
         additionalGuests: updatedAdditionalGuests
       };
     });
   }, [editableNumberOfGuests]);
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   const handleMainGuestChange = (field: string, value: string) => {
     setFormData(prev => {
       const updatedMainGuest = {
@@ -122,14 +122,14 @@ export default function CheckInForm({
       return {
         ...prev,
         mainGuest: updatedMainGuest,
-        ...(field === 'phoneNumber' && { phoneNumber: value }) 
+        ...(field === 'phoneNumber' && { phoneNumber: value })
       };
     });
     if (errors[`mainGuest.${field}`]) {
       setErrors(prevErrs => ({ ...prevErrs, [`mainGuest.${field}`]: '' }));
     }
   };
-  
+
   const handleAdditionalGuestChange = (index: number, field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
@@ -153,7 +153,7 @@ export default function CheckInForm({
       setErrors(prevErrs => ({ ...prevErrs, [`additionalGuests.${index}.${field}`]: '' }));
     }
   };
-  
+
   const handleNumGuestsInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isNumberOfGuestsEditable) return;
     let newNum = parseInt(e.target.value, 10);
@@ -161,14 +161,14 @@ export default function CheckInForm({
     if (newNum > 20) newNum = 20;
     setEditableNumberOfGuests(newNum);
   };
-  
+
   const addAdditionalGuestButton = () => {
     if (!isNumberOfGuestsEditable) return;
     if (editableNumberOfGuests < 20) {
       setEditableNumberOfGuests(prevNum => prevNum + 1);
     }
   };
-  
+
   const removeAdditionalGuestButton = (index: number) => {
     if (!isNumberOfGuestsEditable) return;
     if (editableNumberOfGuests > 1) {
@@ -179,10 +179,10 @@ export default function CheckInForm({
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, notes: e.target.value }));
   };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const validationErrors = validateCheckInForm(formData, mode === 'unassigned_checkin' ? 'unassigned' : bookingSource, defaultCheckInTime); 
+    const validationErrors = validateCheckInForm(formData, mode === 'unassigned_checkin' ? 'unassigned' : bookingSource, defaultCheckInTime);
     if (validationErrors.length > 0) {
       const errorMap: Record<string, string> = {};
       validationErrors.forEach(error => {
@@ -193,7 +193,7 @@ export default function CheckInForm({
     }
     onSubmit(formData);
   };
-  
+
   const maxDate = new Date().toISOString().split('T')[0];
 
   const communeOptions: CommuneOption[] = ITALIAN_MUNICIPALITIES.map(comune => ({
@@ -211,7 +211,7 @@ export default function CheckInForm({
       [startHour, startMinute] = defaultMinTime.split(':').map(Number);
     }
 
-    if (defaultMinTime) { 
+    if (defaultMinTime) {
       if (startMinute > 0 && startMinute < 30) {
           startMinute = 30;
       } else if (startMinute > 30) {
@@ -220,7 +220,7 @@ export default function CheckInForm({
       }
     }
 
-    if (startHour >= 24) return options; 
+    if (startHour >= 24) return options;
 
     for (let h = startHour; h < 24; h++) {
       for (let m = (h === startHour ? startMinute : 0); m < 60; m += 30) {
@@ -234,8 +234,11 @@ export default function CheckInForm({
   };
 
   const timeOptions = generateTimeOptions(defaultCheckInTime);
-  
-  const baseSelectClasses = "mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-2 px-3";
+
+  // Options for react-select components
+  const sexOptionsForSelect = [{ value: "", label: "Seleziona..." }, ...Object.entries(SEX_OPTIONS).map(([value, label]) => ({ value, label: String(label) }))];
+  const countryOptionsForSelect = [{ value: "", label: "Seleziona Paese..." }, ...COUNTRIES.map(country => ({ value: country.code, label: country.name }))];
+  const documentTypesForSelect = [{ value: "", label: "Seleziona..." }, ...Object.entries(DOCUMENT_TYPES).map(([value, label]) => ({ value, label: String(label) }))];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -253,10 +256,10 @@ export default function CheckInForm({
               max="20"
               value={editableNumberOfGuests}
               onChange={handleNumGuestsInputChange}
-              className="mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+              className={`form-input-custom mt-1 ${errors.numberOfGuests ? 'border-red-300' : 'border-gray-300'}`}
             />
           ) : (
-            <p className="mt-1 block w-full px-3 py-2 sm:text-sm text-gray-700 bg-gray-100 border border-gray-300 rounded-md">
+            <p className="form-input-custom mt-1 text-gray-700 bg-gray-100 cursor-not-allowed">
               {editableNumberOfGuests}
             </p>
           )}
@@ -265,17 +268,18 @@ export default function CheckInForm({
           )}
         </div>
         <div className="mt-4">
-          <label htmlFor="expectedArrivalTime" className="block text-sm font-medium text-gray-700">Orario Previsto d&apos;Arrivo *</label>
-          <select 
+          <label htmlFor="expectedArrivalTime" className="block text-sm font-medium text-gray-700">Orario Previsto d'Arrivo *</label>
+          <Select
             id="expectedArrivalTime"
-            value={formData.expectedArrivalTime || ''}
-            onChange={(e) => setFormData(prev => ({ ...prev, expectedArrivalTime: e.target.value }))}
-            className={`${baseSelectClasses} ${errors.expectedArrivalTime ? 'border-red-300' : 'border-gray-300'}`}
-          >
-            {timeOptions.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+            options={timeOptions}
+            value={timeOptions.find(option => option.value === formData.expectedArrivalTime) || null}
+            onChange={(selectedOption) => setFormData(prev => ({ ...prev, expectedArrivalTime: selectedOption ? selectedOption.value : '' }))}
+            placeholder="Seleziona orario..."
+            isClearable
+            className={`mt-1 react-select-container ${errors.expectedArrivalTime ? 'react-select-error' : ''}`}
+            classNamePrefix="react-select"
+            noOptionsMessage={() => "Nessuna opzione"}
+          />
           {errors.expectedArrivalTime && <p className="mt-1 text-sm text-red-600">{errors.expectedArrivalTime}</p>}
         </div>
       </div>
@@ -285,41 +289,48 @@ export default function CheckInForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-gray-700">Cognome *</label>
-            <input type="text" value={formData.mainGuest.lastName} onChange={(e) => handleMainGuestChange('lastName', e.target.value)} 
-                   className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.lastName'] ? 'border-red-300' : 'border-gray-300'}`} />
+            <input type="text" value={formData.mainGuest.lastName} onChange={(e) => handleMainGuestChange('lastName', e.target.value)}
+                   className={`form-input-custom mt-1 ${errors['mainGuest.lastName'] ? 'border-red-300' : 'border-gray-300'}`} />
             {errors['mainGuest.lastName'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.lastName']}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Nome *</label>
             <input type="text" value={formData.mainGuest.firstName} onChange={(e) => handleMainGuestChange('firstName', e.target.value)}
-                   className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.firstName'] ? 'border-red-300' : 'border-gray-300'}`} />
+                   className={`form-input-custom mt-1 ${errors['mainGuest.firstName'] ? 'border-red-300' : 'border-gray-300'}`} />
             {errors['mainGuest.firstName'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.firstName']}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Sesso *</label>
-            <select value={formData.mainGuest.sex} onChange={(e) => handleMainGuestChange('sex', e.target.value)}
-                    className={`${baseSelectClasses} ${errors['mainGuest.sex'] ? 'border-red-300' : 'border-gray-300'}`}>
-              <option value="">Seleziona</option>
-              {Object.entries(SEX_OPTIONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            <Select
+              options={sexOptionsForSelect}
+              value={sexOptionsForSelect.find(option => option.value === formData.mainGuest.sex) || null}
+              onChange={(selectedOption) => handleMainGuestChange('sex', selectedOption ? selectedOption.value : '')}
+              placeholder="Seleziona..."
+              isClearable
+              className={`mt-1 react-select-container ${errors['mainGuest.sex'] ? 'react-select-error' : ''}`}
+              classNamePrefix="react-select"
+              noOptionsMessage={() => "Nessuna opzione"}
+            />
             {errors['mainGuest.sex'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.sex']}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Data di nascita *</label>
             <input type="date" max={maxDate} value={formData.mainGuest.dateOfBirth} onChange={(e) => handleMainGuestChange('dateOfBirth', e.target.value)}
-                   className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.dateOfBirth'] ? 'border-red-300' : 'border-gray-300'}`} />
+                   className={`form-input-custom mt-1 ${errors['mainGuest.dateOfBirth'] ? 'border-red-300' : 'border-gray-300'}`} />
             {errors['mainGuest.dateOfBirth'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.dateOfBirth']}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Paese di nascita *</label>
-            <select 
-              value={formData.mainGuest.countryOfBirth} 
-              onChange={(e) => handleMainGuestChange('countryOfBirth', e.target.value)}
-              className={`${baseSelectClasses} ${errors['mainGuest.countryOfBirth'] ? 'border-red-300' : 'border-gray-300'}`}
-            >
-              <option value="">Seleziona Paese</option>
-              {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
-            </select>
+            <Select
+              options={countryOptionsForSelect}
+              value={countryOptionsForSelect.find(option => option.value === formData.mainGuest.countryOfBirth) || null}
+              onChange={(selectedOption) => handleMainGuestChange('countryOfBirth', selectedOption ? selectedOption.value : '')}
+              placeholder="Seleziona Paese..."
+              isClearable
+              className={`mt-1 react-select-container ${errors['mainGuest.countryOfBirth'] ? 'react-select-error' : ''}`}
+              classNamePrefix="react-select"
+              noOptionsMessage={() => "Nessun paese trovato"}
+            />
             {errors['mainGuest.countryOfBirth'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.countryOfBirth']}</p>}
           </div>
           <div>
@@ -344,18 +355,18 @@ export default function CheckInForm({
                 noOptionsMessage={() => "Nessun comune trovato"}
               />
             ) : formData.mainGuest.countryOfBirth && formData.mainGuest.countryOfBirth !== ITALIA_COUNTRY_CODE ? (
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={formData.mainGuest.placeOfBirth}
                 onChange={(e) => handleMainGuestChange('placeOfBirth', e.target.value)}
-                className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.placeOfBirth'] ? 'border-red-300' : 'border-gray-300'}`}
+                className={`form-input-custom mt-1 ${errors['mainGuest.placeOfBirth'] ? 'border-red-300' : 'border-gray-300'}`}
               />
             ) : (
-              <input 
-                type="text" 
-                disabled 
+              <input
+                type="text"
+                disabled
                 placeholder="Seleziona prima il paese di nascita"
-                className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
+                className="form-input-custom mt-1"
               />
             )}
             {errors['mainGuest.placeOfBirth'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.placeOfBirth']}</p>}
@@ -363,25 +374,27 @@ export default function CheckInForm({
           {formData.mainGuest.countryOfBirth === ITALIA_COUNTRY_CODE && (
             <div>
               <label className="block text-sm font-medium text-gray-700">Provincia di nascita *</label>
-              <input 
-                type="text" 
-                value={formData.mainGuest.provinceOfBirth || ''} 
-                readOnly 
-                className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300" 
+              <input
+                type="text"
+                value={formData.mainGuest.provinceOfBirth || ''}
+                readOnly
+                className="form-input-custom mt-1"
               />
               {errors['mainGuest.provinceOfBirth'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.provinceOfBirth']}</p>}
             </div>
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700">Cittadinanza *</label>
-            <select 
-              value={formData.mainGuest.citizenship} 
-              onChange={(e) => handleMainGuestChange('citizenship', e.target.value)}
-              className={`${baseSelectClasses} ${errors['mainGuest.citizenship'] ? 'border-red-300' : 'border-gray-300'}`}
-            >
-              <option value="">Seleziona Cittadinanza</option>
-              {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
-            </select>
+            <Select
+              options={countryOptionsForSelect}
+              value={countryOptionsForSelect.find(option => option.value === formData.mainGuest.citizenship) || null}
+              onChange={(selectedOption) => handleMainGuestChange('citizenship', selectedOption ? selectedOption.value : '')}
+              placeholder="Seleziona Cittadinanza..."
+              isClearable
+              className={`mt-1 react-select-container ${errors['mainGuest.citizenship'] ? 'react-select-error' : ''}`}
+              classNamePrefix="react-select"
+              noOptionsMessage={() => "Nessuna cittadinanza trovata"}
+            />
             {errors['mainGuest.citizenship'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.citizenship']}</p>}
           </div>
           <div>
@@ -397,34 +410,41 @@ export default function CheckInForm({
             {errors['mainGuest.phoneNumber'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.phoneNumber']}</p>}
           </div>
         </div>
-        
+
         <h4 className="text-md font-medium mt-6 mb-4">Documento di identità (Ospite Principale)</h4>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-gray-700">Tipo documento *</label>
-            <select value={formData.mainGuest.documentType} onChange={(e) => handleMainGuestChange('documentType', e.target.value)}
-                    className={`${baseSelectClasses} ${errors['mainGuest.documentType'] ? 'border-red-300' : 'border-gray-300'}`}>
-              <option value="">Seleziona</option>
-              {Object.entries(DOCUMENT_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            <Select
+              options={documentTypesForSelect}
+              value={documentTypesForSelect.find(option => option.value === formData.mainGuest.documentType) || null}
+              onChange={(selectedOption) => handleMainGuestChange('documentType', selectedOption ? selectedOption.value : '')}
+              placeholder="Seleziona..."
+              isClearable
+              className={`mt-1 react-select-container ${errors['mainGuest.documentType'] ? 'react-select-error' : ''}`}
+              classNamePrefix="react-select"
+              noOptionsMessage={() => "Nessuna opzione"}
+            />
             {errors['mainGuest.documentType'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentType']}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Numero documento *</label>
             <input type="text" value={formData.mainGuest.documentNumber} onChange={(e) => handleMainGuestChange('documentNumber', e.target.value.toUpperCase())}
-                   className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.documentNumber'] ? 'border-red-300' : 'border-gray-300'}`} />
+                   className={`form-input-custom mt-1 ${errors['mainGuest.documentNumber'] ? 'border-red-300' : 'border-gray-300'}`} />
             {errors['mainGuest.documentNumber'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentNumber']}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Paese di rilascio *</label>
-            <select 
-              value={formData.mainGuest.documentIssueCountry} 
-              onChange={(e) => handleMainGuestChange('documentIssueCountry', e.target.value)}
-              className={`${baseSelectClasses} ${errors['mainGuest.documentIssueCountry'] ? 'border-red-300' : 'border-gray-300'}`}
-            >
-              <option value="">Seleziona Paese</option>
-              {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
-            </select>
+            <Select
+              options={countryOptionsForSelect}
+              value={countryOptionsForSelect.find(option => option.value === formData.mainGuest.documentIssueCountry) || null}
+              onChange={(selectedOption) => handleMainGuestChange('documentIssueCountry', selectedOption ? selectedOption.value : '')}
+              placeholder="Seleziona Paese..."
+              isClearable
+              className={`mt-1 react-select-container ${errors['mainGuest.documentIssueCountry'] ? 'react-select-error' : ''}`}
+              classNamePrefix="react-select"
+              noOptionsMessage={() => "Nessun paese trovato"}
+            />
             {errors['mainGuest.documentIssueCountry'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentIssueCountry']}</p>}
           </div>
           <div>
@@ -449,18 +469,18 @@ export default function CheckInForm({
                 noOptionsMessage={() => "Nessun comune trovato"}
               />
             ) : formData.mainGuest.documentIssueCountry && formData.mainGuest.documentIssueCountry !== ITALIA_COUNTRY_CODE ? (
-              <input 
-                type="text" 
-                value={formData.mainGuest.documentIssuePlace} 
+              <input
+                type="text"
+                value={formData.mainGuest.documentIssuePlace}
                 onChange={(e) => handleMainGuestChange('documentIssuePlace', e.target.value)}
-                className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors['mainGuest.documentIssuePlace'] ? 'border-red-300' : 'border-gray-300'}`}
+                className={`form-input-custom mt-1 ${errors['mainGuest.documentIssuePlace'] ? 'border-red-300' : 'border-gray-300'}`}
               />
             ) : (
-              <input 
-                type="text" 
-                disabled 
+              <input
+                type="text"
+                disabled
                 placeholder="Seleziona prima il paese di rilascio"
-                className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
+                className="form-input-custom mt-1"
               />
             )}
             {errors['mainGuest.documentIssuePlace'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentIssuePlace']}</p>}
@@ -468,18 +488,18 @@ export default function CheckInForm({
           {formData.mainGuest.documentIssueCountry === ITALIA_COUNTRY_CODE && (
             <div>
               <label className="block text-sm font-medium text-gray-700">Provincia di rilascio *</label>
-              <input 
-                type="text" 
-                value={formData.mainGuest.documentIssueProvince || ''} 
-                readOnly 
-                className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300" 
+              <input
+                type="text"
+                value={formData.mainGuest.documentIssueProvince || ''}
+                readOnly
+                className="form-input-custom mt-1"
               />
               {errors['mainGuest.documentIssueProvince'] && <p className="mt-1 text-sm text-red-600">{errors['mainGuest.documentIssueProvince']}</p>}
             </div>
           )}
         </div>
       </div>
-      
+
       {formData.additionalGuests.map((guest, index) => (
         <div key={index} className="bg-white p-6 rounded-lg shadow">
           <div className="flex justify-between items-center mb-4">
@@ -495,40 +515,47 @@ export default function CheckInForm({
             <div>
               <label className="block text-sm font-medium text-gray-700">Cognome *</label>
               <input type="text" value={guest.lastName} onChange={(e) => handleAdditionalGuestChange(index, 'lastName', e.target.value)}
-                     className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.lastName`] ? 'border-red-300' : 'border-gray-300'}`} />
+                     className={`form-input-custom mt-1 ${errors[`additionalGuests.${index}.lastName`] ? 'border-red-300' : 'border-gray-300'}`} />
               {errors[`additionalGuests.${index}.lastName`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.lastName`]}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Nome *</label>
               <input type="text" value={guest.firstName} onChange={(e) => handleAdditionalGuestChange(index, 'firstName', e.target.value)}
-                     className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.firstName`] ? 'border-red-300' : 'border-gray-300'}`} />
+                     className={`form-input-custom mt-1 ${errors[`additionalGuests.${index}.firstName`] ? 'border-red-300' : 'border-gray-300'}`} />
               {errors[`additionalGuests.${index}.firstName`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.firstName`]}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Sesso *</label>
-              <select value={guest.sex} onChange={(e) => handleAdditionalGuestChange(index, 'sex', e.target.value)}
-                      className={`${baseSelectClasses} ${errors[`additionalGuests.${index}.sex`] ? 'border-red-300' : 'border-gray-300'}`}>
-                <option value="">Seleziona</option>
-                {Object.entries(SEX_OPTIONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
+              <Select
+                options={sexOptionsForSelect}
+                value={sexOptionsForSelect.find(option => option.value === guest.sex) || null}
+                onChange={(selectedOption) => handleAdditionalGuestChange(index, 'sex', selectedOption ? selectedOption.value : '')}
+                placeholder="Seleziona..."
+                isClearable
+                className={`mt-1 react-select-container ${errors[`additionalGuests.${index}.sex`] ? 'react-select-error' : ''}`}
+                classNamePrefix="react-select"
+                noOptionsMessage={() => "Nessuna opzione"}
+              />
               {errors[`additionalGuests.${index}.sex`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.sex`]}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Data di nascita *</label>
               <input type="date" max={maxDate} value={guest.dateOfBirth} onChange={(e) => handleAdditionalGuestChange(index, 'dateOfBirth', e.target.value)}
-                     className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.dateOfBirth`] ? 'border-red-300' : 'border-gray-300'}`} />
+                     className={`form-input-custom mt-1 ${errors[`additionalGuests.${index}.dateOfBirth`] ? 'border-red-300' : 'border-gray-300'}`} />
               {errors[`additionalGuests.${index}.dateOfBirth`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.dateOfBirth`]}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Paese di nascita *</label>
-              <select 
-                value={guest.countryOfBirth} 
-                onChange={(e) => handleAdditionalGuestChange(index, 'countryOfBirth', e.target.value)}
-                className={`${baseSelectClasses} ${errors[`additionalGuests.${index}.countryOfBirth`] ? 'border-red-300' : 'border-gray-300'}`}
-              >
-                <option value="">Seleziona Paese</option>
-                {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
-              </select>
+              <Select
+                options={countryOptionsForSelect}
+                value={countryOptionsForSelect.find(option => option.value === guest.countryOfBirth) || null}
+                onChange={(selectedOption) => handleAdditionalGuestChange(index, 'countryOfBirth', selectedOption ? selectedOption.value : '')}
+                placeholder="Seleziona Paese..."
+                isClearable
+                className={`mt-1 react-select-container ${errors[`additionalGuests.${index}.countryOfBirth`] ? 'react-select-error' : ''}`}
+                classNamePrefix="react-select"
+                noOptionsMessage={() => "Nessun paese trovato"}
+              />
               {errors[`additionalGuests.${index}.countryOfBirth`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.countryOfBirth`]}</p>}
             </div>
             <div>
@@ -553,18 +580,18 @@ export default function CheckInForm({
                   noOptionsMessage={() => "Nessun comune trovato"}
                 />
               ) : guest.countryOfBirth && guest.countryOfBirth !== ITALIA_COUNTRY_CODE ? (
-                <input 
-                  type="text" 
-                  value={guest.placeOfBirth} 
+                <input
+                  type="text"
+                  value={guest.placeOfBirth}
                   onChange={(e) => handleAdditionalGuestChange(index, 'placeOfBirth', e.target.value)}
-                  className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.placeOfBirth`] ? 'border-red-300' : 'border-gray-300'}`}
+                  className={`form-input-custom mt-1 ${errors[`additionalGuests.${index}.placeOfBirth`] ? 'border-red-300' : 'border-gray-300'}`}
                 />
               ) : (
-                <input 
-                  type="text" 
-                  disabled 
+                <input
+                  type="text"
+                  disabled
                   placeholder="Seleziona prima il paese di nascita"
-                  className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
+                  className="form-input-custom mt-1"
                 />
               )}
               {errors[`additionalGuests.${index}.placeOfBirth`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.placeOfBirth`]}</p>}
@@ -572,55 +599,64 @@ export default function CheckInForm({
             {guest.countryOfBirth === ITALIA_COUNTRY_CODE && (
               <div>
                 <label className="block text-sm font-medium text-gray-700">Provincia di nascita *</label>
-                <input 
-                  type="text" 
-                  value={guest.provinceOfBirth || ''} 
-                  readOnly 
-                  className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300" 
+                <input
+                  type="text"
+                  value={guest.provinceOfBirth || ''}
+                  readOnly
+                  className="form-input-custom mt-1"
                 />
                 {errors[`additionalGuests.${index}.provinceOfBirth`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.provinceOfBirth`]}</p>}
               </div>
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700">Cittadinanza *</label>
-              <select 
-                value={guest.citizenship} 
-                onChange={(e) => handleAdditionalGuestChange(index, 'citizenship', e.target.value)}
-                className={`${baseSelectClasses} ${errors[`additionalGuests.${index}.citizenship`] ? 'border-red-300' : 'border-gray-300'}`}
-              >
-                <option value="">Seleziona Cittadinanza</option>
-                {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
-              </select>
+            <Select
+              options={countryOptionsForSelect}
+              value={countryOptionsForSelect.find(option => option.value === guest.citizenship) || null}
+              onChange={(selectedOption) => handleAdditionalGuestChange(index, 'citizenship', selectedOption ? selectedOption.value : '')}
+              placeholder="Seleziona Cittadinanza..."
+              isClearable
+              className={`mt-1 react-select-container ${errors[`additionalGuests.${index}.citizenship`] ? 'react-select-error' : ''}`}
+              classNamePrefix="react-select"
+              noOptionsMessage={() => "Nessuna cittadinanza trovata"}
+            />
               {errors[`additionalGuests.${index}.citizenship`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.citizenship`]}</p>}
             </div>
-            
+
             <>
               <h4 className="text-md font-medium mt-6 mb-2 sm:col-span-2">Documento di identità (Ospite {index + 2})</h4>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Tipo documento</label>
-                <select value={guest.documentType || ''} onChange={(e) => handleAdditionalGuestChange(index, 'documentType', e.target.value)}
-                        className={`${baseSelectClasses} ${errors[`additionalGuests.${index}.documentType`] ? 'border-red-300' : 'border-gray-300'}`}>
-                  <option value="">Seleziona</option>
-                  {Object.entries(DOCUMENT_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
+                <Select
+                  options={documentTypesForSelect}
+                  value={documentTypesForSelect.find(option => option.value === guest.documentType) || null}
+                  onChange={(selectedOption) => handleAdditionalGuestChange(index, 'documentType', selectedOption ? selectedOption.value : '')}
+                  placeholder="Seleziona..."
+                  isClearable
+                  className={`mt-1 react-select-container ${errors[`additionalGuests.${index}.documentType`] ? 'react-select-error' : ''}`}
+                  classNamePrefix="react-select"
+                  noOptionsMessage={() => "Nessuna opzione"}
+                />
                 {errors[`additionalGuests.${index}.documentType`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.documentType`]}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Numero documento</label>
                 <input type="text" value={guest.documentNumber || ''} onChange={(e) => handleAdditionalGuestChange(index, 'documentNumber', e.target.value.toUpperCase())}
-                        className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.documentNumber`] ? 'border-red-300' : 'border-gray-300'}`} />
+                        className={`form-input-custom mt-1 ${errors[`additionalGuests.${index}.documentNumber`] ? 'border-red-300' : 'border-gray-300'}`} />
                 {errors[`additionalGuests.${index}.documentNumber`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.documentNumber`]}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Paese di rilascio</label>
-                <select 
-                  value={guest.documentIssueCountry || 'IT'} 
-                  onChange={(e) => handleAdditionalGuestChange(index, 'documentIssueCountry', e.target.value)}
-                  className={`${baseSelectClasses} ${errors[`additionalGuests.${index}.documentIssueCountry`] ? 'border-red-300' : 'border-gray-300'}`}
-                >
-                  <option value="">Seleziona Paese</option>
-                  {COUNTRIES.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
-                </select>
+                <Select
+                  options={countryOptionsForSelect}
+                  value={countryOptionsForSelect.find(option => option.value === guest.documentIssueCountry) || null}
+                  onChange={(selectedOption) => handleAdditionalGuestChange(index, 'documentIssueCountry', selectedOption ? selectedOption.value : '')}
+                  placeholder="Seleziona Paese..."
+                  isClearable
+                  className={`mt-1 react-select-container ${errors[`additionalGuests.${index}.documentIssueCountry`] ? 'react-select-error' : ''}`}
+                  classNamePrefix="react-select"
+                  noOptionsMessage={() => "Nessun paese trovato"}
+                />
                 {errors[`additionalGuests.${index}.documentIssueCountry`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.documentIssueCountry`]}</p>}
               </div>
               <div>
@@ -632,6 +668,7 @@ export default function CheckInForm({
                     onChange={(selectedOption) => {
                       if (selectedOption) {
                         handleAdditionalGuestChange(index, 'documentIssuePlace', selectedOption.value);
+                        // !!! CORREZIONE APPLICATA QUI !!!
                         handleAdditionalGuestChange(index, 'documentIssueProvince', selectedOption.province);
                       } else {
                         handleAdditionalGuestChange(index, 'documentIssuePlace', '');
@@ -645,30 +682,30 @@ export default function CheckInForm({
                     noOptionsMessage={() => "Nessun comune trovato"}
                   />
                 ) : guest.documentIssueCountry && guest.documentIssueCountry !== ITALIA_COUNTRY_CODE ? (
-                  <input 
-                    type="text" 
-                    value={guest.documentIssuePlace || ''} 
+                  <input
+                    type="text"
+                    value={guest.documentIssuePlace || ''}
                     onChange={(e) => handleAdditionalGuestChange(index, 'documentIssuePlace', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors[`additionalGuests.${index}.documentIssuePlace`] ? 'border-red-300' : 'border-gray-300'}`}
+                  className={`form-input-custom mt-1 ${errors[`additionalGuests.${index}.documentIssuePlace`] ? 'border-red-300' : 'border-gray-300'}`}
                   />
                 ) : (
-                  <input 
-                    type="text" 
-                    disabled 
+                  <input
+                    type="text"
+                    disabled
                     placeholder="Seleziona prima il paese di rilascio"
-                    className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300"
+                  className="form-input-custom mt-1"
                   />
                 )}
                 {errors[`additionalGuests.${index}.documentIssuePlace`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.documentIssuePlace`]}</p>}
               </div>
-              {(guest.documentIssueCountry === ITALIA_COUNTRY_CODE || !guest.documentIssueCountry) && ( 
+              {(guest.documentIssueCountry === ITALIA_COUNTRY_CODE || !guest.documentIssueCountry) && ( // Ho mantenuto la logica originale qui, anche se potrebbe essere !guest.documentIssueCountry if it's always set
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Provincia di rilascio</label>
-                  <input 
-                    type="text" 
-                    value={guest.documentIssueProvince || ''} 
-                    readOnly 
-                    className="mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-gray-100 border-gray-300" 
+                  <input
+                    type="text"
+                    value={guest.documentIssueProvince || ''}
+                    readOnly
+                  className="form-input-custom mt-1"
                   />
                   {errors[`additionalGuests.${index}.documentIssueProvince`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.documentIssueProvince`]}</p>}
                 </div>
@@ -677,7 +714,7 @@ export default function CheckInForm({
           </div>
         </div>
       ))}
-      
+
       {isNumberOfGuestsEditable && formData.additionalGuests.length < editableNumberOfGuests - 1 && (
         <div className="flex justify-center">
           <button type="button" onClick={addAdditionalGuestButton}
@@ -687,7 +724,7 @@ export default function CheckInForm({
           </button>
         </div>
       )}
-      
+
       <div className="bg-white p-6 rounded-lg shadow">
         <div>
           <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Note Aggiuntive (opzionale)</label>
@@ -697,7 +734,7 @@ export default function CheckInForm({
             rows={3}
             value={formData.notes || ''}
             onChange={handleNotesChange}
-            className="mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            className={`form-input-custom mt-1 ${errors.notes ? 'border-red-300' : 'border-gray-300'}`}
             placeholder="Eventuali richieste speciali o informazioni aggiuntive..."
           />
         </div>
@@ -710,7 +747,7 @@ export default function CheckInForm({
             </div>
           </div>
         )}
-        
+
         <div className="mt-6 flex items-center">
           <input
             type="checkbox"
@@ -727,7 +764,7 @@ export default function CheckInForm({
           <p className="mt-1 text-sm text-red-600">{errors.acceptTerms}</p>
         )}
       </div>
-      
+
       <div className="flex justify-end space-x-4">
         <button
           type="submit"

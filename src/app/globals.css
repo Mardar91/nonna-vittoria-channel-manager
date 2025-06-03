@@ -62,3 +62,20 @@ body {
   align-items: center;
   margin-right: 0.5rem; /* Aggiunge un po' di spazio tra la bandiera e l'input */
 }
+
+
+@layer components {
+  .form-input-custom {
+    @apply block w-full rounded-md border-gray-300 shadow-sm text-sm;
+    @apply py-2 px-3; /* padding: 0.5rem 0.75rem */
+    /* border-width: 1px; è implicito in border-gray-300 di Tailwind */
+  }
+  .form-input-custom:focus {
+    @apply border-blue-500 ring-1 ring-blue-500; /* O box-shadow come per PhoneInput se si preferisce */
+  }
+  /* Lo stato di errore (es. border-red-300) verrà applicato dinamicamente nel componente JSX */
+  .form-input-custom[readonly],
+  .form-input-custom:disabled {
+    @apply bg-gray-100 cursor-not-allowed;
+  }
+}
