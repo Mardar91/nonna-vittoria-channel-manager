@@ -123,7 +123,7 @@ export default function NotificationDropdown({ isOpen, onClose }: NotificationDr
       leaveFrom="transform opacity-100 scale-100"
       leaveTo="transform opacity-0 scale-95"
     >
-      <div className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+      <div className="absolute right-0 z-40 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
         <div className="px-4 py-3 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">Notifiche</h3>
