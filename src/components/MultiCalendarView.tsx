@@ -748,8 +748,12 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       {/* Legenda */}
       <div className="flex flex-wrap items-center gap-4 mb-4 hidden md:flex">
         <div className="flex items-center">
-          <div className="w-4 h-4 bg-green-100 border border-green-500 mr-2"></div>
-          <span>Prenotato</span>
+          <div className="w-4 h-4 bg-green-100 border border-green-300 mr-2"></div> {/* Corrected border */}
+          <span>Prenotato (Confermato)</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-4 h-4 bg-green-300 border border-green-500 mr-2"></div> {/* New item */}
+          <span>Check-in Effettuato</span>
         </div>
         <div className="flex items-center">
           <div className="w-4 h-4 bg-red-100 border border-red-500 mr-2"></div>
@@ -934,9 +938,15 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                             bookingBlockStyle.borderLeft = bookingInfo.startsInPreviousMonth ? `4px solid #facc15` : '';
                             bookingBlockStyle.borderRight = bookingInfo.endsInNextMonth ? `4px solid #facc15` : '';
                           } else if (bookingInfo.booking.status === 'confirmed') {
-                            bookingBlockClass += "bg-green-100 border border-green-300 ";
-                            bookingBlockStyle.borderLeft = bookingInfo.startsInPreviousMonth ? `4px solid #22c55e` : '';
-                            bookingBlockStyle.borderRight = bookingInfo.endsInNextMonth ? `4px solid #22c55e` : '';
+                            if (bookingInfo.booking.hasCheckedIn) {
+                              bookingBlockClass += "bg-green-300 border border-green-500 "; // Darker green for checked-in
+                              bookingBlockStyle.borderLeft = bookingInfo.startsInPreviousMonth ? `4px solid #16a34a` : ''; // green-600
+                              bookingBlockStyle.borderRight = bookingInfo.endsInNextMonth ? `4px solid #16a34a` : '';    // green-600
+                            } else {
+                              bookingBlockClass += "bg-green-100 border border-green-300 "; // Standard green for confirmed
+                              bookingBlockStyle.borderLeft = bookingInfo.startsInPreviousMonth ? `4px solid #22c55e` : ''; // green-500
+                              bookingBlockStyle.borderRight = bookingInfo.endsInNextMonth ? `4px solid #22c55e` : '';    // green-500
+                            }
                           } else {
                             bookingBlockClass += "bg-gray-100 border border-gray-300 "; // Fallback for other statuses
                             bookingBlockStyle.borderLeft = bookingInfo.startsInPreviousMonth ? `4px solid #d1d5db` : '';
