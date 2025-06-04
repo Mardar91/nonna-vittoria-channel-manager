@@ -8,6 +8,10 @@ import ApartmentModel from '@/models/Apartment';
 import { UserIcon, IdentificationIcon, CalendarIcon, HomeIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import mongoose from 'mongoose';
 import DeleteCheckInButton from '@/components/DeleteCheckInButton';
+import { ITALIAN_MUNICIPALITIES, ItalianMunicipality } from '../../../../data/italianMunicipalities';
+import { COUNTRIES_ITALIAN, CountryItalian } from '../../../../data/countriesItalian';
+
+const ITALIA_COUNTRY_CODE = '100000100'; // Standard code for Italy
 
 interface GuestType {
   isMainGuest: boolean;
@@ -90,7 +94,8 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
     return new Date(dateInput).toLocaleDateString('it-IT', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
+      timeZone: 'Europe/Rome'
     });
   };
   
@@ -98,18 +103,21 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
     if (!dateInput) return 'N/A';
     return new Date(dateInput).toLocaleTimeString('it-IT', {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Europe/Rome'
     });
   };
 
   const formatDateTime = (dateInput: Date | string | undefined | null): string => {
     if (!dateInput) return 'N/A';
-    return new Date(dateInput).toLocaleDateString('it-IT', {
+    // Using toLocaleString for combined date and time formatting
+    return new Date(dateInput).toLocaleString('it-IT', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Europe/Rome'
     });
   };
   
@@ -139,6 +147,27 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
   
   // Determina se è un check-in da smistare
   const isPendingAssignment = checkIn.status === 'pending_assignment';
+
+  // Helper functions for display names
+  const getItalianMunicipalityDisplay = (code?: string | null): string => {
+    if (!code) return 'N/A';
+    const municipality = ITALIAN_MUNICIPALITIES.find(m => m.code === code);
+    return municipality ? `${municipality.name} (${municipality.province.toUpperCase()})` : code;
+  };
+
+  const getCountryName = (code?: string | null): string => {
+    if (!code) return 'N/A';
+    // First check in our Italian list
+    let country = COUNTRIES_ITALIAN.find(c => c.code === code);
+    if (country) return country.name;
+
+    // Fallback: if not in Italian list, try to find in original COUNTRIES list (if available and imported)
+    // For now, just return the code or a placeholder if not found in Italian list
+    // const originalCountry = COUNTRIES.find(c => c.code === code); // Assuming COUNTRIES is imported
+    // if (originalCountry) return originalCountry.name; // Return original name if Italian not found
+
+    return code; // Return the code if no name is found
+  };
   
   return (
     <div className="space-y-6">
@@ -218,7 +247,11 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
           
           <div>
             <p className="text-sm font-medium text-gray-500">Data Check-in</p>
-            <p className="mt-1 text-lg">{formatDateTime(checkIn.checkInDate)}</p>
+            <p className="mt-1 text-lg">
+              {checkIn.expectedArrivalTime
+                ? formatDateTime(checkIn.expectedArrivalTime)
+                : formatDateTime(checkIn.checkInDate)}
+            </p>
           </div>
           
           {isPendingAssignment && checkIn.requestedCheckIn && (
@@ -325,11 +358,13 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
                       <span className="text-gray-500">Data di nascita:</span> {formatDate(guest.dateOfBirth)}
                     </div>
                     <div className="col-span-2">
-                      <span className="text-gray-500">Luogo di nascita:</span> {guest.placeOfBirth}
-                      {guest.provinceOfBirth && ` (${guest.provinceOfBirth})`}, {guest.countryOfBirth}
+                      <span className="text-gray-500">Luogo di nascita:</span>{' '}
+                      {guest.countryOfBirth === ITALIA_COUNTRY_CODE
+                        ? getItalianMunicipalityDisplay(guest.placeOfBirth)
+                        : `${guest.placeOfBirth || 'N/A'}, ${getCountryName(guest.countryOfBirth)}`}
                     </div>
                     <div className="col-span-2">
-                      <span className="text-gray-500">Cittadinanza:</span> {guest.citizenship}
+                      <span className="text-gray-500">Cittadinanza:</span> {getCountryName(guest.citizenship)}
                     </div>
                     {guest.isMainGuest && guest.phoneNumber && (
                         <div className="col-span-2 mt-1">
@@ -357,9 +392,10 @@ export default async function CheckInDetailPage({ params }: { params: { id: stri
                       )}
                       {guest.documentIssuePlace && (
                          <div>
-                           <span className="text-gray-500">Rilasciato a:</span> {guest.documentIssuePlace}
-                           {guest.documentIssueProvince && ` (${guest.documentIssueProvince})`}
-                           {guest.documentIssueCountry && `, ${guest.documentIssueCountry}`}
+                         <span className="text-gray-500">Rilasciato a:</span>{' '}
+                         {guest.documentIssueCountry === ITALIA_COUNTRY_CODE
+                           ? getItalianMunicipalityDisplay(guest.documentIssuePlace)
+                           : `${guest.documentIssuePlace || 'N/A'}, ${getCountryName(guest.documentIssueCountry)}`}
                          </div>
                       )}
                     </div>

@@ -131,15 +131,12 @@ export async function POST(req: NextRequest) {
           finalExpectedArrivalTime = new Date(checkInDateObj);
           finalExpectedArrivalTime.setHours(hours, minutes, 0, 0); 
         } else {
-          // Fallback o gestione errore se data.checkInDate non è valida
-          // Potrebbe essere necessario creare una data basata sul giorno corrente se checkInDate non è affidabile qui
-          console.warn('data.checkInDate non valida per expectedArrivalTime, usando data corrente per l\'orario');
-          const today = new Date();
-          today.setHours(hours, minutes, 0, 0);
-          finalExpectedArrivalTime = today;
+          // If data.checkInDate from payload is invalid, expectedArrivalTime will not be set.
+          console.warn(`Invalid data.checkInDate ("${data.checkInDate}") provided for manual check-in. Expected arrival time will not be set.`);
+          // finalExpectedArrivalTime remains undefined
         }
       } catch (e) {
-        console.error('Errore nel parsing di expectedArrivalTime:', e);
+        console.error(`Errore nel parsing di expectedArrivalTime ("${data.expectedArrivalTime}"):`, e);
         // Lascia finalExpectedArrivalTime undefined o gestisci l'errore
       }
     }
