@@ -72,9 +72,9 @@ export interface CheckInSubmitRequest {
   originalEmail?: string;
   originalBookingRef?: string;
   numberOfGuests?: number; // Number of guests for unassigned checkin // Può essere numberOfGuests: number; se è sempre obbligatorio nel payload
-  identificationEmail?: string;      // <-- MODIFICA QUI: Aggiunta questa riga
-  expectedArrivalTime: string; // Rimosso ?
-  phoneNumber: string;       // Rimosso ? (per l'ospite principale)
+  identificationEmail?: string;
+  expectedArrivalTime?: string; // Made optional as per task
+  phoneNumber: string; // Assuming this is for the main guest, related to overall booking contact
 }
 
 export interface CheckInSubmitResponse {

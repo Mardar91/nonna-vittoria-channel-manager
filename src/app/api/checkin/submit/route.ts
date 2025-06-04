@@ -23,7 +23,8 @@ export async function POST(req: NextRequest) {
       numberOfGuests: submittedNumberOfGuests,
       bookingId, 
       apartmentId,
-      identificationEmail
+      identificationEmail,
+      expectedArrivalTime // <-- Added expectedArrivalTime
     } = body;
 
     if (!acceptTerms) {
@@ -137,13 +138,37 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Prepare expectedArrivalTimeAsDate
+      let expectedArrivalTimeAsDate: Date | undefined = undefined;
+      if (expectedArrivalTime && typeof expectedArrivalTime === 'string' && /^[0-9]{2}:[0-9]{2}$/.test(expectedArrivalTime)) {
+        try {
+          const [hours, minutes] = expectedArrivalTime.split(':').map(Number);
+          // Ensure booking.checkIn is a valid date before using it
+          const baseDate = booking.checkIn ? new Date(booking.checkIn) : new Date();
+          if (!isNaN(baseDate.getTime())) {
+            baseDate.setHours(hours, minutes, 0, 0); // Imposta ora e minuti
+            expectedArrivalTimeAsDate = baseDate;
+          } else {
+            console.warn(`Invalid booking.checkIn date for booking ${booking._id} when processing expectedArrivalTime. Current booking.checkIn: ${booking.checkIn}`);
+            // Fallback: use current date with the provided time if booking.checkIn is invalid/missing
+            const fallbackDate = new Date();
+            fallbackDate.setHours(hours, minutes, 0, 0);
+            expectedArrivalTimeAsDate = fallbackDate;
+            console.warn(`Using fallback date for expectedArrivalTime: ${expectedArrivalTimeAsDate}`);
+          }
+        } catch (e) {
+          console.error(`Error parsing expectedArrivalTime string "${expectedArrivalTime}" for booking ${booking._id}:`, e);
+        }
+      }
+
       // 1. Create and Save NewCheckIn first to get its ID
       const newCheckIn = new CheckInModel({
         bookingId: booking._id.toString(),
         apartmentId: booking.apartmentId.toString(),
         guests: processedGuests,
         status: 'completed',
-        checkInDate: new Date(booking.checkIn), // Use booking's checkIn date
+        checkInDate: new Date(booking.checkIn), // This is the start of the day of the booking's checkIn
+        expectedArrivalTime: expectedArrivalTimeAsDate, // <-- Assigned here
         notes: notes, // notes from the request body
         ipAddress,
         userAgent,
