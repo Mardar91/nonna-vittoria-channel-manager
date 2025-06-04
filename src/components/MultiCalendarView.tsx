@@ -745,14 +745,15 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         </button>
       </div>
       
-      {/* Legenda */}
+  {/* Legenda */}
       <div className="flex flex-wrap items-center gap-4 mb-4 hidden md:flex">
         <div className="flex items-center">
-          <div className="w-4 h-4 bg-green-100 border border-green-300 mr-2"></div> {/* Corrected border */}
-          <span>Prenotato</span>
+          <div className="w-4 h-4 bg-green-100 border border-green-300 mr-2"></div>
+          <span>Prenotato</span> {/* Label simplified */}
         </div>
         <div className="flex items-center">
-          <div className="w-4 h-4 bg-green-300 border border-green-500 mr-2"></div> {/* New item */}
+          <div className="w-4 h-4 bg-green-300 border border-green-500 mr-1"></div> {/* Margin reduced */}
+          <ClipboardDocumentCheckIcon className="w-4 h-4 text-green-700 mr-2" /> {/* Icon added, text color slightly darker for visibility on light backgrounds if any */}
           <span>Check-in Effettuato</span>
         </div>
         <div className="flex items-center">
@@ -771,10 +772,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
           <div className="w-4 h-4 bg-indigo-100 border border-indigo-300 mr-2"></div>
           <span>Selezionato</span>
         </div>
-        <div className="flex items-center">
-          <ClipboardDocumentCheckIcon className="w-4 h-4 text-green-600 mr-1" />
-          <span>Check-in effettuato</span>
-        </div>
+        {/* Icon-only "Check-in effettuato" entry removed */}
       </div>
       
       {/* Calendario principale */}
