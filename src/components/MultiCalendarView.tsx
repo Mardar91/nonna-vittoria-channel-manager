@@ -749,7 +749,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
       <div className="flex flex-wrap items-center gap-4 mb-4 hidden md:flex">
         <div className="flex items-center">
           <div className="w-4 h-4 bg-green-100 border border-green-300 mr-2"></div> {/* Corrected border */}
-          <span>Prenotato (Confermato)</span>
+          <span>Prenotato</span>
         </div>
         <div className="flex items-center">
           <div className="w-4 h-4 bg-green-300 border border-green-500 mr-2"></div> {/* New item */}
