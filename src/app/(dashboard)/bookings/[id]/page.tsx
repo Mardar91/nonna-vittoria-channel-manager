@@ -140,6 +140,15 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
               checkInDate={booking.checkInDate}
               size="md"
             />
+            {booking.completedCheckInId && (
+              <div className="mt-2">
+                <Link href={`/checkins/${booking.completedCheckInId}`} legacyBehavior>
+                  <a className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
+                    Visualizza Dettagli Check-in &rarr;
+                  </a>
+                </Link>
+              </div>
+            )}
             {booking.status === 'confirmed' && booking.paymentStatus === 'paid' && !booking.hasCheckedIn && (
               <div className="mt-2 flex space-x-2">
                 <ManualCheckInButton 

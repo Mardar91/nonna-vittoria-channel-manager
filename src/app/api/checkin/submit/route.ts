@@ -137,7 +137,22 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Logic to update booking with main guest's data
+      // 1. Create and Save NewCheckIn first to get its ID
+      const newCheckIn = new CheckInModel({
+        bookingId: booking._id.toString(),
+        apartmentId: booking.apartmentId.toString(),
+        guests: processedGuests,
+        status: 'completed',
+        checkInDate: new Date(booking.checkIn), // Use booking's checkIn date
+        notes: notes, // notes from the request body
+        ipAddress,
+        userAgent,
+        completedBy: 'guest',
+        completedAt: new Date(),
+      });
+      await newCheckIn.save();
+
+      // 2. Now update the booking with all necessary information
       const mainGuestFullName = `${mainGuestData.firstName} ${mainGuestData.lastName}`;
       booking.guestName = mainGuestFullName;
 
@@ -146,19 +161,21 @@ export async function POST(req: NextRequest) {
           booking.guestEmail = identificationEmail;
         }
       } else {
-        console.warn(`Attempted online check-in for booking ID ${booking._id} without a valid identificationEmail. Booking email not updated.`);
+        // It's a normal check-in, guestEmail on booking should be reliable.
+        // If identificationEmail is missing, we don't update booking.guestEmail.
+        // console.warn(`Online check-in for booking ID ${booking._id} without a new identificationEmail. Booking email not updated from form.`);
       }
       
       const updateNote = `Dati aggiornati dopo check-in online: ${mainGuestFullName}`;
       booking.notes = booking.notes ? `${booking.notes}\n${updateNote}` : updateNote;
       booking.hasCheckedIn = true;
+      booking.completedCheckInId = newCheckIn._id.toString(); // Assign the ID of the completed check-in
 
-      // Generazione codice di accesso
+      // Access Code Generation Logic
       let uniqueAccessCode: string | null = null;
       const MAX_CODE_GENERATION_ATTEMPTS = 10;
       for (let i = 0; i < MAX_CODE_GENERATION_ATTEMPTS; i++) {
         const potentialCode = generateAccessCode();
-        // Ensure findActiveBookingByAccessCode is correctly typed or cast if needed
         const conflictingBooking = await findActiveBookingByAccessCode(potentialCode) as IBooking | null;
         if (!conflictingBooking) {
           uniqueAccessCode = potentialCode;

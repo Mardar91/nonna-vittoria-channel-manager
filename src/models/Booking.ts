@@ -23,6 +23,7 @@ export interface IBooking {
   createdAt?: Date;
   updatedAt?: Date;
   accessCode?: string;
+  completedCheckInId?: string;
 }
 
 const BookingSchema = new Schema<IBooking>(
@@ -57,6 +58,7 @@ const BookingSchema = new Schema<IBooking>(
     notes: { type: String },
     hasCheckedIn: { type: Boolean, default: false },
     checkInDate: { type: Date },
+    completedCheckInId: { type: String, required: false },
   },
   { timestamps: true }
 );

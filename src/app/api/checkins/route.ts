@@ -5,6 +5,7 @@ import CheckInModel, { ICheckIn, IGuest } from '@/models/CheckIn';
 import BookingModel, { IBooking } from '@/models/Booking';
 import ApartmentModel, { IApartment } from '@/models/Apartment';
 import mongoose from 'mongoose';
+import { generateAccessCode, findActiveBookingByAccessCode } from '@/lib/accessCodeUtils';
 
 // GET: Ottenere tutti i check-ins con informazioni correlate
 export async function GET(req: NextRequest) {
@@ -211,11 +212,42 @@ export async function POST(req: NextRequest) {
     
     // Se è un check-in completato, aggiorna la prenotazione
     if (data.status === 'completed' && data.bookingId) {
-      const updateData: any = { hasCheckedIn: true };
-      if (data.phoneNumber) { // Aggiungi phoneNumber solo se presente
-        updateData.guestPhoneNumber = data.phoneNumber;
+      const booking = await BookingModel.findById(data.bookingId).exec();
+      if (!booking) {
+        console.error(`Booking not found with id ${data.bookingId} when trying to complete manual check-in ${checkIn._id}`);
+        // Consider throwing an error or returning a specific response
+        // For now, let's throw an error to be caught by the main catch block
+        throw new Error(`Booking not found with ID: ${data.bookingId} during manual check-in completion for CheckIn ID: ${checkIn._id}`);
       }
-      await BookingModel.findByIdAndUpdate(data.bookingId, updateData);
+
+      booking.hasCheckedIn = true;
+      booking.completedCheckInId = checkIn._id.toString();
+
+      if (data.phoneNumber) {
+        booking.guestPhoneNumber = data.phoneNumber;
+      }
+
+      // Genera accessCode solo se non ne ha già uno
+      if (!booking.accessCode) {
+        let uniqueAccessCode: string | null = null;
+        const MAX_ATTEMPTS = 10;
+        for (let i = 0; i < MAX_ATTEMPTS; i++) {
+          const potentialCode = generateAccessCode();
+          const conflictingBooking = await findActiveBookingByAccessCode(potentialCode) as IBooking | null;
+          if (!conflictingBooking) {
+            uniqueAccessCode = potentialCode;
+            break;
+          }
+        }
+        if (uniqueAccessCode) {
+          booking.accessCode = uniqueAccessCode;
+        } else {
+          console.error(`CRITICAL: Failed to generate a unique access code for booking ${booking._id} (manual check-in via POST /api/checkins) after ${MAX_ATTEMPTS} attempts.`);
+          // Non bloccare il salvataggio per questo, ma logga l'errore.
+        }
+      }
+
+      await booking.save();
     }
     
     return NextResponse.json({
