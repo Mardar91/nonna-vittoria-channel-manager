@@ -214,7 +214,26 @@ export default function CheckInForm({
       setErrors(errorMap);
       return;
     }
-    onSubmit(formData);
+
+    // Create a deep copy of formData to avoid mutating the original state
+    const formDataForApi: CheckInFormData = {
+      ...formData,
+      mainGuest: { ...formData.mainGuest },
+      additionalGuests: formData.additionalGuests.map(g => ({ ...g })),
+    };
+
+    // Clean up additional guest document fields if documentType is empty
+    formDataForApi.additionalGuests.forEach(guest => {
+      if (guest.documentType === '') {
+        delete guest.documentType;
+        delete guest.documentNumber;
+        delete guest.documentIssuePlace;
+        delete guest.documentIssueProvince;
+        delete guest.documentIssueCountry;
+      }
+    });
+
+    onSubmit(formDataForApi);
   };
 
   const maxDate = new Date().toISOString().split('T')[0];

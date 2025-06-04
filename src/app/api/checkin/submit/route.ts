@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import BookingModel from '@/models/Booking';
+import BookingModel, { IBooking } from '@/models/Booking';
 import CheckInModel from '@/models/CheckIn';
 import { IGuestData, CheckInSubmitRequest, CheckInSubmitResponse } from '@/types/checkin';
+import { generateAccessCode, findActiveBookingByAccessCode } from '@/lib/accessCodeUtils';
 import { createCheckInNotification } from '@/lib/notifications';
 
 export async function POST(req: NextRequest) {
@@ -150,9 +151,29 @@ export async function POST(req: NextRequest) {
       
       const updateNote = `Dati aggiornati dopo check-in online: ${mainGuestFullName}`;
       booking.notes = booking.notes ? `${booking.notes}\n${updateNote}` : updateNote;
-
       booking.hasCheckedIn = true;
-      await booking.save();
+
+      // Generazione codice di accesso
+      let uniqueAccessCode: string | null = null;
+      const MAX_CODE_GENERATION_ATTEMPTS = 10;
+      for (let i = 0; i < MAX_CODE_GENERATION_ATTEMPTS; i++) {
+        const potentialCode = generateAccessCode();
+        // Ensure findActiveBookingByAccessCode is correctly typed or cast if needed
+        const conflictingBooking = await findActiveBookingByAccessCode(potentialCode) as IBooking | null;
+        if (!conflictingBooking) {
+          uniqueAccessCode = potentialCode;
+          break;
+        }
+      }
+
+      if (uniqueAccessCode) {
+        booking.accessCode = uniqueAccessCode;
+      } else {
+        console.error(`CRITICAL: Failed to generate a unique access code for booking ${booking._id} after ${MAX_CODE_GENERATION_ATTEMPTS} attempts.`);
+        // For now, the check-in will proceed without an access code if not generated.
+      }
+
+      await booking.save(); // Salva tutti gli aggiornamenti della prenotazione
 
       const newCheckIn = new CheckInModel({
         bookingId: booking._id.toString(),
