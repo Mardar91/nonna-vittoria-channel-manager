@@ -140,6 +140,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
               checkInDate={booking.checkInDate}
               size="md"
             />
+            {/* Il link è stato spostato nella sezione CheckInDetails in fondo alla pagina */}
             {booking.status === 'confirmed' && booking.paymentStatus === 'paid' && !booking.hasCheckedIn && (
               <div className="mt-2 flex space-x-2">
                 <ManualCheckInButton 
@@ -294,6 +295,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
                   </div>
                 </div>
               )}
+              {/* Il link è stato spostato più in alto, sotto CheckInStatusBadge */}
             </div>
           </div>
         </div>
@@ -336,8 +338,18 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
       </div>
       
       {/* Sezione Check-in se disponibile */}
-      {checkIn && (
-        <CheckInDetails bookingId={params.id} />
+      {checkIn && booking.completedCheckInId && ( // Assicura che entrambi siano validi
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-3">Dettagli Check-in</h2>
+          <div className="mb-4"> {/* Contenitore per il link con margine inferiore */}
+            <Link href={`/checkins/${booking.completedCheckInId}`} legacyBehavior>
+              <a className="text-blue-600 hover:text-blue-800 hover:underline font-medium">
+                Visualizza Dettagli Check-in Completo &rarr;
+              </a>
+            </Link>
+          </div>
+          <CheckInDetails bookingId={params.id} />
+        </div>
       )}
     </div>
   );
