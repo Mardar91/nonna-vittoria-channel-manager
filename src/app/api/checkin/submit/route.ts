@@ -191,23 +191,12 @@ export async function POST(req: NextRequest) {
       }
 
       await booking.save(); // Salva tutti gli aggiornamenti della prenotazione
-
-      const newCheckIn = new CheckInModel({
-        bookingId: booking._id.toString(),
-        apartmentId: booking.apartmentId.toString(),
-        guests: processedGuests,
-        status: 'completed',
-        checkInDate: new Date(booking.checkIn),
-        notes: notes,
-        ipAddress,
-        userAgent,
-        completedBy: 'guest',
-        completedAt: new Date(),
-      });
-
-      await newCheckIn.save();
       
+      // La creazione e il salvataggio di newCheckIn sono già stati fatti sopra.
+      // Il blocco duplicato che era qui è stato rimosso.
+
       // Crea notifica per check-in completato
+      // newCheckIn si riferisce all'istanza creata e salvata precedentemente (intorno alla riga 141)
       await createCheckInNotification(
         newCheckIn,
         mainGuestFullName,
