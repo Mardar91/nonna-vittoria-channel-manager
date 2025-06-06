@@ -451,7 +451,11 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         toast.success(action === 'block' ? 'Data bloccata' : 'Data sbloccata');
       } else if (action === 'book') {
         // Naviga alla pagina di creazione prenotazione
-        router.push(`/bookings/new?apartmentId=${apartmentId}&checkIn=${date.toISOString().split('T')[0]}`);
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0'); // I mesi in JavaScript sono 0-indicizzati
+        const day = date.getDate().toString().padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
+        router.push(`/bookings/new?apartmentId=${apartmentId}&checkIn=${formattedDate}`);
         return;
       } else if (action === 'checkin' && booking) {
         // Apri il modal di check-in
