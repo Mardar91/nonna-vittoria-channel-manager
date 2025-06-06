@@ -244,7 +244,9 @@ export default function BookingPage() {
         setReferencePriceLoading(prev => {
           const newLoading: Record<string, boolean> = {};
           results.availableApartments.forEach(apt => {
-            if (prev[apt._id] !== true) newLoading[apt._id] = true;
+            if (apt._id) { // <-- CONTROLLO AGGIUNTO QUI
+              if (prev[apt._id] !== true) newLoading[apt._id] = true;
+            }
           });
           return {...prev, ...newLoading};
         });
@@ -278,13 +280,21 @@ export default function BookingPage() {
 
         setReferenceNightlyPrices(prev => {
           const newPrices = {...prev};
-          settledPrices.forEach(p => newPrices[p.id] = p.price);
+          settledPrices.forEach(p => {
+            if (p.id) { // <-- CONTROLLO AGGIUNTO QUI (p.id è apt._id)
+              newPrices[p.id] = p.price;
+            }
+          });
           return newPrices;
         });
 
         setReferencePriceLoading(prev => {
           const newLoading: Record<string, boolean> = {};
-          results.availableApartments.forEach(apt => newLoading[apt._id] = false);
+          results.availableApartments.forEach(apt => {
+            if (apt._id) { // <-- CONTROLLO AGGIUNTO QUI
+              newLoading[apt._id] = false;
+            }
+          });
           return {...prev, ...newLoading};
         });
       };
