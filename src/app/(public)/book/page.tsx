@@ -291,21 +291,6 @@ export default function BookingPage() {
       fetchReferencePrices();
     }
   }, [results?.availableApartments, search.checkIn, search.adults, search.children]); // Added search.adults, search.children
-
-  // Calcola il prezzo totale - This function might be deprecated if calculatedPriceForStay is always present
-  // const getTotalPrice = (apartment: any): number => {
-  //   if (!apartment || !apartment.nights) return 0;
-    
-  //   // Limita il numero di ospiti alla capacità massima dell'appartamento
-  //   const effectiveGuests = Math.min(search.adults + search.children, apartment.maxGuests);
-    
-  //   // Usa la funzione di calcolo del prezzo con il numero effettivo di ospiti
-  //   return calculateBasePriceLogic( // Renamed import
-  //     apartment,
-  //     effectiveGuests,
-  //     apartment.nights
-  //   );
-  // };
   
   // Calcola il prezzo totale per prenotazione di gruppo
   const calculateGroupTotalPrice = (combination: ApartmentWithCalculatedPrice[]): number => {
@@ -322,16 +307,11 @@ export default function BookingPage() {
       // Fallback using reference nightly price if total stay price is missing
       const nightlyRefPrice = referenceNightlyPrices[apt._id];
       if (nightlyRefPrice !== null && nightlyRefPrice !== undefined && apt.nights > 0) {
-        // This is an approximation as nightlyRefPrice is for specific (search) guests,
-        // and apt.effectiveGuests might be different.
         console.warn(`Approximated price for ${apt.name} in group calculation using reference nightly price. Effective guests: ${apt.effectiveGuests}, Reference guests: ${search.adults + search.children}`);
-        // A more accurate approach would be to call calculateDynamicPriceForStay here for apt.effectiveGuests and apt.nights
-        // but this function is synchronous. This indicates a need for further refactoring if this case is common.
-        // For now, we use the reference price multiplied by nights.
         return total + (nightlyRefPrice * apt.nights);
       }
       console.warn(`Missing calculatedPriceForStay and reference price for ${apt.name} in group total. Price will be inaccurate for this item.`);
-      return total; // Or handle as an error / incomplete price, returning 0 for this item.
+      return total;
     }, 0);
   };
   
@@ -437,7 +417,6 @@ export default function BookingPage() {
             groupApartmentsData.push({
               apartmentId: apt._id,
               numberOfGuests: apt.effectiveGuests,
-              // individualPrice: apartmentPrice // Optionally send individual prices if backend supports it
             });
           } catch (priceError) {
             console.error(`Error calculating final price for apartment ${apt.name} in group booking:`, priceError);
@@ -455,8 +434,8 @@ export default function BookingPage() {
           guestName: bookingFormData.guestName,
           guestEmail: bookingFormData.guestEmail,
           guestPhone: bookingFormData.guestPhone,
-          totalGuests: search.adults + search.children, // Total guests for the whole group
-          totalPrice: groupTotalPrice, // Total price for the entire group booking
+          totalGuests: search.adults + search.children,
+          totalPrice: groupTotalPrice,
           notes: bookingFormData.notes
         };
       } else {
@@ -465,7 +444,6 @@ export default function BookingPage() {
         return;
       }
       
-      // Crea la prenotazione
       const response = await fetch('/api/bookings/public', {
         method: 'POST',
         headers: {
@@ -481,9 +459,7 @@ export default function BookingPage() {
       
       const bookingData = await response.json();
       
-      // Procedi con il pagamento
       if (bookingData.success) {
-        // Reindirizza alla pagina di pagamento
         const paymentResponse = await fetch('/api/payments/public-checkout', {
           method: 'POST',
           headers: {
@@ -501,8 +477,6 @@ export default function BookingPage() {
         }
         
         const paymentData = await paymentResponse.json();
-        
-        // Reindirizza alla pagina di checkout di Stripe
         window.location.href = paymentData.url;
       }
     } catch (error) {
@@ -531,7 +505,6 @@ export default function BookingPage() {
     );
   }
   
-  // Stili dinamici basati sul profilo
   const headerStyle = {
     backgroundColor: profile.headerColor || '#1d4ed8',
   };
@@ -540,9 +513,8 @@ export default function BookingPage() {
     backgroundColor: profile.primaryColor || '#2563eb',
   };
 
-  return ( // Ensure this is the main return for the component's primary JSX
+  return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Header */}
       <header className="py-4 px-4 sm:px-6 lg:px-8 text-white" style={headerStyle}>
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center">
@@ -556,14 +528,12 @@ export default function BookingPage() {
       
       <main className="flex-grow py-6 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          {/* Descrizione */}
           {profile.description && (
             <div className="mb-8 text-center">
               <p className="text-lg text-gray-700">{profile.description}</p>
             </div>
           )}
           
-          {/* Form di ricerca */}
           <div className="bg-white p-6 rounded-lg shadow-md mb-8">
             <form onSubmit={handleSearch} className="space-y-4 sm:space-y-0 sm:flex sm:space-x-4 items-end">
               <div className="flex-1">
@@ -649,14 +619,12 @@ export default function BookingPage() {
             </form>
           </div>
           
-          {/* Risultati della ricerca */}
           {showResults && results && (
             <div className="space-y-6">
               <h2 className="text-xl font-semibold text-gray-900">
                 Risultati per {formatDate(results.checkIn)} - {formatDate(results.checkOut)}
               </h2>
               
-              {/* Risultati per appartamenti singoli */}
               {results.availableApartments.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {results.availableApartments.map((apartment) => (
@@ -685,11 +653,9 @@ export default function BookingPage() {
                           {apartment.description && apartment.description.length > 100 ? '...' : ''}
                         </p>
                         
-                        {/* Informazioni sul prezzo */}
                         <div className="mt-2 text-sm text-gray-600">
                           {(() => {
                             const effectiveGuestsInSearch = search.adults + search.children;
-                            // Use Math.min to ensure we don't exceed maxGuests for display consistency
                             const guestsForDisplay = Math.min(effectiveGuestsInSearch, apartment.maxGuests);
                             const nightlyPrice = referenceNightlyPrices[apartment._id];
                             const isLoading = referencePriceLoading[apartment._id];
@@ -699,7 +665,6 @@ export default function BookingPage() {
                             }
 
                             if (nightlyPrice === null || nightlyPrice === undefined) {
-                              // If dynamic nightly price failed or not available, fallback to average from total if possible
                               if (apartment.calculatedPriceForStay !== null && apartment.nights > 0) {
                                 const averagePricePerNight = apartment.calculatedPriceForStay / apartment.nights;
                                 if (apartment.priceType === 'per_person') {
@@ -712,7 +677,6 @@ export default function BookingPage() {
                               return <p>Prezzo di riferimento per notte non disponibile.</p>;
                             }
 
-                            // We have a dynamically calculated reference price for one night.
                             if (apartment.priceType === 'per_person') {
                                const perPersonNightlyDynamic = guestsForDisplay > 0 ? nightlyPrice / guestsForDisplay : nightlyPrice;
                                return <p>€{perPersonNightlyDynamic.toFixed(2)} per persona per notte (dinamico, per {guestsForDisplay} ospiti)</p>;
@@ -732,8 +696,6 @@ export default function BookingPage() {
                             </div>
                             {search.adults + search.children > apartment.maxGuests && apartment.calculatedPriceForStay !== null && (
                               <div className="text-xs text-gray-600">
-                                {/* This note might need adjustment if price is already for maxGuests from backend */}
-                                {/* (per {apartment.maxGuests} ospiti) */}
                               </div>
                             )}
                           </div>
@@ -765,14 +727,12 @@ export default function BookingPage() {
                         <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 mb-4 shadow-sm">
                           <h4 className="font-medium text-gray-900 mb-2">Combinazione {index + 1}</h4>
                           
-                          {/* Distribuisci gli ospiti tra gli appartamenti */}
                           {(() => {
                             const distributedApartments = distributeGuests(
                               combination, 
                               search.adults + search.children
                             );
                             
-                            // Calcola il numero totale di ospiti effettivamente assegnati
                             const totalAssignedGuests = distributedApartments.reduce(
                               (sum, apt) => sum + apt.effectiveGuests, 0
                             );
@@ -789,28 +749,24 @@ export default function BookingPage() {
                                             {apt.effectiveGuests} ospiti
                                           </div>
                                         </div>
-                                        <div className="text-right"> {/* Aggiunto text-right per allineare i prezzi */}
+                                        <div className="text-right">
                                           {(() => {
-                                            // Calcola il prezzo per notte per questo specifico appartamento nel gruppo
                                             let pricePerNightDisplay = "";
                                             if (apt.calculatedPriceForStay !== null && typeof apt.nights === 'number' && apt.nights > 0) {
                                               const averagePricePerNight = apt.calculatedPriceForStay / apt.nights;
                                               if (apt.priceType === 'per_person') {
-                                                const perPersonNightly = apt.effectiveGuests > 0 ? averagePricePerNight / apt.effectiveGuests : apt.price; // Fallback a apt.price se effectiveGuests è 0
+                                                const perPersonNightly = apt.effectiveGuests > 0 ? averagePricePerNight / apt.effectiveGuests : apt.price;
                                                 pricePerNightDisplay = `€${perPersonNightly.toFixed(2)} per persona/notte, per ${apt.effectiveGuests} ospiti`;
                                               } else {
                                                 pricePerNightDisplay = `€${averagePricePerNight.toFixed(2)} per notte, per ${apt.effectiveGuests} ospiti`;
                                               }
                                             } else if (apt.calculatedPriceForStay !== null) {
-                                              // Se le notti non sono disponibili ma il prezzo totale sì, mostra solo un'indicazione generica per il prezzo per notte
                                                pricePerNightDisplay = `(dettaglio per notte non disp.)`;
                                             }
 
-                                            // Prezzo totale per questo appartamento nella combinazione
                                             const totalPriceForApartment = (apt.calculatedPriceForStay !== null && apt.calculatedPriceForStay !== undefined)
                                               ? apt.calculatedPriceForStay
-                                              //: calculateBasePriceLogic(apt, apt.effectiveGuests, apt.nights); // Fallback
-                                              : 0; // MODIFIED: Removed calculateBasePriceLogic
+                                              : 0;
 
                                             return (
                                               <>
@@ -825,7 +781,7 @@ export default function BookingPage() {
                                           })()}
                                         </div>
                                       </li>
-                                    ) : null // Non mostrare appartamenti non utilizzati
+                                    ) : null
                                   ))}
                                 </ul>
                                 
@@ -857,7 +813,6 @@ export default function BookingPage() {
                 </div>
               )}
               
-              {/* Suggerimenti se non ci sono risultati */}
               {results.availableApartments.length === 0 && results.groupBookingOptions.length === 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <h3 className="text-lg font-medium text-yellow-800 mb-2">Nessuna disponibilità</h3>
@@ -889,7 +844,6 @@ export default function BookingPage() {
             </div>
           </div>
           
-          {/* Link Check-in Online */}
           {profile.enableOnlineCheckIn && (
             <div className="border-t border-gray-700 pt-4 text-center">
               <Link href="/checkin" className="inline-flex items-center text-sm text-gray-300 hover:text-white">
@@ -944,8 +898,8 @@ export default function BookingPage() {
                             <p>
                               <span className="font-medium">Ospiti:</span> {
                                 selectedApartment ? 
-                                  search.adults + search.children : // Mostra solo il numero di ospiti della ricerca
-                                  `${search.adults} adulti${search.children > 0 ? `, ${search.children} bambini` : ''}` // Logica per prenotazione di gruppo rimane invariata
+                                  search.adults + search.children :
+                                  `${search.adults} adulti${search.children > 0 ? `, ${search.children} bambini` : ''}`
                               }
                             </p>
                             {selectedApartment && search.adults + search.children > selectedApartment.maxGuests && (
@@ -955,50 +909,25 @@ export default function BookingPage() {
                             )}
                           </div>
                           
-                          {/* Riepilogo appartamento */}
                           {selectedApartment && (
                             <div className="mt-4">
                               <h4 className="font-medium text-gray-900 mb-2">Riepilogo Appartamento</h4>
                               <p className="text-sm text-gray-600 mb-2">{selectedApartment.description}</p>
                               
-                              {/* Info prezzo dinamico */}
                               <div className="mt-2 text-sm text-gray-600">
                                 {(() => {
-                                  // Assicurati che selectedApartment, calculatedPriceForStay e nights siano disponibili e validi.
-                                  // selectedApartment è già verificato da `{selectedApartment && ...}`
-                                  // calculatedPriceForStay è usato per il prezzo totale, quindi dovrebbe essere disponibile.
-                                  // nights è parte di ApartmentWithCalculatedPrice.
-
                                   if (selectedApartment.calculatedPriceForStay !== null && typeof selectedApartment.nights === 'number' && selectedApartment.nights > 0) {
                                     const averagePricePerNightForModal = selectedApartment.calculatedPriceForStay / selectedApartment.nights;
                                     const guestsForModal = search.adults + search.children;
 
                                     if (selectedApartment.priceType === 'per_person') {
-                                      // Se il priceType è 'per_person', il prezzo per notte per persona è già l'averagePricePerNightForModal diviso per il numero di ospiti.
-                                      // O, se il backend calcola calculatedPriceForStay già normalizzato per persona, allora averagePricePerNightForModal è già il prezzo per persona per notte.
-                                      // Per coerenza con la logica dei risultati di ricerca, ricalcoliamo qui:
-                                      const perPersonNightlyForModal = guestsForModal > 0 ? averagePricePerNightForModal / guestsForModal : selectedApartment.price; // fallback a selectedApartment.price se guestsForModal è 0
+                                      const perPersonNightlyForModal = guestsForModal > 0 ? averagePricePerNightForModal / guestsForModal : selectedApartment.price;
                                       return <p>€{perPersonNightlyForModal.toFixed(2)} per persona per notte, per {guestsForModal} persone</p>;
                                     } else {
-                                      // Per priceType 'per_night'
                                       return <p>€{averagePricePerNightForModal.toFixed(2)} per notte, per {guestsForModal} persone</p>;
                                     }
                                   } else {
-                                    // Fallback nel caso in cui calculatedPriceForStay o nights non siano disponibili,
-                                    // anche se non dovrebbe succedere se selectedApartment è di tipo ApartmentWithCalculatedPrice
-                                    // e la logica a monte ha funzionato.
-                                    // Manteniamo una visualizzazione di fallback simile alla precedente o un messaggio di errore.
-                                    // Per ora, replichiamo la vecchia logica di fallback basata su selectedApartment.price
-                                    // ma aggiungendo il numero di ospiti.
                                     const guestsForModalFallback = search.adults + search.children;
-                                    // if (selectedApartment.priceType === 'per_person') { // Orphaned else removed here in previous step. This logic is now the final else.
-                                    //   return <p>€{selectedApartment.price.toFixed(2)} per persona per notte, per {guestsForModalFallback} persone</p>;
-                                    // } else {
-                                    // Per questo fallback, non abbiamo un prezzo calcolato per notte per gli ospiti esatti,
-                                    // quindi mostriamo il prezzo base dell'appartamento e il numero di ospiti.
-                                    // Fallback in modal:
-                                    // const guestsForModalFallback = search.adults + search.children; // Already defined
-                                    // Ensure selectedApartment is not null before accessing its _id
                                     const modalRefNightlyPrice = selectedApartment ? referenceNightlyPrices[selectedApartment._id] : null;
                                     const isLoadingModalPrice = selectedApartment ? referencePriceLoading[selectedApartment._id] : false;
 
@@ -1008,26 +937,22 @@ export default function BookingPage() {
 
                                     if (modalRefNightlyPrice !== null && modalRefNightlyPrice !== undefined) {
                                        if (selectedApartment.priceType === 'per_person') {
-                                           // Assuming modalRefNightlyPrice is total for guestsForModalFallback for 1 night
                                            const perPersonModal = guestsForModalFallback > 0 ? modalRefNightlyPrice / guestsForModalFallback : modalRefNightlyPrice;
                                            return <p>€{perPersonModal.toFixed(2)} per persona per notte (dinamico, per {guestsForModalFallback} ospiti)</p>;
                                        } else {
                                            return <p>€{modalRefNightlyPrice.toFixed(2)} per notte (dinamico, per {guestsForModalFallback} ospiti)</p>;
                                        }
                                     } else if (selectedApartment.calculatedPriceForStay !== null && typeof selectedApartment.nights === 'number' && selectedApartment.nights > 0) {
-                                       // Fallback to average from total if dynamic nightly not available
                                        const averagePricePerNightForModal = selectedApartment.calculatedPriceForStay / selectedApartment.nights;
                                         if (selectedApartment.priceType === 'per_person') {
-                                            const perPersonModalAvg = guestsForModalFallback > 0 ? averagePricePerNightForModal / guestsForModalFallback : selectedApartment.price; // Fallback to base price if 0 guests
+                                            const perPersonModalAvg = guestsForModalFallback > 0 ? averagePricePerNightForModal / guestsForModalFallback : selectedApartment.price;
                                             return <p>€{perPersonModalAvg.toFixed(2)} per persona per notte (media, per {guestsForModalFallback} ospiti)</p>;
                                         } else {
                                             return <p>€{averagePricePerNightForModal.toFixed(2)} per notte (media, per {guestsForModalFallback} ospiti)</p>;
                                         }
                                     } else {
-                                      // Absolute fallback if no price info is available
                                       return <p>Dettaglio prezzo per notte non disponibile.</p>;
                                     }
-                                  // } // This was the end of the orphaned else
                                   }
                                 })()}
                               </div>
@@ -1043,7 +968,6 @@ export default function BookingPage() {
                             </div>
                           )}
                           
-                          {/* Riepilogo prenotazione di gruppo */}
                           {groupBookingSelection && (
                             <div className="mt-4">
                               <h4 className="font-medium text-gray-900 mb-2">Riepilogo Apartamenti</h4>
@@ -1051,12 +975,11 @@ export default function BookingPage() {
                                 .filter((apt: DistributedApartment) => apt.effectiveGuests > 0)
                                 .map((apt: DistributedApartment) => {
                                   let groupAptTotalModal = 0;
-                                  const isLoadingGroupAptModalPrice = referencePriceLoading[apt._id]; // Assuming apt._id is correct key
+                                  const isLoadingGroupAptModalPrice = referencePriceLoading[apt._id];
 
                                   if (apt.calculatedPriceForStay !== null && apt.calculatedPriceForStay !== undefined) {
                                     groupAptTotalModal = apt.calculatedPriceForStay;
                                   } else if (referenceNightlyPrices[apt._id] !== null && referenceNightlyPrices[apt._id] !== undefined && apt.nights > 0) {
-                                    // Approximation if total for stay is missing but nightly reference is available
                                     groupAptTotalModal = referenceNightlyPrices[apt._id]! * apt.nights;
                                     console.warn(`Approximated total price for ${apt.name} in group modal using reference nightly price.`);
                                   }
@@ -1081,14 +1004,13 @@ export default function BookingPage() {
                                   { groupBookingSelection.some(gbs => {
                                       const isPriceMissing = gbs.calculatedPriceForStay === null || gbs.calculatedPriceForStay === undefined;
                                       const isRefPriceMissing = referenceNightlyPrices[gbs._id] === null || referenceNightlyPrices[gbs._id] === undefined;
-                                      return isPriceMissing && isRefPriceMissing; // Mark as partial if both total and ref price are missing
+                                      return isPriceMissing && isRefPriceMissing;
                                     }) && <span className="text-xs text-red-500"> (alcuni prezzi mancanti)</span> }
                                 </span>
                               </div>
                             </div>
                           )}
                           
-                          {/* Informazioni metodo di pagamento */}
                           <div className="mt-4 bg-blue-50 p-4 rounded-md">
                             <div className="flex items-center mb-2">
                               <CreditCardIcon className="h-5 w-5 text-blue-600 mr-2" />
@@ -1100,7 +1022,6 @@ export default function BookingPage() {
                             </p>
                           </div>
                           
-                          {/* Form dati ospite */}
                           <form className="mt-6 space-y-4">
                             <div>
                               <label htmlFor="guestName" className="block text-sm font-medium text-gray-700">
@@ -1215,5 +1136,3 @@ export default function BookingPage() {
     </div>
   ); // Corresponding closing parenthesis for the main return
 }
-
-[end of src/app/(public)/book/page.tsx]
