@@ -392,10 +392,18 @@ export default function BookingPage() {
       let requestData;
 
       if (selectedApartment) {
+        // AGGIUNGI QUESTO CONTROLLO
+        if (typeof selectedApartment._id !== 'string' || !selectedApartment._id) {
+          console.error("ID dell'appartamento selezionato non valido:", selectedApartment);
+          toast.error("Errore: ID appartamento non valido. Impossibile procedere.");
+          setProcessingBooking(false);
+          return;
+        }
+
         const effectiveGuests = Math.min(search.adults + search.children, selectedApartment.maxGuests);
         try {
           finalPrice = await calculateDynamicPriceForStay(
-            selectedApartment._id,
+            selectedApartment._id, // Ora sappiamo che è una stringa valida
             new Date(search.checkIn),
             new Date(search.checkOut),
             effectiveGuests
@@ -408,7 +416,7 @@ export default function BookingPage() {
         }
         
         requestData = {
-          apartmentId: selectedApartment._id,
+          apartmentId: selectedApartment._id, // Usare l'ID valido
           checkIn: search.checkIn.toISOString(),
           checkOut: search.checkOut.toISOString(),
           guestName: bookingFormData.guestName,
@@ -416,24 +424,39 @@ export default function BookingPage() {
           guestPhone: bookingFormData.guestPhone,
           numberOfGuests: effectiveGuests,
           notes: bookingFormData.notes,
-          totalPrice: finalPrice, // Use the dynamically calculated final price
+          totalPrice: finalPrice,
           isGroupBooking: false
         };
       } else if (groupBookingSelection) {
+        // ... (la logica per groupBookingSelection rimane simile,
+        // ma assicurati che anche qui gli apt._id siano controllati
+        // prima di essere usati, sebbene il problema specifico fosse per selectedApartment)
+        // La correzione precedente in calculateDynamicPriceForStay per i gruppi dovrebbe già gestire gli ID
+        // individuali degli appartamenti nel gruppo.
+        // Il subtask precedente aveva già migliorato i controlli per i gruppi qui.
+        // Per ora, concentriamoci sul fix di selectedApartment._id.
+        // La logica esistente per groupBookingSelection:
         let groupTotalPrice = 0;
         const groupApartmentsData = [];
 
         for (const apt of groupBookingSelection.filter(a => a.effectiveGuests > 0)) {
+          // CONTROLLO ANCHE QUI PER SICUREZZA, ANCHE SE GIÀ FATTO IN calculateDynamicPriceForStay
+          if (typeof apt._id !== 'string' || !apt._id) {
+            console.error("ID appartamento non valido nel gruppo:", apt);
+            toast.error(`Errore: ID appartamento non valido per ${apt.name} nel gruppo.`);
+            setProcessingBooking(false);
+            return;
+          }
           try {
             const apartmentPrice = await calculateDynamicPriceForStay(
-              apt._id,
+              apt._id, // ID valido
               new Date(search.checkIn),
               new Date(search.checkOut),
               apt.effectiveGuests
             );
             groupTotalPrice += apartmentPrice;
             groupApartmentsData.push({
-              apartmentId: apt._id,
+              apartmentId: apt._id, // ID valido
               numberOfGuests: apt.effectiveGuests,
             });
           } catch (priceError) {
@@ -443,7 +466,7 @@ export default function BookingPage() {
             return;
           }
         }
-
+        // ... resto della logica per groupBookingSelection ...
         requestData = {
           isGroupBooking: true,
           groupApartments: groupApartmentsData,
