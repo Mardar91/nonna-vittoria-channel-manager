@@ -7,7 +7,7 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import { calculateDynamicPriceForStay } from '@/lib/pricing';
+// import { calculateDynamicPriceForStay } from '@/lib/pricing'; // Rimosso
 
 interface BookingFormModalProps {
   isOpen: boolean;
@@ -46,6 +46,7 @@ export default function BookingFormModal({
 }: BookingFormModalProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [priceLoading, setPriceLoading] = useState(false); // STATO AGGIUNTO
   const [defaultCheckInTime, setDefaultCheckInTime] = useState('15:00'); // Fallback
   const [defaultCheckOutTime, setDefaultCheckOutTime] = useState('10:00'); // Fallback
   const [formData, setFormData] = useState({
@@ -64,63 +65,94 @@ export default function BookingFormModal({
   });
 
   // Calcola il prezzo totale quando cambiano le date o il numero di ospiti
-  // This useEffect will now primarily react to formData.checkIn, formData.checkOut, and formData.numberOfGuests
-  // The initialization of checkIn and checkOut with default times is handled in the next useEffect.
+  // useEffect per calcolare il prezzo quando cambiano le date, ospiti o quando il modale si apre/chiude con un apartmentId valido
   useEffect(() => {
-    const calculatePrice = async () => {
-      if (formData.checkIn && formData.checkOut && formData.numberOfGuests !== undefined && apartmentId) {
-        try {
-          const checkInDate = new Date(formData.checkIn);
-          const checkOutDate = new Date(formData.checkOut);
+    if (!isOpen) {
+      setFormData(prev => ({ ...prev, totalPrice: 0 })); // Resetta il prezzo se il modale è chiuso
+      return;
+    }
 
-          const dynamicPrice = await calculateDynamicPriceForStay(
-            apartmentId, // Use apartmentId from props
-            checkInDate,
-            checkOutDate,
-            formData.numberOfGuests
-          );
-
-          setFormData(prev => ({ ...prev, totalPrice: dynamicPrice }));
-        } catch (error) {
-          console.error("Error calculating dynamic price in modal:", error);
-          toast.error("Errore nel calcolo del prezzo. Si prega di riprovare.");
-          setFormData(prev => ({ ...prev, totalPrice: 0 })); // Fallback price
+    const fetchPrice = async () => {
+      setPriceLoading(true);
+      try {
+        // Validazione robusta dei dati prima della chiamata API
+        if (!apartmentId ||
+            !formData.checkIn || !(formData.checkIn instanceof Date) || isNaN(new Date(formData.checkIn).getTime()) ||
+            !formData.checkOut || !(formData.checkOut instanceof Date) || isNaN(new Date(formData.checkOut).getTime()) ||
+            new Date(formData.checkIn) >= new Date(formData.checkOut) ||
+            formData.numberOfGuests === undefined || formData.numberOfGuests <= 0) {
+          // console.warn("Dati non validi per il calcolo del prezzo nel modale, impostazione a 0.");
+          setFormData(prev => ({ ...prev, totalPrice: 0 }));
+          setPriceLoading(false); // Assicurati che il loading sia false
+          return;
         }
+
+        const response = await fetch('/api/calculate-price', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            apartmentId: apartmentId, // dalle props
+            checkInDate: new Date(formData.checkIn).toISOString(),
+            checkOutDate: new Date(formData.checkOut).toISOString(),
+            numGuests: formData.numberOfGuests,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setFormData(prev => ({ ...prev, totalPrice: data.totalPrice }));
+        } else {
+          const errorData = await response.json();
+          console.error("Error fetching price from API in modal:", errorData);
+          toast.error(errorData.error || "Errore nel calcolo del prezzo API (modale).");
+          setFormData(prev => ({ ...prev, totalPrice: 0 })); // Fallback
+        }
+      } catch (error) {
+        console.error("Network error fetching price in modal:", error);
+        toast.error("Errore di rete nel calcolo del prezzo (modale).");
+        setFormData(prev => ({ ...prev, totalPrice: 0 })); // Fallback
+      } finally {
+        setPriceLoading(false);
       }
     };
 
-    calculatePrice();
-  }, [formData.checkIn, formData.checkOut, formData.numberOfGuests, apartmentId]);
+    if (isOpen && apartmentId) { // Esegui solo se il modale è aperto e apartmentId è valido
+      fetchPrice();
+    } else if (!isOpen) { // Se il modale è chiuso o apartmentId non è valido, resetta il prezzo.
+        setFormData(prev => ({ ...prev, totalPrice: 0 }));
+    }
+    // Le dipendenze includono quelle che dovrebbero triggerare un ricalcolo quando il modale è aperto.
+  }, [isOpen, apartmentId, formData.checkIn, formData.checkOut, formData.numberOfGuests]);
 
-  // useEffect to initialize checkIn and checkOut dates with default times when modal opens or relevant props change
+
+  // useEffect per inizializzare/resettare le date quando il modale si apre o cambiano le date/apartmentData di input
   useEffect(() => {
     if (isOpen) {
       const initialCheckIn = applyTime(new Date(startDate), defaultCheckInTime);
       let initialCheckOut = applyTime(new Date(endDate), defaultCheckOutTime);
 
-      const minStay = customMinStay !== undefined ? customMinStay : (apartmentData.minStay || 1);
+      // Utilizza customMinStay se fornito, altrimenti da apartmentData, default a 1
+      const minStay = customMinStay !== undefined ? customMinStay : (apartmentData?.minStay || 1);
       
       const minCheckOutDateFromCheckIn = new Date(initialCheckIn);
       minCheckOutDateFromCheckIn.setDate(minCheckOutDateFromCheckIn.getDate() + minStay);
-      // Set the time of minCheckOutDateFromCheckIn to the default checkout time for accurate comparison and setting
       minCheckOutDateFromCheckIn.setHours(parseInt(defaultCheckOutTime.split(':')[0]), parseInt(defaultCheckOutTime.split(':')[1]), 0, 0);
 
       if (initialCheckOut < minCheckOutDateFromCheckIn) {
         initialCheckOut = minCheckOutDateFromCheckIn;
       }
       
-      // No need to calculate totalPrice here, the other useEffect will handle it
-      // when checkIn and checkOut in formData are updated.
       setFormData(prev => ({
         ...prev,
         checkIn: initialCheckIn,
         checkOut: initialCheckOut,
-        // totalPrice will be calculated by the other useEffect
+        apartmentId: apartmentId, // Assicura che l'apartmentId sia aggiornato se cambia mentre il modale è aperto (improbabile ma sicuro)
+        // totalPrice è gestito dall'altro useEffect
       }));
     }
-  // Ensure all dependencies that should trigger re-initialization are included.
-  // formData.numberOfGuests is removed as it doesn't influence initial date settings.
-  }, [isOpen, startDate, endDate, defaultCheckInTime, defaultCheckOutTime, apartmentData, customMinStay]);
+  }, [isOpen, startDate, endDate, defaultCheckInTime, defaultCheckOutTime, apartmentId, apartmentData, customMinStay]);
 
 
   useEffect(() => {
@@ -518,9 +550,10 @@ export default function BookingFormModal({
                             min="0"
                             step="0.01"
                             value={formData.totalPrice}
-                            onChange={handleChange}
+                            onChange={handleChange} // Anche se readOnly, mantenere per consistenza se diventa editabile
                             required
-                            className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                            readOnly // Il prezzo è calcolato dall'API
+                            className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md bg-gray-50"
                           />
                         </div>
                       </div>
@@ -542,10 +575,10 @@ export default function BookingFormModal({
                       <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                         <button
                           type="submit"
-                          disabled={loading || !isValidStayDuration(formData.checkIn, formData.checkOut)}
+                          disabled={loading || priceLoading || !isValidStayDuration(formData.checkIn, formData.checkOut)}
                           className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
                         >
-                          {loading ? 'Creazione...' : 'Crea Prenotazione'}
+                          {loading ? 'Creazione...' : priceLoading ? 'Calcolo Prezzo...' : 'Crea Prenotazione'}
                         </button>
                         <button
                           type="button"
