@@ -252,17 +252,20 @@ export default function BookingPage() {
         });
 
         const pricePromises = results.availableApartments.map(async (apartment) => {
+          if (typeof apartment._id !== 'string' || !apartment._id) { // <-- CONTROLLO ROBUSTO AGGIUNTO
+            console.warn(`Apartment con ID non valido (${apartment._id}) skipped in fetchReferencePrices.`);
+            return { id: apartment._id || `invalid-${Math.random()}`, price: null }; // Restituisci null se l'ID non è valido
+          }
           try {
             const refCheckIn = new Date(search.checkIn);
             const refCheckOut = new Date(refCheckIn);
             refCheckOut.setDate(refCheckIn.getDate() + 1); // For one night
 
             const effectiveGuestsInSearch = search.adults + search.children;
-            // Use the lesser of search guests or apartment max guests for reference price
             const guestsForCalc = Math.min(effectiveGuestsInSearch, apartment.maxGuests);
 
             const price = await calculateDynamicPriceForStay(
-              apartment._id,
+              apartment._id, // Ora sappiamo che è una stringa valida
               refCheckIn,
               refCheckOut,
               guestsForCalc
@@ -270,13 +273,11 @@ export default function BookingPage() {
             return { id: apartment._id, price };
           } catch (error) {
             console.error(`Error fetching reference price for ${apartment.name} (${apartment._id}):`, error);
-            // Do not toast error here for individual price failures to avoid spamming
-            // toast.error(`Errore nel calcolo del prezzo di riferimento per ${apartment.name}`);
             return { id: apartment._id, price: null };
           }
         });
 
-        const settledPrices = await Promise.all(pricePromises);
+        const settledPrices = (await Promise.all(pricePromises)).filter(p => p !== null); // Filtra eventuali null se abbiamo saltato un calcolo
 
         setReferenceNightlyPrices(prev => {
           const newPrices = {...prev};
