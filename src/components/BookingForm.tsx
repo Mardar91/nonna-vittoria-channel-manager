@@ -42,6 +42,7 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedApartmentId = searchParams.get('apartmentId');
+  const preselectedCheckInDateString = searchParams.get('checkIn'); // AGGIUNGERE QUESTA RIGA
 
   // Source options - base
   const baseSourceOptions = [
@@ -151,30 +152,57 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
       }));
     } else if (!isEdit) {
       // New booking: apply defaults including times
-      const initialDate = new Date(); 
-      const tomorrowDate = new Date(initialDate);
-      tomorrowDate.setDate(initialDate.getDate() + 1);
+      let initialCheckInDate = new Date(); // Default a oggi
+      let initialCheckOutDate = new Date(initialCheckInDate);
+      initialCheckOutDate.setDate(initialCheckInDate.getDate() + 1); // Default a domani
+
+      // Logica per usare la data dalla URL se presente
+      if (preselectedCheckInDateString) {
+        const parsedDate = new Date(preselectedCheckInDateString);
+        // Verifica se la data parsata è valida.
+        // new Date('') o new Date('invalid-string') restituiscono 'Invalid Date',
+        // il cui getTime() restituisce NaN.
+        if (!isNaN(parsedDate.getTime())) {
+          initialCheckInDate = parsedDate;
+
+          // Calcola initialCheckOutDate basata sul minStay dell'appartamento preselezionato (se l'ID è disponibile)
+          // o usa un default di 1 notte se l'appartamento non è ancora selezionato/trovato.
+          let minStay = 1; // Default minStay
+          if (preselectedApartmentId) {
+            const tempSelectedApartment = apartments.find(a => a._id === preselectedApartmentId);
+            if (tempSelectedApartment && tempSelectedApartment.minStay) {
+              minStay = tempSelectedApartment.minStay;
+            }
+          }
+
+          initialCheckOutDate = new Date(initialCheckInDate);
+          initialCheckOutDate.setDate(initialCheckInDate.getDate() + minStay);
+        } else {
+          console.warn('Invalid check-in date received from URL, defaulting to today:', preselectedCheckInDateString);
+          // Se la data non è valida, si usano i default già impostati (oggi e domani)
+        }
+      }
 
       setFormData(prev => ({
-        ...prev, // Keeps preselectedApartmentId if set
+        ...prev,
         guestName: '',
         guestEmail: '',
         guestPhone: '',
-        checkIn: applyTime(initialDate, defaultCheckInTime),
-        checkOut: applyTime(tomorrowDate, defaultCheckOutTime),
+        checkIn: applyTime(initialCheckInDate, defaultCheckInTime),
+        checkOut: applyTime(initialCheckOutDate, defaultCheckOutTime),
         numberOfGuests: 1,
         status: 'pending',
         paymentStatus: 'pending',
         source: 'direct',
         notes: '',
         manualTotalPrice: undefined,
-        totalPrice: 0, // Will be recalculated by the other useEffect
+        totalPrice: 0, // Sarà ricalcolato dall'altro useEffect
         apartmentId: preselectedApartmentId || prev.apartmentId || '',
       }));
       setDisplaySourceOptions(baseSourceOptions);
       setIsIcalBookingEditMode(false);
     }
-  }, [booking, isEdit, defaultCheckInTime, defaultCheckOutTime, preselectedApartmentId]); // Added dependencies
+  }, [booking, isEdit, defaultCheckInTime, defaultCheckOutTime, preselectedApartmentId, preselectedCheckInDateString, apartments]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
