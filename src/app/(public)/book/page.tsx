@@ -698,8 +698,17 @@ export default function BookingPage() {
                           {(() => {
                             const effectiveGuestsInSearch = search.adults + search.children;
                             const guestsForDisplay = Math.min(effectiveGuestsInSearch, apartment.maxGuests);
-                            const nightlyPrice = referenceNightlyPrices[apartment._id];
-                            const isLoading = referencePriceLoading[apartment._id];
+                            // const nightlyPrice = referenceNightlyPrices[apartment._id]; // Vecchia riga
+                            // const isLoading = referencePriceLoading[apartment._id]; // Vecchia riga
+
+                            const aptIdForResult = typeof apartment._id === 'string' && apartment._id ? apartment._id : null;
+                            let nightlyPrice = null;
+                            let isLoading = true; // Default a true se l'ID non è valido, così mostriamo "Calcolo..."
+
+                            if (aptIdForResult) {
+                              nightlyPrice = referenceNightlyPrices[aptIdForResult];
+                              isLoading = referencePriceLoading[aptIdForResult];
+                            }
 
                             if (isLoading) {
                               return <p>Calcolo prezzo per notte...</p>;
@@ -969,21 +978,28 @@ export default function BookingPage() {
                                     }
                                   } else {
                                     const guestsForModalFallback = search.adults + search.children;
-                                    const modalRefNightlyPrice = selectedApartment ? referenceNightlyPrices[selectedApartment._id] : null;
-                                    const isLoadingModalPrice = selectedApartment ? referencePriceLoading[selectedApartment._id] : false;
+                                    // const modalRefNightlyPrice = selectedApartment ? referenceNightlyPrices[selectedApartment._id] : null; // Vecchia riga
+                                    // const isLoadingModalPrice = selectedApartment ? referencePriceLoading[selectedApartment._id] : false; // Vecchia riga
+
+                                    let modalRefNightlyPrice = null;
+                                    let isLoadingModalPrice = true; // Default a true se non possiamo caricare
+                                    if (selectedApartment && typeof selectedApartment._id === 'string' && selectedApartment._id) {
+                                      modalRefNightlyPrice = referenceNightlyPrices[selectedApartment._id];
+                                      isLoadingModalPrice = referencePriceLoading[selectedApartment._id];
+                                    }
 
                                     if(isLoadingModalPrice) {
                                       return <p>Calcolo prezzo per notte...</p>;
                                     }
 
-                                    if (modalRefNightlyPrice !== null && modalRefNightlyPrice !== undefined) {
+                                    if (modalRefNightlyPrice !== null && modalRefNightlyPrice !== undefined && selectedApartment) { // Aggiunto selectedApartment check
                                        if (selectedApartment.priceType === 'per_person') {
                                            const perPersonModal = guestsForModalFallback > 0 ? modalRefNightlyPrice / guestsForModalFallback : modalRefNightlyPrice;
                                            return <p>€{perPersonModal.toFixed(2)} per persona per notte (dinamico, per {guestsForModalFallback} ospiti)</p>;
                                        } else {
                                            return <p>€{modalRefNightlyPrice.toFixed(2)} per notte (dinamico, per {guestsForModalFallback} ospiti)</p>;
                                        }
-                                    } else if (selectedApartment.calculatedPriceForStay !== null && typeof selectedApartment.nights === 'number' && selectedApartment.nights > 0) {
+                                    } else if (selectedApartment && selectedApartment.calculatedPriceForStay !== null && typeof selectedApartment.nights === 'number' && selectedApartment.nights > 0) { // Aggiunto selectedApartment check
                                        const averagePricePerNightForModal = selectedApartment.calculatedPriceForStay / selectedApartment.nights;
                                         if (selectedApartment.priceType === 'per_person') {
                                             const perPersonModalAvg = guestsForModalFallback > 0 ? averagePricePerNightForModal / guestsForModalFallback : selectedApartment.price;
@@ -1016,23 +1032,30 @@ export default function BookingPage() {
                                 .filter((apt: DistributedApartment) => apt.effectiveGuests > 0)
                                 .map((apt: DistributedApartment) => {
                                   let groupAptTotalModal = 0;
-                                  const isLoadingGroupAptModalPrice = referencePriceLoading[apt._id];
+                                  // const isLoadingGroupAptModalPrice = referencePriceLoading[apt._id]; // Vecchia riga
+
+                                  const groupAptId = typeof apt._id === 'string' && apt._id ? apt._id : null;
+                                  let isLoadingGroupAptModalPrice = true; // Default a true se non possiamo caricare
+
+                                  if (groupAptId) {
+                                    isLoadingGroupAptModalPrice = referencePriceLoading[groupAptId];
+                                  }
 
                                   if (apt.calculatedPriceForStay !== null && apt.calculatedPriceForStay !== undefined) {
                                     groupAptTotalModal = apt.calculatedPriceForStay;
-                                  } else if (referenceNightlyPrices[apt._id] !== null && referenceNightlyPrices[apt._id] !== undefined && apt.nights > 0) {
-                                    groupAptTotalModal = referenceNightlyPrices[apt._id]! * apt.nights;
+                                  } else if (groupAptId && referenceNightlyPrices[groupAptId] !== null && referenceNightlyPrices[groupAptId] !== undefined && apt.nights > 0) {
+                                    groupAptTotalModal = referenceNightlyPrices[groupAptId]! * apt.nights; // Aggiunto ! perché l'abbiamo controllato
                                     console.warn(`Approximated total price for ${apt.name} in group modal using reference nightly price.`);
                                   }
 
                                   return (
-                                    <div key={apt._id} className="border-b border-gray-200 pb-2 mb-2">
+                                    <div key={groupAptId || Math.random()} className="border-b border-gray-200 pb-2 mb-2"> {/* Fallback key se groupAptId è null */}
                                       <p className="font-medium">{apt.name}</p>
                                       <div className="flex justify-between items-center text-sm text-gray-600">
                                         <span>{apt.effectiveGuests} ospiti (max {apt.maxGuests})</span>
                                         <span>
                                           {isLoadingGroupAptModalPrice ? "Calcolo..." : `€${groupAptTotalModal.toFixed(2)}`}
-                                          {groupAptTotalModal === 0 && apt.calculatedPriceForStay === null && !isLoadingGroupAptModalPrice && <span className="text-xs text-red-500"> (non calcolabile)</span>}
+                                          {groupAptTotalModal === 0 && apt.calculatedPriceForStay === null && !isLoadingGroupAptModalPrice && (!groupAptId || referenceNightlyPrices[groupAptId] === null) && <span className="text-xs text-red-500"> (non calcolabile)</span>}
                                         </span>
                                       </div>
                                     </div>
@@ -1043,10 +1066,11 @@ export default function BookingPage() {
                                 <span>
                                   €{calculateGroupTotalPrice(groupBookingSelection.map(item => item as ApartmentWithCalculatedPrice)).toFixed(2)}
                                   { groupBookingSelection.some(gbs => {
+                                      const idToCheck = typeof gbs._id === 'string' && gbs._id ? gbs._id : null;
                                       const isPriceMissing = gbs.calculatedPriceForStay === null || gbs.calculatedPriceForStay === undefined;
-                                      const isRefPriceMissing = referenceNightlyPrices[gbs._id] === null || referenceNightlyPrices[gbs._id] === undefined;
+                                      const isRefPriceMissing = idToCheck ? (referenceNightlyPrices[idToCheck] === null || referenceNightlyPrices[idToCheck] === undefined) : true; // Se ID non valido, considera ref price mancante
                                       return isPriceMissing && isRefPriceMissing;
-                                    }) && <span className="text-xs text-red-500"> (alcuni prezzi mancanti)</span> }
+                                    }) && <span className="text-xs text-red-500"> (alcuni prezzi mancanti o ID non validi)</span> }
                                 </span>
                               </div>
                             </div>
