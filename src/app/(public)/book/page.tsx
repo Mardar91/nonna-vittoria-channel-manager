@@ -540,7 +540,7 @@ export default function BookingPage() {
     backgroundColor: profile.primaryColor || '#2563eb',
   };
   
-  return (
+  return ( // Ensure this is the main return for the component's primary JSX
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Header */}
       <header className="py-4 px-4 sm:px-6 lg:px-8 text-white" style={headerStyle}>
@@ -1216,5 +1216,5 @@ export default function BookingPage() {
         </Dialog>
       </Transition.Root>
     </div>
-  );
+  ); // Corresponding closing parenthesis for the main return
 }
