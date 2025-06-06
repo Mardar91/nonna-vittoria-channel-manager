@@ -315,13 +315,20 @@ export default function BookingPage() {
       if (apt.calculatedPriceForStay !== null && apt.calculatedPriceForStay !== undefined) {
         return total + apt.calculatedPriceForStay;
       }
+
       // Fallback using reference nightly price if total stay price is missing
-      const nightlyRefPrice = referenceNightlyPrices[apt._id];
+      let nightlyRefPrice = null; // Inizializza a null
+      if (typeof apt._id === 'string' && apt._id) { // <-- CONTROLLO AGGIUNTO QUI
+        nightlyRefPrice = referenceNightlyPrices[apt._id];
+      } else {
+        console.warn(`Apartment con ID non valido (${apt._id}) skipped in calculateGroupTotalPrice fallback.`);
+      }
+
       if (nightlyRefPrice !== null && nightlyRefPrice !== undefined && apt.nights > 0) {
         console.warn(`Approximated price for ${apt.name} in group calculation using reference nightly price. Effective guests: ${apt.effectiveGuests}, Reference guests: ${search.adults + search.children}`);
         return total + (nightlyRefPrice * apt.nights);
       }
-      console.warn(`Missing calculatedPriceForStay and reference price for ${apt.name} in group total. Price will be inaccurate for this item.`);
+      console.warn(`Missing calculatedPriceForStay and valid reference price for ${apt.name} (${apt._id}) in group total. Price will be inaccurate for this item.`);
       return total;
     }, 0);
   };
