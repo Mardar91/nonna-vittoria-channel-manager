@@ -42,6 +42,7 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedApartmentId = searchParams.get('apartmentId');
+  const preselectedCheckInDateString = searchParams.get('checkIn'); // AGGIUNGERE QUESTA RIGA
 
   // Source options - base
   const baseSourceOptions = [
@@ -151,30 +152,77 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
       }));
     } else if (!isEdit) {
       // New booking: apply defaults including times
-      const initialDate = new Date(); 
-      const tomorrowDate = new Date(initialDate);
-      tomorrowDate.setDate(initialDate.getDate() + 1);
+      let initialCheckInDate = new Date(); // Default a oggi
+      let initialCheckOutDate = new Date(initialCheckInDate);
+      initialCheckOutDate.setDate(initialCheckInDate.getDate() + 1); // Default a domani
+
+      // Logica per usare la data dalla URL se presente
+      if (preselectedCheckInDateString) {
+        // const parsedDate = new Date(preselectedCheckInDateString); // VECCHIA LOGICA
+
+        // NUOVA LOGICA: Splitta la stringa YYYY-MM-DD e crea la data come locale
+        const parts = preselectedCheckInDateString.split('-');
+        let parsedDate = new Date(initialCheckInDate); // Default a initialCheckInDate in caso di parti non valide
+
+        if (parts.length === 3) {
+          const year = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10); // Mese è 1-12
+          const day = parseInt(parts[2], 10);
+
+          // Controlla se i componenti della data sono numeri validi
+          if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+            // new Date(year, monthIndex, day) - monthIndex è 0-11
+            parsedDate = new Date(year, month - 1, day);
+          } else {
+            console.warn('Invalid date components from preselectedCheckInDateString:', preselectedCheckInDateString);
+            // parsedDate rimane initialCheckInDate (oggi)
+          }
+        } else {
+          console.warn('Invalid date format from preselectedCheckInDateString, expected YYYY-MM-DD:', preselectedCheckInDateString);
+          // parsedDate rimane initialCheckInDate (oggi)
+        }
+
+        // Verifica se la data parsata è valida.
+        if (!isNaN(parsedDate.getTime())) {
+          initialCheckInDate = parsedDate;
+
+          let minStay = 1;
+          if (preselectedApartmentId) {
+            const tempSelectedApartment = apartments.find(a => a._id === preselectedApartmentId);
+            if (tempSelectedApartment && tempSelectedApartment.minStay) {
+              minStay = tempSelectedApartment.minStay;
+            }
+          }
+
+          initialCheckOutDate = new Date(initialCheckInDate);
+          initialCheckOutDate.setDate(initialCheckInDate.getDate() + minStay);
+        } else {
+          // Questo else potrebbe non essere più raggiunto se parsedDate è sempre inizializzata validamente
+          // o se il parsing fallito la lascia come 'oggi'.
+          console.warn('Invalid check-in date received from URL (getTime is NaN), defaulting to today:', preselectedCheckInDateString);
+        }
+      }
 
       setFormData(prev => ({
-        ...prev, // Keeps preselectedApartmentId if set
+        ...prev,
         guestName: '',
         guestEmail: '',
         guestPhone: '',
-        checkIn: applyTime(initialDate, defaultCheckInTime),
-        checkOut: applyTime(tomorrowDate, defaultCheckOutTime),
+        checkIn: applyTime(initialCheckInDate, defaultCheckInTime),
+        checkOut: applyTime(initialCheckOutDate, defaultCheckOutTime),
         numberOfGuests: 1,
         status: 'pending',
         paymentStatus: 'pending',
         source: 'direct',
         notes: '',
         manualTotalPrice: undefined,
-        totalPrice: 0, // Will be recalculated by the other useEffect
+        totalPrice: 0, // Sarà ricalcolato dall'altro useEffect
         apartmentId: preselectedApartmentId || prev.apartmentId || '',
       }));
       setDisplaySourceOptions(baseSourceOptions);
       setIsIcalBookingEditMode(false);
     }
-  }, [booking, isEdit, defaultCheckInTime, defaultCheckOutTime, preselectedApartmentId]); // Added dependencies
+  }, [booking, isEdit, defaultCheckInTime, defaultCheckOutTime, preselectedApartmentId, preselectedCheckInDateString, apartments]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
