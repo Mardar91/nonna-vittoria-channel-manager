@@ -539,7 +539,7 @@ export default function BookingPage() {
   const primaryButtonStyle = {
     backgroundColor: profile.primaryColor || '#2563eb',
   };
-  
+
   return ( // Ensure this is the main return for the component's primary JSX
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Header */}
@@ -554,7 +554,6 @@ export default function BookingPage() {
         </div>
       </header>
       
-      {/* Contenuto principale */}
       <main className="flex-grow py-6 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Descrizione */}
@@ -810,7 +809,8 @@ export default function BookingPage() {
                                             // Prezzo totale per questo appartamento nella combinazione
                                             const totalPriceForApartment = (apt.calculatedPriceForStay !== null && apt.calculatedPriceForStay !== undefined)
                                               ? apt.calculatedPriceForStay
-                                              : calculateBasePriceLogic(apt, apt.effectiveGuests, apt.nights); // Fallback
+                                              //: calculateBasePriceLogic(apt, apt.effectiveGuests, apt.nights); // Fallback
+                                              : 0; // MODIFIED: Removed calculateBasePriceLogic
 
                                             return (
                                               <>
@@ -871,7 +871,6 @@ export default function BookingPage() {
         </div>
       </main>
       
-{/* Footer */}
       <footer className="py-4 px-4 sm:px-6 lg:px-8 bg-gray-800 text-white">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
@@ -901,8 +900,7 @@ export default function BookingPage() {
           )}
         </div>
       </footer>
-      
-      {/* Modal di prenotazione */}
+
       <Transition.Root show={isBookingModalOpen} as={Fragment}>
         <Dialog as="div" className="relative z-10" onClose={setIsBookingModalOpen}>
           <Transition.Child
@@ -993,13 +991,13 @@ export default function BookingPage() {
                                     // Per ora, replichiamo la vecchia logica di fallback basata su selectedApartment.price
                                     // ma aggiungendo il numero di ospiti.
                                     const guestsForModalFallback = search.adults + search.children;
-                                    if (selectedApartment.priceType === 'per_person') {
-                                      return <p>€{selectedApartment.price.toFixed(2)} per persona per notte, per {guestsForModalFallback} persone</p>;
-                                    } else {
-                                      // Per questo fallback, non abbiamo un prezzo calcolato per notte per gli ospiti esatti,
-                                      // quindi mostriamo il prezzo base dell'appartamento e il numero di ospiti.
+                                    // if (selectedApartment.priceType === 'per_person') { // Orphaned else removed here in previous step. This logic is now the final else.
+                                    //   return <p>€{selectedApartment.price.toFixed(2)} per persona per notte, per {guestsForModalFallback} persone</p>;
+                                    // } else {
+                                    // Per questo fallback, non abbiamo un prezzo calcolato per notte per gli ospiti esatti,
+                                    // quindi mostriamo il prezzo base dell'appartamento e il numero di ospiti.
                                     // Fallback in modal:
-                                    const guestsForModalFallback = search.adults + search.children;
+                                    // const guestsForModalFallback = search.adults + search.children; // Already defined
                                     // Ensure selectedApartment is not null before accessing its _id
                                     const modalRefNightlyPrice = selectedApartment ? referenceNightlyPrices[selectedApartment._id] : null;
                                     const isLoadingModalPrice = selectedApartment ? referencePriceLoading[selectedApartment._id] : false;
@@ -1029,8 +1027,7 @@ export default function BookingPage() {
                                       // Absolute fallback if no price info is available
                                       return <p>Dettaglio prezzo per notte non disponibile.</p>;
                                     }
-                                  } else { // Should not happen if selectedApartment is defined and from results
-                                    return <p>Informazioni sull'appartamento non disponibili.</p>; // Or some other placeholder
+                                  // } // This was the end of the orphaned else
                                   }
                                 })()}
                               </div>
@@ -1218,3 +1215,5 @@ export default function BookingPage() {
     </div>
   ); // Corresponding closing parenthesis for the main return
 }
+
+[end of src/app/(public)/book/page.tsx]
