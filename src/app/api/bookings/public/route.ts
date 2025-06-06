@@ -4,7 +4,7 @@ import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import PublicProfileModel from '@/models/PublicProfile';
 import { checkAvailability } from '@/lib/ical';
-import { calculateTotalPrice } from '@/lib/utils'; // This might be kept if other parts use it, or removed if not.
+// import { calculateTotalPrice } from '@/lib/utils'; // Removed as calculateDynamicPriceForStay is used
 import { calculateDynamicPriceForStay } from '@/lib/pricing';
 import { createNotification, createBookingNotifications } from '@/lib/notifications';
 
@@ -100,14 +100,19 @@ export async function POST(req: NextRequest) {
       let authoritativeTotalPrice;
       try {
           authoritativeTotalPrice = await calculateDynamicPriceForStay(
-              apartmentId, // or apartment._id.toString()
-              startDate,   // Date object
-              endDate,     // Date object
+              apartmentId,
+              startDate,
+              endDate,
               effectiveGuests
           );
       } catch (priceError) {
           console.error(`Error calculating dynamic price for booking (apartment ${apartmentId}):`, priceError);
-          return NextResponse.json({ error: 'Error calculating price for booking.' }, { status: 500 });
+          return NextResponse.json({ error: 'Errore nel calcolo del prezzo per la prenotazione.' }, { status: 500 });
+      }
+
+      // Logga una discrepanza se il prezzo del client è diverso da quello calcolato dal server
+      if (data.totalPrice !== undefined && parseFloat(data.totalPrice) !== authoritativeTotalPrice) {
+        console.warn(`[Public Booking API] Discrepanza di prezzo per prenotazione singola (Appartamento ID: ${apartmentId}). Prezzo client: ${data.totalPrice}, Prezzo server: ${authoritativeTotalPrice}. Verrà utilizzato il prezzo del server.`);
       }
       
       // Crea la prenotazione con stato 'inquiry'
@@ -159,7 +164,7 @@ export async function POST(req: NextRequest) {
       
       // Verifica la disponibilità per tutti gli appartamenti del gruppo
       const bookingsToCreate = [];
-      let totalGroupPrice = 0;
+      let serverCalculatedTotalGroupPrice = 0;
       
       // Nuova logica: ora groupApartments contiene oggetti con apartmentId e numberOfGuests
       for (const groupItem of groupApartments) {
@@ -213,10 +218,10 @@ export async function POST(req: NextRequest) {
             );
         } catch (priceError) {
             console.error(`Error calculating dynamic price for group booking (apartment ${groupItem.apartmentId}):`, priceError);
-            return NextResponse.json({ error: `Error calculating price for apartment ${apartment.name} in group.` }, { status: 500 });
+            return NextResponse.json({ error: `Errore nel calcolo del prezzo per l'appartamento ${apartment.name} nel gruppo.` }, { status: 500 });
         }
 
-        totalGroupPrice += singleApartmentPriceInGroup;
+        serverCalculatedTotalGroupPrice += singleApartmentPriceInGroup;
         
         // Prepara la prenotazione da creare con stato 'inquiry'
         bookingsToCreate.push({
@@ -248,10 +253,15 @@ export async function POST(req: NextRequest) {
       // Crea le notifiche per tutte le prenotazioni del gruppo
       await createBookingNotifications(createdBookings, true); // true = è una inquiry
       
+      // Logga una discrepanza se il prezzo totale del gruppo del client è diverso da quello calcolato dal server
+      if (data.totalPrice !== undefined && parseFloat(data.totalPrice) !== serverCalculatedTotalGroupPrice) {
+        console.warn(`[Public Booking API] Discrepanza di prezzo per prenotazione di gruppo. Prezzo totale client: ${data.totalPrice}, Prezzo totale server: ${serverCalculatedTotalGroupPrice}. Verranno utilizzati i prezzi individuali calcolati dal server.`);
+      }
+
       return NextResponse.json({
         success: true,
         bookings: createdBookings,
-        totalPrice: totalGroupPrice
+        totalPrice: serverCalculatedTotalGroupPrice // Restituisce il prezzo totale calcolato dal server
       }, { status: 201 });
     }
     

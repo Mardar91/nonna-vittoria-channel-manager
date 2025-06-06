@@ -7,7 +7,7 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import { calculateTotalPrice } from '@/lib/utils';
+import { calculateDynamicPriceForStay } from '@/lib/pricing';
 
 interface BookingFormModalProps {
   isOpen: boolean;
@@ -67,21 +67,30 @@ export default function BookingFormModal({
   // This useEffect will now primarily react to formData.checkIn, formData.checkOut, and formData.numberOfGuests
   // The initialization of checkIn and checkOut with default times is handled in the next useEffect.
   useEffect(() => {
-    if (formData.checkIn && formData.checkOut) {
-      const nights = Math.ceil((formData.checkOut.getTime() - formData.checkIn.getTime()) / (1000 * 60 * 60 * 24));
-      if (nights >= 0) { // Ensure nights is not negative
-        const totalPrice = calculateTotalPrice(
-          apartmentData,
-          formData.numberOfGuests,
-          nights
-        );
-        setFormData(prev => ({ ...prev, totalPrice }));
-      } else {
-        // Handle invalid date range if necessary, though minDate should prevent this
-        setFormData(prev => ({ ...prev, totalPrice: 0 }));
+    const calculatePrice = async () => {
+      if (formData.checkIn && formData.checkOut && formData.numberOfGuests !== undefined && apartmentId) {
+        try {
+          const checkInDate = new Date(formData.checkIn);
+          const checkOutDate = new Date(formData.checkOut);
+
+          const dynamicPrice = await calculateDynamicPriceForStay(
+            apartmentId, // Use apartmentId from props
+            checkInDate,
+            checkOutDate,
+            formData.numberOfGuests
+          );
+
+          setFormData(prev => ({ ...prev, totalPrice: dynamicPrice }));
+        } catch (error) {
+          console.error("Error calculating dynamic price in modal:", error);
+          toast.error("Errore nel calcolo del prezzo. Si prega di riprovare.");
+          setFormData(prev => ({ ...prev, totalPrice: 0 })); // Fallback price
+        }
       }
-    }
-  }, [formData.checkIn, formData.checkOut, formData.numberOfGuests, apartmentData]);
+    };
+
+    calculatePrice();
+  }, [formData.checkIn, formData.checkOut, formData.numberOfGuests, apartmentId]);
 
   // useEffect to initialize checkIn and checkOut dates with default times when modal opens or relevant props change
   useEffect(() => {

@@ -7,7 +7,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import toast from 'react-hot-toast';
 import { IBooking } from '@/models/Booking';
 import { IApartment } from '@/models/Apartment';
-import { calculateTotalPrice } from '@/lib/utils';
+import { calculateDynamicPriceForStay } from '@/lib/pricing';
 
 interface BookingFormProps {
   booking?: IBooking;
@@ -81,26 +81,31 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
   useEffect(() => {
     if (isIcalBookingEditMode) return; // Skip auto-calculation for iCal edits
 
-    if (formData.apartmentId && formData.checkIn && formData.checkOut && formData.numberOfGuests !== undefined) {
-      const apartment = apartments.find(a => a._id === formData.apartmentId);
-      
-      if (apartment) {
-        const checkIn = new Date(formData.checkIn);
-        const checkOut = new Date(formData.checkOut);
-        const nights = Math.max(0, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
-        // If nights is 0 (same day checkin/checkout), price should be for 1 night or based on specific logic not detailed here.
-        // For now, calculateTotalPrice should handle 0 nights if that's intended.
-        
-        const totalPrice = calculateTotalPrice(
-          apartment, 
-          formData.numberOfGuests, 
-          nights > 0 ? nights : 1 // Assuming a 0-night stay (same day) is priced as 1 night
-        );
-        
-        setFormData(prev => ({ ...prev, totalPrice }));
+    const calculatePrice = async () => {
+      if (formData.apartmentId && formData.checkIn && formData.checkOut && formData.numberOfGuests !== undefined) {
+        try {
+          const checkInDate = new Date(formData.checkIn);
+          const checkOutDate = new Date(formData.checkOut);
+
+          const dynamicPrice = await calculateDynamicPriceForStay(
+            formData.apartmentId,
+            checkInDate,
+            checkOutDate,
+            formData.numberOfGuests
+          );
+
+          setFormData(prev => ({ ...prev, totalPrice: dynamicPrice }));
+        } catch (error) {
+          console.error("Error calculating dynamic price:", error);
+          toast.error("Errore nel calcolo del prezzo. Si prega di riprovare.");
+          // Optionally set a fallback price or handle UI indication of error
+          setFormData(prev => ({ ...prev, totalPrice: 0 })); // Fallback price
+        }
       }
-    }
-  }, [formData.apartmentId, formData.checkIn, formData.checkOut, formData.numberOfGuests, apartments, isIcalBookingEditMode]);
+    };
+
+    calculatePrice();
+  }, [formData.apartmentId, formData.checkIn, formData.checkOut, formData.numberOfGuests, isIcalBookingEditMode]);
 
   useEffect(() => {
     const fetchSettings = async () => {

@@ -2,6 +2,12 @@ export function cn(...classes: (string | undefined)[]) {
   return classes.filter(Boolean).join(' ');
 }
 
+// DEPRECATED for direct booking price calculation.
+// This function calculates a price based on base rates and guest adjustments
+// but does NOT consider DailyRates or SeasonalPrices.
+// It is currently used internally by `calculateDynamicPriceForStay` (in src/lib/pricing.ts)
+// as part of its comprehensive pricing logic.
+// For final booking price calculations, ALWAYS use `calculateDynamicPriceForStay`.
 export function calculateTotalPrice(
   apartment: {
     price: number;

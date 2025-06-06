@@ -4,7 +4,7 @@ import connectDB from '@/lib/db';
 import BookingModel from '@/models/Booking';
 import ApartmentModel from '@/models/Apartment';
 import { checkAvailability, syncCalendarsForApartment } from '@/lib/ical';
-import { calculateTotalPrice } from '@/lib/utils';
+import { calculateDynamicPriceForStay } from '@/lib/pricing';
 
 // GET: Ottenere tutte le prenotazioni
 export async function GET(req: NextRequest) {
@@ -118,22 +118,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Calcola il prezzo totale corretto se non specificato o per verificare quello fornito
-    const checkIn = new Date(data.checkIn);
-    const checkOut = new Date(data.checkOut);
-    const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+    // Calcola il prezzo totale corretto lato server
+    let serverCalculatedPrice;
+    try {
+      serverCalculatedPrice = await calculateDynamicPriceForStay(
+        data.apartmentId,
+        new Date(data.checkIn),
+        new Date(data.checkOut),
+        data.numberOfGuests
+      );
+    } catch (priceError: any) {
+      console.error('Error calculating dynamic price during booking creation:', priceError);
+      return NextResponse.json(
+        { error: `Failed to calculate price: ${priceError.message || 'Unknown pricing error'}` },
+        { status: 500 }
+      );
+    }
 
-    // Calcola il prezzo totale in base al numero di ospiti
-    const totalPrice = calculateTotalPrice(
-      apartment,
-      data.numberOfGuests,
-      nights
-    );
+    // Log se il prezzo fornito dal client differisce da quello calcolato dal server
+    if (data.totalPrice !== undefined && data.totalPrice !== serverCalculatedPrice) {
+      console.warn(`Client totalPrice (${data.totalPrice}) differs from server-calculated price (${serverCalculatedPrice}) for apartment ${data.apartmentId}. Using server price.`);
+    }
 
-    // Usa il prezzo totale calcolato o quello fornito dal client (se differente)
+    // Usa sempre il prezzo calcolato dal server come autorevole
     const finalBookingData = {
       ...data,
-      totalPrice: data.totalPrice || totalPrice
+      totalPrice: serverCalculatedPrice
     };
     
     // Creare la prenotazione
