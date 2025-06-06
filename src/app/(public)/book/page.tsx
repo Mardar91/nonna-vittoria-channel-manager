@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { IPublicProfile } from '@/models/PublicProfile';
 import { IApartment } from '@/models/Apartment';
-import { calculateDynamicPriceForStay } from '@/lib/pricing';
+// import { calculateDynamicPriceForStay } from '@/lib/pricing'; // RIMOSSO
 
 interface SearchState {
   checkIn: Date;
@@ -239,69 +239,91 @@ export default function BookingPage() {
   }, [search.adults, search.children, executeSearch]); // Add executeSearch as a dependency
   
   useEffect(() => {
+    const fetchReferencePrices = async () => {
+      if (!results?.availableApartments) return;
+
+      // Imposta lo stato di caricamento per tutti gli appartamenti coinvolti
+      setReferencePriceLoading(prevLoading => {
+        const newLoadingState = { ...prevLoading };
+        results.availableApartments.forEach(apt => {
+          if (apt._id && typeof apt._id === 'string') {
+            newLoadingState[apt._id] = true;
+          }
+        });
+        return newLoadingState;
+      });
+
+      const pricePromises = results.availableApartments.map(async (apartment) => {
+        if (typeof apartment._id !== 'string' || !apartment._id) {
+          console.warn(`Apartment con ID non valido (${apartment._id}) skipped in fetchReferencePrices.`);
+          return { id: apartment._id || `invalid-${Math.random()}`, price: null };
+        }
+
+        try {
+          const refCheckIn = new Date(search.checkIn);
+          const refCheckOut = new Date(refCheckIn); // Per il prezzo di riferimento, spesso si calcola per una notte
+          refCheckOut.setDate(refCheckIn.getDate() + 1);
+
+          const effectiveGuestsInSearch = search.adults + search.children;
+          const guestsForCalc = Math.min(effectiveGuestsInSearch, apartment.maxGuests);
+
+          const response = await fetch('/api/calculate-price', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              apartmentId: apartment._id,
+              checkInDate: refCheckIn.toISOString(),
+              checkOutDate: refCheckOut.toISOString(),
+              numGuests: guestsForCalc,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `API error for ${apartment._id}`);
+          }
+
+          const data = await response.json();
+          return { id: apartment._id, price: data.totalPrice };
+
+        } catch (error) {
+          console.error(`Error fetching reference price via API for ${apartment.name} (${apartment._id}):`, error);
+          return { id: apartment._id, price: null }; // Restituisci null in caso di errore per questo specifico appartamento
+        }
+      });
+
+      const settledPrices = await Promise.all(pricePromises);
+
+      setReferenceNightlyPrices(prevPrices => {
+        const newPrices = { ...prevPrices };
+        settledPrices.forEach(p => {
+          if (p && typeof p.id === 'string') { // Assicurati che p e p.id siano validi
+            newPrices[p.id] = p.price;
+          }
+        });
+        return newPrices;
+      });
+
+      // Resetta lo stato di caricamento per tutti gli appartamenti coinvolti
+      setReferencePriceLoading(prevLoading => {
+        const newLoadingState = { ...prevLoading };
+        results.availableApartments.forEach(apt => {
+          if (apt._id && typeof apt._id === 'string') {
+            newLoadingState[apt._id] = false;
+          }
+        });
+        return newLoadingState;
+      });
+    };
+
     if (results?.availableApartments && results.availableApartments.length > 0) {
-      const fetchReferencePrices = async () => {
-        setReferencePriceLoading(prev => {
-          const newLoading: Record<string, boolean> = {};
-          results.availableApartments.forEach(apt => {
-            if (apt._id) { // <-- CONTROLLO AGGIUNTO QUI
-              if (prev[apt._id] !== true) newLoading[apt._id] = true;
-            }
-          });
-          return {...prev, ...newLoading};
-        });
-
-        const pricePromises = results.availableApartments.map(async (apartment) => {
-          if (typeof apartment._id !== 'string' || !apartment._id) { // <-- CONTROLLO ROBUSTO AGGIUNTO
-            console.warn(`Apartment con ID non valido (${apartment._id}) skipped in fetchReferencePrices.`);
-            return { id: apartment._id || `invalid-${Math.random()}`, price: null }; // Restituisci null se l'ID non è valido
-          }
-          try {
-            const refCheckIn = new Date(search.checkIn);
-            const refCheckOut = new Date(refCheckIn);
-            refCheckOut.setDate(refCheckIn.getDate() + 1); // For one night
-
-            const effectiveGuestsInSearch = search.adults + search.children;
-            const guestsForCalc = Math.min(effectiveGuestsInSearch, apartment.maxGuests);
-
-            const price = await calculateDynamicPriceForStay(
-              apartment._id, // Ora sappiamo che è una stringa valida
-              refCheckIn,
-              refCheckOut,
-              guestsForCalc
-            );
-            return { id: apartment._id, price };
-          } catch (error) {
-            console.error(`Error fetching reference price for ${apartment.name} (${apartment._id}):`, error);
-            return { id: apartment._id, price: null };
-          }
-        });
-
-        const settledPrices = (await Promise.all(pricePromises)).filter(p => p !== null); // Filtra eventuali null se abbiamo saltato un calcolo
-
-        setReferenceNightlyPrices(prev => {
-          const newPrices = {...prev};
-          settledPrices.forEach(p => {
-            if (p.id) { // <-- CONTROLLO AGGIUNTO QUI (p.id è apt._id)
-              newPrices[p.id] = p.price;
-            }
-          });
-          return newPrices;
-        });
-
-        setReferencePriceLoading(prev => {
-          const newLoading: Record<string, boolean> = {};
-          results.availableApartments.forEach(apt => {
-            if (apt._id) { // <-- CONTROLLO AGGIUNTO QUI
-              newLoading[apt._id] = false;
-            }
-          });
-          return {...prev, ...newLoading};
-        });
-      };
       fetchReferencePrices();
+    } else {
+      // Se non ci sono appartamenti, svuota i prezzi e gli stati di caricamento
+      setReferenceNightlyPrices({});
+      setReferencePriceLoading({});
     }
-  }, [results?.availableApartments, search.checkIn, search.adults, search.children]); // Added search.adults, search.children
+  }, [results?.availableApartments, search.checkIn, search.adults, search.children]);
   
   // Calcola il prezzo totale per prenotazione di gruppo
   const calculateGroupTotalPrice = (combination: ApartmentWithCalculatedPrice[]): number => {
@@ -400,23 +422,25 @@ export default function BookingPage() {
           return;
         }
 
-        const effectiveGuests = Math.min(search.adults + search.children, selectedApartment.maxGuests);
-        try {
-          finalPrice = await calculateDynamicPriceForStay(
-            selectedApartment._id, // Ora sappiamo che è una stringa valida
-            new Date(search.checkIn),
-            new Date(search.checkOut),
-            effectiveGuests
-          );
-        } catch (priceError) {
-          console.error("Error calculating final price for single booking:", priceError);
-          toast.error("Impossibile confermare il prezzo finale. Riprova o contatta l'assistenza.");
+        // AGGIUNGI QUESTO CONTROLLO
+        if (typeof selectedApartment._id !== 'string' || !selectedApartment._id) {
+          console.error("ID dell'appartamento selezionato non valido:", selectedApartment);
+          toast.error("Errore: ID appartamento non valido. Impossibile procedere.");
           setProcessingBooking(false);
           return;
         }
+        // VERIFICA CHE calculatedPriceForStay ESISTA E SIA UN NUMERO
+        if (typeof selectedApartment.calculatedPriceForStay !== 'number') {
+          console.error("Prezzo calcolato per l'appartamento selezionato non valido:", selectedApartment);
+          toast.error("Errore: prezzo non disponibile per l'appartamento. Impossibile procedere.");
+          setProcessingBooking(false);
+          return;
+        }
+
+        const effectiveGuests = Math.min(search.adults + search.children, selectedApartment.maxGuests);
         
         requestData = {
-          apartmentId: selectedApartment._id, // Usare l'ID valido
+          apartmentId: selectedApartment._id,
           checkIn: search.checkIn.toISOString(),
           checkOut: search.checkOut.toISOString(),
           guestName: bookingFormData.guestName,
@@ -424,49 +448,37 @@ export default function BookingPage() {
           guestPhone: bookingFormData.guestPhone,
           numberOfGuests: effectiveGuests,
           notes: bookingFormData.notes,
-          totalPrice: finalPrice,
+          totalPrice: selectedApartment.calculatedPriceForStay, // Prezzo dall'API availability
           isGroupBooking: false
         };
       } else if (groupBookingSelection) {
-        // ... (la logica per groupBookingSelection rimane simile,
-        // ma assicurati che anche qui gli apt._id siano controllati
-        // prima di essere usati, sebbene il problema specifico fosse per selectedApartment)
-        // La correzione precedente in calculateDynamicPriceForStay per i gruppi dovrebbe già gestire gli ID
-        // individuali degli appartamenti nel gruppo.
-        // Il subtask precedente aveva già migliorato i controlli per i gruppi qui.
-        // Per ora, concentriamoci sul fix di selectedApartment._id.
-        // La logica esistente per groupBookingSelection:
-        let groupTotalPrice = 0;
+        let calculatedGroupTotalPrice = 0;
         const groupApartmentsData = [];
 
         for (const apt of groupBookingSelection.filter(a => a.effectiveGuests > 0)) {
-          // CONTROLLO ANCHE QUI PER SICUREZZA, ANCHE SE GIÀ FATTO IN calculateDynamicPriceForStay
           if (typeof apt._id !== 'string' || !apt._id) {
             console.error("ID appartamento non valido nel gruppo:", apt);
             toast.error(`Errore: ID appartamento non valido per ${apt.name} nel gruppo.`);
             setProcessingBooking(false);
             return;
           }
-          try {
-            const apartmentPrice = await calculateDynamicPriceForStay(
-              apt._id, // ID valido
-              new Date(search.checkIn),
-              new Date(search.checkOut),
-              apt.effectiveGuests
-            );
-            groupTotalPrice += apartmentPrice;
-            groupApartmentsData.push({
-              apartmentId: apt._id, // ID valido
-              numberOfGuests: apt.effectiveGuests,
-            });
-          } catch (priceError) {
-            console.error(`Error calculating final price for apartment ${apt.name} in group booking:`, priceError);
-            toast.error(`Impossibile confermare il prezzo finale per ${apt.name}. Riprova o contatta l'assistenza.`);
+          // VERIFICA CHE calculatedPriceForStay ESISTA E SIA UN NUMERO
+          if (typeof apt.calculatedPriceForStay !== 'number') {
+            console.error(`Prezzo calcolato non valido per ${apt.name} nel gruppo:`, apt);
+            toast.error(`Errore: prezzo non disponibile per ${apt.name} nel gruppo.`);
             setProcessingBooking(false);
             return;
           }
+
+          calculatedGroupTotalPrice += apt.calculatedPriceForStay;
+          groupApartmentsData.push({
+            apartmentId: apt._id,
+            numberOfGuests: apt.effectiveGuests,
+            // Non inviamo più individualPrice dal client qui,
+            // il backend lo calcolerà per ogni singola prenotazione del gruppo.
+          });
         }
-        // ... resto della logica per groupBookingSelection ...
+
         requestData = {
           isGroupBooking: true,
           groupApartments: groupApartmentsData,
@@ -476,7 +488,7 @@ export default function BookingPage() {
           guestEmail: bookingFormData.guestEmail,
           guestPhone: bookingFormData.guestPhone,
           totalGuests: search.adults + search.children,
-          totalPrice: groupTotalPrice,
+          totalPrice: calculatedGroupTotalPrice, // Somma dei prezzi visti dall'utente
           notes: bookingFormData.notes
         };
       } else {
