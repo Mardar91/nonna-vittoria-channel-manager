@@ -315,22 +315,54 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
   // Funzione per ottenere il prezzo per una data specifica
   const getPriceForDate = (apartment: ApartmentWithBookings, date: Date): number => {
     try {
-      // Verifica se c'è una tariffa personalizzata
+      // Normalizza la data per il confronto (ignora l'ora)
+      const currentDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+      // 1. Verifica se c'è una tariffa giornaliera personalizzata (DailyRate)
       const customRate = apartment.rates.find(rate => {
         try {
           const rateDate = new Date(rate.date);
-          return rateDate.toDateString() === date.toDateString() && rate.price !== undefined;
+          const normalizedRateDate = new Date(rateDate.getFullYear(), rateDate.getMonth(), rateDate.getDate());
+          return normalizedRateDate.getTime() === currentDate.getTime() && rate.price !== undefined;
         } catch {
           return false;
         }
       });
-      
+
       if (customRate && customRate.price !== undefined) {
         return customRate.price;
       }
-      
-      // Altrimenti restituisci il prezzo base dell'appartamento
-      return apartment.data.price || 0;
+
+      // 2. Verifica se c'è un prezzo stagionale attivo
+      // Assicurati che apartment.data e apartment.data.seasonalPrices esistano
+      if (apartment.data && apartment.data.seasonalPrices && Array.isArray(apartment.data.seasonalPrices)) {
+        const activeSeason = apartment.data.seasonalPrices.find((season: any) => {
+          try {
+            // Controlla che season.startDate, season.endDate e season.price siano definiti
+            if (!season.startDate || !season.endDate || season.price === undefined) {
+              return false;
+            }
+            const startDate = new Date(season.startDate);
+            const endDate = new Date(season.endDate);
+            // Normalizza anche le date di inizio/fine stagione
+            const normalizedStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+            const normalizedEndDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+
+            return currentDate.getTime() >= normalizedStartDate.getTime() && currentDate.getTime() <= normalizedEndDate.getTime();
+          } catch {
+            // Se c'è un errore nel parsing delle date della stagione, considerala non attiva
+            return false;
+          }
+        });
+
+        if (activeSeason && activeSeason.price !== undefined) {
+          return activeSeason.price;
+        }
+      }
+
+      // 3. Altrimenti restituisci il prezzo base dell'appartamento
+      // Assicurati che apartment.data esista prima di accedere a apartment.data.price
+      return apartment.data?.price || 0;
     } catch (error) {
       console.error("Errore nel calcolare il prezzo per la data:", error);
       return 0;
