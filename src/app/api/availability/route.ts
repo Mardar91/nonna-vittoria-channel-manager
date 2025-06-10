@@ -58,10 +58,14 @@ async function checkApartmentAvailability(
     return { available: false };
   }
 
+  // Normalizza la data di checkIn a UTC mezzanotte per la query DailyRate del minStay
+  const normalizedCheckInDateForMinStayQuery = new Date(checkIn);
+  normalizedCheckInDateForMinStayQuery.setUTCHours(0, 0, 0, 0);
+
   // Verifica soggiorno minimo
   const minStayForCheckIn = await DailyRateModel.findOne({
     apartmentId,
-    date: checkIn
+    date: normalizedCheckInDateForMinStayQuery // Usa la data normalizzata qui
   });
 
   // Calcola le notti
