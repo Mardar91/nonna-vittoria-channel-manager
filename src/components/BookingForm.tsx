@@ -7,7 +7,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import toast from 'react-hot-toast';
 import { IBooking } from '@/models/Booking';
 import { IApartment } from '@/models/Apartment';
-import { calculateTotalPrice } from '@/lib/utils';
+// import { calculateDynamicPriceForStay } from '@/lib/pricing'; // Rimosso
 
 interface BookingFormProps {
   booking?: IBooking;
@@ -53,6 +53,7 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
   ];
   
   const [loading, setLoading] = useState(false);
+  const [priceLoading, setPriceLoading] = useState(false); // STATO AGGIUNTO
   const [isIcalBookingEditMode, setIsIcalBookingEditMode] = useState(false);
   const [displaySourceOptions, setDisplaySourceOptions] = useState(baseSourceOptions);
   const [defaultCheckInTime, setDefaultCheckInTime] = useState('15:00');
@@ -79,28 +80,64 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
 
   // Calcola il prezzo totale quando cambia l'appartamento, le date o il numero di ospiti
   useEffect(() => {
-    if (isIcalBookingEditMode) return; // Skip auto-calculation for iCal edits
+    if (isIcalBookingEditMode) return;
 
-    if (formData.apartmentId && formData.checkIn && formData.checkOut && formData.numberOfGuests !== undefined) {
-      const apartment = apartments.find(a => a._id === formData.apartmentId);
-      
-      if (apartment) {
-        const checkIn = new Date(formData.checkIn);
-        const checkOut = new Date(formData.checkOut);
-        const nights = Math.max(0, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
-        // If nights is 0 (same day checkin/checkout), price should be for 1 night or based on specific logic not detailed here.
-        // For now, calculateTotalPrice should handle 0 nights if that's intended.
-        
-        const totalPrice = calculateTotalPrice(
-          apartment, 
-          formData.numberOfGuests, 
-          nights > 0 ? nights : 1 // Assuming a 0-night stay (same day) is priced as 1 night
-        );
-        
-        setFormData(prev => ({ ...prev, totalPrice }));
+    const fetchPrice = async () => {
+      setPriceLoading(true);
+      try {
+        // Validazione dati prima della chiamata API
+        if (!formData.apartmentId || !formData.checkIn || !formData.checkOut ||
+            formData.numberOfGuests === undefined || formData.numberOfGuests <= 0 ||
+            !(formData.checkIn instanceof Date) || isNaN(new Date(formData.checkIn).getTime()) ||
+            !(formData.checkOut instanceof Date) || isNaN(new Date(formData.checkOut).getTime()) ||
+            new Date(formData.checkIn) >= new Date(formData.checkOut)
+           ) {
+          // console.warn("Dati non validi per il calcolo del prezzo, impostazione a 0.");
+          setFormData(prev => ({ ...prev, totalPrice: 0 }));
+          // Non mostrare toast per validazione fallita, l'utente sta ancora compilando
+          return;
+        }
+
+        const response = await fetch('/api/calculate-price', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            apartmentId: formData.apartmentId,
+            checkInDate: new Date(formData.checkIn).toISOString(),
+            checkOutDate: new Date(formData.checkOut).toISOString(),
+            numGuests: formData.numberOfGuests,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setFormData(prev => ({ ...prev, totalPrice: data.totalPrice }));
+        } else {
+          const errorData = await response.json();
+          console.error("Error fetching price from API:", errorData);
+          toast.error(errorData.error || "Errore nel calcolo del prezzo API.");
+          setFormData(prev => ({ ...prev, totalPrice: 0 })); // Fallback
+        }
+      } catch (error) {
+        console.error("Network error fetching price:", error);
+        toast.error("Errore di rete nel calcolo del prezzo.");
+        setFormData(prev => ({ ...prev, totalPrice: 0 })); // Fallback
+      } finally {
+        setPriceLoading(false);
       }
+    };
+
+    // Debounce o throttle potrebbero essere utili qui se l'utente cambia rapidamente i campi
+    // Per ora, chiamiamo direttamente. Considerare di aggiungere un piccolo delay se necessario.
+    if (formData.apartmentId && formData.checkIn && formData.checkOut && formData.numberOfGuests !== undefined) {
+      fetchPrice();
+    } else {
+      // Se i campi fondamentali non sono settati, resetta il prezzo a 0 senza chiamare l'API
+      setFormData(prev => ({ ...prev, totalPrice: 0 }));
     }
-  }, [formData.apartmentId, formData.checkIn, formData.checkOut, formData.numberOfGuests, apartments, isIcalBookingEditMode]);
+  }, [formData.apartmentId, formData.checkIn, formData.checkOut, formData.numberOfGuests, isIcalBookingEditMode]);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -683,10 +720,10 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
         </button>
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || priceLoading}
           className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
         >
-          {loading ? 'Salvataggio...' : isEdit ? 'Aggiorna' : 'Crea'}
+          {loading ? 'Salvataggio...' : priceLoading ? 'Calcolo Prezzo...' : (isEdit ? 'Aggiorna' : 'Crea')}
         </button>
       </div>
     </form>
