@@ -802,7 +802,7 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
         </div>
         <div className="flex items-center">
           <div className="w-4 h-4 bg-purple-100 border border-purple-300 mr-2"></div>
-          <span>Prezzo Personalizzato</span>
+          <span>Prezzo Stagionale</span>
         </div>
         <div className="flex items-center">
           <div className="w-4 h-4 bg-indigo-100 border border-indigo-300 mr-2"></div>
@@ -896,23 +896,50 @@ export default function MultiCalendarView({ apartments }: MultiCalendarViewProps
                     // Determina se questa è la prima cella di una prenotazione
                     const isFirstDayOfBooking = bookingInfo && bookingInfo.startIdx === dayIndex;
                     
+                    // Determina se un prezzo stagionale è la ragione del prezzo della cella
+                    let hasActiveDailyRate = false;
+                    const currentDateForComparison = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+                    const customRateForStyling = apartment.rates.find(rate => {
+                      try {
+                        const rateDate = new Date(rate.date);
+                        const normalizedRateDate = new Date(rateDate.getFullYear(), rateDate.getMonth(), rateDate.getDate());
+                        return normalizedRateDate.getTime() === currentDateForComparison.getTime() && rate.price !== undefined;
+                      } catch { return false; }
+                    });
+                    hasActiveDailyRate = !!customRateForStyling;
+
+                    let isSeasonalPriceApplicable = false;
+                    if (!hasActiveDailyRate && apartment.data && apartment.data.seasonalPrices && Array.isArray(apartment.data.seasonalPrices)) {
+                      const activeSeason = apartment.data.seasonalPrices.find((season: any) => {
+                        try {
+                          if (!season.startDate || !season.endDate || season.price === undefined) return false;
+                          const startDate = new Date(season.startDate);
+                          const endDate = new Date(season.endDate);
+                          const normalizedStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+                          const normalizedEndDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+                          return currentDateForComparison.getTime() >= normalizedStartDate.getTime() && currentDateForComparison.getTime() <= normalizedEndDate.getTime();
+                        } catch { return false; }
+                      });
+                      isSeasonalPriceApplicable = !!activeSeason;
+                    }
+
                     // Determina la classe della cella
                     let cellClass = "border border-gray-200 relative ";
                     
-                    // Diamo priorità alla trasparenza quando fa parte di una prenotazione
                     if (isSelected) {
-                      cellClass += "bg-indigo-100 ";
+                      cellClass += "bg-indigo-100 "; // Selezionato
                     } else if (bookingInfo) {
-                      // Se la cella fa parte di una prenotazione, usa bg-transparent
-                      cellClass += "bg-transparent ";
-                    } else if (isCurrentDay) {
-                      cellClass += "bg-blue-50 ";
-                    } else if (isPast) {
-                      cellClass += "bg-gray-100 ";
+                      cellClass += "bg-transparent "; // Parte di una prenotazione (lo sfondo sarà gestito dall'elemento booking sovrapposto)
                     } else if (isBlocked) {
-                      cellClass += "bg-red-50 ";
+                      cellClass += "bg-red-50 ";    // Bloccato
+                    } else if (isPast) {
+                      cellClass += "bg-gray-100 ";   // Passato
+                    } else if (isSeasonalPriceApplicable) { // Viene prima di 'isCurrentDay' o del default 'disponibile'
+                      cellClass += "bg-purple-100 "; // Prezzo Stagionale ATTIVO e NESSUNA tariffa giornaliera specifica
+                    } else if (isCurrentDay) { // Se è oggi e nessun'altra condizione speciale si applica (es. non stagionale)
+                      cellClass += "bg-blue-50 ";    // Oggi -> Disponibile standard
                     } else {
-                      cellClass += "bg-blue-50 ";
+                      cellClass += "bg-blue-50 ";    // Disponibile standard (include quelle con tariffe giornaliere specifiche non stagionali, o solo prezzo base)
                     }
                     
                     // ID del dropdown
