@@ -12,6 +12,7 @@ import {
   ViewColumnsIcon,
   GlobeAltIcon,
   ClipboardDocumentCheckIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { signOut } from 'next-auth/react';
 
@@ -43,6 +44,11 @@ const Sidebar = () => {
       name: 'Check-ins',
       href: '/checkins',
       icon: ClipboardDocumentCheckIcon,
+    },
+    {
+      name: 'Fatturazione',
+      href: '/invoices',
+      icon: DocumentTextIcon,
     },
     {
       name: 'Profilo Online',
