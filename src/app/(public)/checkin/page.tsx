@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react'; // Aggiunto useCallback qui
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image'; // Added import
-import Image from 'next/image'; // Added import
+import Image from 'next/image'; // Added import // <--- UNA SOLA IMPORTAZIONE QUI
 import { ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { IPublicProfile } from '@/models/PublicProfile';
@@ -46,11 +45,11 @@ export default function CheckInPage() {
     } finally {
       setLoading(false);
     }
-  }, [router, setProfile, setLoading]);
+  }, [router]); // Dipendenze per useCallback
 
   useEffect(() => {
     loadProfile();
-  }, [loadProfile]);
+  }, [loadProfile]); // Chiamata a loadProfile con la sua dipendenza
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
