@@ -23,7 +23,7 @@ import {
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import toast from 'react-hot-toast';
-import { InvoiceFilters, InvoiceStatistics, InvoiceStatus } from '@/types/invoice';
+import { InvoiceFilters, InvoiceStatistics, InvoiceStatus, PaymentStatus } from '@/types/invoice';
 
 interface Invoice {
   _id: string;
@@ -383,7 +383,7 @@ export default function InvoicesPage() {
                 <label className="block text-sm font-medium text-gray-700">Pagamento</label>
                 <select
                   value={filters.paymentStatus || ''}
-                  onChange={(e) => setFilters({ ...filters, paymentStatus: e.target.value || undefined })}
+                  onChange={(e) => setFilters({ ...filters, paymentStatus: (e.target.value as PaymentStatus) || undefined })}
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                 >
                   <option value="">Tutti</option>
