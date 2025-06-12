@@ -23,12 +23,12 @@ export async function GET(req: NextRequest) {
     // Ottieni tutti gli appartamenti già assegnati
     const assignedSettings = await InvoiceSettingsModel.find({}).select('apartmentIds').lean();
     const assignedApartmentIds = new Set(
-      assignedSettings.flatMap(s => s.apartmentIds.map(id => id.toString()))
+      assignedSettings.flatMap(s => s.apartmentIds.map((id: string) => id.toString()))
     );
 
     // Filtra gli appartamenti non assegnati
     const unassignedApartments = allApartments.filter(
-      apt => !assignedApartmentIds.has(apt._id.toString())
+      apt => !assignedApartmentIds.has((apt._id as { toString(): string }).toString())
     );
 
     return NextResponse.json({

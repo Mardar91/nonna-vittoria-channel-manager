@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
-import BookingModel from '@/models/Booking';
+import BookingModel, { IBooking } from '@/models/Booking'; // Import IBooking
 import InvoiceSettingsModel from '@/models/InvoiceSettings';
 import { generateInvoiceBatch, checkBookingsNeedingInvoice } from '@/lib/invoice-generator';
 import { GenerateInvoiceBatch } from '@/types/invoice';
+
+// Define an interface for the objects in bookingsWithSettings
+interface BookingWithSettings extends IBooking {
+  settingsGroup: {
+    _id: any; // Consider using mongoose.Types.ObjectId if available and appropriate
+    name: string;
+    groupId: string;
+  };
+}
 
 // POST: Genera ricevute in batch
 export async function POST(req: NextRequest) {
@@ -126,24 +135,32 @@ export async function GET(req: NextRequest) {
     }
     
     // Esegui la query
-    const bookings = await BookingModel
+    const bookingsQueryResult = await BookingModel
       .find(query)
+      .select('+totalPrice +invoiceSettings') // Explicitly select potentially missing fields
       .populate('apartmentId', 'name')
       .sort({ checkOut: -1 })
-      .lean();
+      .lean(); // Plain lean, result type is likely any[] or (Document & {_id: Types.ObjectId})[]
     
+    // Ensure bookingsQueryResult is treated as an array
+    const bookingsArray = Array.isArray(bookingsQueryResult) ? bookingsQueryResult : [];
+
     // Per ogni prenotazione, verifica se ha impostazioni di fatturazione configurate
-    const bookingsWithSettings = [];
-    const bookingsWithoutSettings = [];
+    const bookingsWithSettings: BookingWithSettings[] = []; // Explicitly type here
+    const bookingsWithoutSettings: IBooking[] = [];         // And here for consistency
     
-    for (const booking of bookings) {
+    for (const booking of bookingsArray) {
+      // Cast the individual 'booking' object (from plain lean()) to IBooking.
+      // Use 'as unknown as IBooking' if direct cast fails due to type mismatch.
+      const currentBooking = booking as unknown as IBooking;
       const settings = await InvoiceSettingsModel.findOne({
-        apartmentIds: booking.apartmentId
+        // apartmentId from lean booking might be ObjectId, ensure it's string for query
+        apartmentIds: typeof currentBooking.apartmentId === 'string' ? currentBooking.apartmentId : String(currentBooking.apartmentId)
       });
       
       if (settings) {
         bookingsWithSettings.push({
-          ...booking,
+          ...(currentBooking as any), // Spread as any to avoid intermediate type conflicts
           settingsGroup: {
             _id: settings._id,
             name: settings.name,
@@ -151,7 +168,7 @@ export async function GET(req: NextRequest) {
           }
         });
       } else {
-        bookingsWithoutSettings.push(booking);
+        bookingsWithoutSettings.push(currentBooking);
       }
     }
     
@@ -159,11 +176,11 @@ export async function GET(req: NextRequest) {
       bookings: bookingsWithSettings,
       bookingsWithoutSettings,
       summary: {
-        total: bookings.length,
+        total: bookingsArray.length, // Corrected variable name
         withSettings: bookingsWithSettings.length,
         withoutSettings: bookingsWithoutSettings.length,
         readyToGenerate: bookingsWithSettings.filter(b => 
-          b.totalPrice > 0 && b.invoiceSettings?.priceConfirmed
+          b.totalPrice && b.totalPrice > 0 && b.invoiceSettings?.priceConfirmed
         ).length,
       }
     });

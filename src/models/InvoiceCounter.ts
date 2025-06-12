@@ -115,7 +115,7 @@ InvoiceCounterSchema.statics.isNumberUsed = async function(
   const counter = await this.findOne({ settingsGroupId, year });
   if (!counter) return false;
   
-  return counter.usedNumbers.some(used => used.number === number);
+  return counter.usedNumbers.some((used: { number: number; invoiceId: string; generatedAt: Date }) => used.number === number);
 };
 
 // Metodo per ottenere statistiche sulla numerazione
@@ -138,5 +138,5 @@ InvoiceCounterSchema.statics.resetCounter = async function(
   return result.deletedCount > 0;
 };
 
-export default mongoose.models.InvoiceCounter as IInvoiceCounterModel ||
+export default (mongoose.models.InvoiceCounter as unknown as IInvoiceCounterModel) ||
            mongoose.model<IInvoiceCounter, IInvoiceCounterModel>('InvoiceCounter', InvoiceCounterSchema);

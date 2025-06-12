@@ -159,7 +159,7 @@ export interface InvoiceGenerationResult {
   invoiceId?: string;
   invoiceNumber?: string;
   error?: string;
-  bookingId: string;
+  bookingId?: string;
 }
 
 // Tipo per l'export

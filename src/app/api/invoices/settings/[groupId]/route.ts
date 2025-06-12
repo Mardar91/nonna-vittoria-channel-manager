@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
-import InvoiceSettingsModel from '@/models/InvoiceSettings';
+import InvoiceSettingsModel, { IInvoiceSettings } from '@/models/InvoiceSettings'; // Import IInvoiceSettings
 import InvoiceModel from '@/models/Invoice';
 import ApartmentModel from '@/models/Apartment';
 
@@ -37,21 +37,60 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       );
     }
     
+    // Force cast the lean object to IInvoiceSettings
+    const typedSettings = settings as unknown as IInvoiceSettings;
+
     // Aggiungi statistiche sul gruppo
     const [invoiceCount, totalRevenue] = await Promise.all([
-      InvoiceModel.countDocuments({ settingsGroupId: settings.groupId }),
+      InvoiceModel.countDocuments({ settingsGroupId: typedSettings.groupId }),
       InvoiceModel.aggregate([
-        { $match: { settingsGroupId: settings.groupId } },
+        { $match: { settingsGroupId: typedSettings.groupId } },
         { $group: { _id: null, total: { $sum: '$total' } } }
       ])
     ]);
     
     return NextResponse.json({
-      ...settings,
+      // Ensure all necessary properties from IInvoiceSettings are spread if typedSettings is used directly
+      // Or access them individually:
+      _id: typedSettings._id,
+      groupId: typedSettings.groupId,
+      name: typedSettings.name,
+      apartmentIds: typedSettings.apartmentIds,
+      businessName: typedSettings.businessName,
+      businessAddress: typedSettings.businessAddress,
+      businessCity: typedSettings.businessCity,
+      businessZip: typedSettings.businessZip,
+      businessProvince: typedSettings.businessProvince,
+      businessCountry: typedSettings.businessCountry,
+      businessVat: typedSettings.businessVat,
+      businessTaxCode: typedSettings.businessTaxCode,
+      businessEmail: typedSettings.businessEmail,
+      businessPhone: typedSettings.businessPhone,
+      activityType: typedSettings.activityType,
+      vatRate: typedSettings.vatRate,
+      vatIncluded: typedSettings.vatIncluded,
+      withholdingTaxInfo: typedSettings.withholdingTaxInfo,
+      numberingFormat: typedSettings.numberingFormat,
+      numberingPrefix: typedSettings.numberingPrefix,
+      lastInvoiceNumber: typedSettings.lastInvoiceNumber,
+      lastInvoiceYear: typedSettings.lastInvoiceYear,
+      resetNumberingYearly: typedSettings.resetNumberingYearly,
+      platformSettings: typedSettings.platformSettings,
+      invoiceFooter: typedSettings.invoiceFooter,
+      paymentTerms: typedSettings.paymentTerms,
+      bankDetails: typedSettings.bankDetails,
+      autoGenerateOnCheckout: typedSettings.autoGenerateOnCheckout,
+      autoGenerateOnPayment: typedSettings.autoGenerateOnPayment,
+      sendEmailToGuest: typedSettings.sendEmailToGuest,
+      emailTemplate: typedSettings.emailTemplate,
+      logoUrl: typedSettings.logoUrl,
+      primaryColor: typedSettings.primaryColor,
+      createdAt: typedSettings.createdAt,
+      updatedAt: typedSettings.updatedAt,
       statistics: {
         invoiceCount,
         totalRevenue: totalRevenue[0]?.total || 0,
-        apartmentCount: settings.apartmentIds.length,
+        apartmentCount: typedSettings.apartmentIds?.length || 0, // Add null check for safety
       }
     });
   } catch (error) {
@@ -176,9 +215,32 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       );
     }
     
+    // Force cast the lean object to IInvoiceSettings for the DELETE operation as well
+    // Note: In DELETE, `settings` comes from `InvoiceSettingsModel.findById(params.groupId)` without `.lean()`
+    // So, it's a full Mongoose document. Accessing `settings.groupId` should be fine.
+    // The original error was in GET. If DELETE also had an error, it might need a different fix.
+    // For now, assuming the problem was primarily with the .lean() object in GET.
+    // If `settings` in DELETE is a full document, `settings.groupId` is fine.
+    // If it were also a lean object, it would need `as unknown as IInvoiceSettings`.
+    // The error message pointed to the GET handler, so let's stick to that.
+    // The original code for DELETE was:
+    // const settings = await InvoiceSettingsModel.findById(params.groupId);
+    // ...
+    // settingsGroupId: settings.groupId
+    // This should be okay if `settings` is a full Mongoose document.
+    // I will only change the GET part as per the error.
+    // Re-confirming: The build error was specific to settings.groupId in the GET handler's lean object.
+    // The DELETE handler uses a full Mongoose document for `settings`.
+
+    // For DELETE, if `settings` is a full Mongoose document, direct access is fine.
+    // The previous solution had `const typedSettings = settings as IInvoiceSettings;`
+    // which would also work for a full document. Let's keep it consistent if it helps.
+    const typedSettingsForDelete = settings as IInvoiceSettings;
+
+
     // Verifica che non ci siano ricevute associate
     const invoiceCount = await InvoiceModel.countDocuments({ 
-      settingsGroupId: settings.groupId 
+      settingsGroupId: typedSettingsForDelete.groupId
     });
     
     if (invoiceCount > 0) {

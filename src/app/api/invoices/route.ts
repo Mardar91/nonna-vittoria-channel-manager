@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
-import InvoiceModel from '@/models/Invoice';
+import InvoiceModel, { IInvoiceItem } from '@/models/Invoice'; // Import IInvoiceItem
 import { generateInvoice, checkBookingsNeedingInvoice } from '@/lib/invoice-generator';
 import { InvoiceFilters, CreateInvoiceDTO } from '@/types/invoice';
 
@@ -172,12 +172,22 @@ export async function POST(req: NextRequest) {
     
     await connectDB();
     
+    // Prepara itemsOverride con totalPrice calcolato
+    let processedItemsOverride: IInvoiceItem[] | undefined = undefined;
+    if (data.itemsOverride) {
+      processedItemsOverride = data.itemsOverride.map(item => ({
+        ...item, // description, quantity, unitPrice, vatRate?
+        totalPrice: item.quantity * item.unitPrice,
+        // vatAmount will be undefined here, which is fine as it's optional in IInvoiceItem
+      }));
+    }
+
     // Genera la ricevuta utilizzando il generatore
     const result = await generateInvoice({
       booking: data.bookingId,
       settingsGroupId: data.settingsGroupId,
       customerOverride: data.customerOverride,
-      itemsOverride: data.itemsOverride,
+      itemsOverride: processedItemsOverride, // Usa la variabile processata
       notes: data.notes,
       internalNotes: data.internalNotes,
       sendEmail: data.sendEmail,

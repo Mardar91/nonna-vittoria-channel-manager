@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import InvoiceModel from '@/models/Invoice';
+import InvoiceModel, { IInvoice } from '@/models/Invoice'; // Import IInvoice
 import { PublicAccessValidation } from '@/types/invoice';
 
 // POST: Valida codice di accesso pubblico
@@ -35,8 +35,10 @@ export async function POST(req: NextRequest) {
       );
     }
     
+    const typedInvoice = invoice as unknown as IInvoice; // Cast to IInvoice
+
     // Verifica che il codice non sia scaduto
-    if (invoice.publicAccessExpiry && new Date(invoice.publicAccessExpiry) < new Date()) {
+    if (typedInvoice.publicAccessExpiry && new Date(typedInvoice.publicAccessExpiry) < new Date()) {
       return NextResponse.json(
         { 
           isValid: false,
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Verifica che la ricevuta non sia annullata
-    if (invoice.status === 'cancelled') {
+    if (typedInvoice.status === 'cancelled') {
       return NextResponse.json(
         { 
           isValid: false,
@@ -59,34 +61,34 @@ export async function POST(req: NextRequest) {
     
     // Rimuovi campi sensibili prima di inviare al client
     const publicInvoice = {
-      _id: invoice._id,
-      invoiceNumber: invoice.invoiceNumber,
-      invoiceDate: invoice.invoiceDate,
+      _id: typedInvoice._id,
+      invoiceNumber: typedInvoice.invoiceNumber,
+      invoiceDate: typedInvoice.invoiceDate,
       customer: {
-        name: invoice.customer.name,
-        email: invoice.customer.email,
+        name: typedInvoice.customer.name,
+        email: typedInvoice.customer.email,
       },
-      issuer: invoice.issuer,
-      stayDetails: invoice.stayDetails,
-      items: invoice.items,
-      subtotal: invoice.subtotal,
-      vatAmount: invoice.vatAmount,
-      total: invoice.total,
-      platformInfo: invoice.platformInfo,
-      pdfUrl: invoice.pdfUrl,
-      documentType: invoice.documentType,
-      activityType: invoice.activityType,
+      issuer: typedInvoice.issuer,
+      stayDetails: typedInvoice.stayDetails,
+      items: typedInvoice.items,
+      subtotal: typedInvoice.subtotal,
+      vatAmount: typedInvoice.vatAmount,
+      total: typedInvoice.total,
+      platformInfo: typedInvoice.platformInfo,
+      pdfUrl: typedInvoice.pdfUrl,
+      documentType: typedInvoice.documentType,
+      activityType: typedInvoice.activityType,
       paymentInfo: {
-        status: invoice.paymentInfo.status,
-        method: invoice.paymentInfo.method,
+        status: typedInvoice.paymentInfo.status,
+        method: typedInvoice.paymentInfo.method,
       },
-      notes: invoice.notes, // Solo note pubbliche, non internalNotes
+      notes: typedInvoice.notes, // Solo note pubbliche, non internalNotes
     };
     
     const response: PublicAccessValidation = {
       isValid: true,
-      invoiceId: invoice._id.toString(),
-      expiresAt: invoice.publicAccessExpiry,
+      invoiceId: typedInvoice._id!.toString(), // Add non-null assertion for _id
+      expiresAt: typedInvoice.publicAccessExpiry,
     };
     
     // Aggiungi l'invoice all'oggetto di risposta
