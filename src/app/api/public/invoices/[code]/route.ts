@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import InvoiceModel from '@/models/Invoice';
-import { generateInvoicePDF } from '@/lib/invoice-pdf';
+import { generateInvoiceHTML } from '@/lib/invoice-pdf';
 
 interface RouteParams {
   params: {
@@ -9,7 +9,7 @@ interface RouteParams {
   };
 }
 
-// GET: Scarica PDF pubblicamente tramite codice di accesso
+// GET: Scarica HTML pubblicamente tramite codice di accesso
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
     const accessCode = params.code;
@@ -59,40 +59,45 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       );
     }
     
-    // Se ha già un PDF, reindirizza a quello
-    if (invoice.pdfUrl) {
-      // Log dell'accesso per statistiche
-      console.log(`Public PDF access for invoice ${invoice.invoiceNumber} via code ${accessCode}`);
-      
-      return NextResponse.redirect(invoice.pdfUrl);
+    // Genera o recupera l'HTML
+    let html: string;
+    
+    if (invoice.htmlContent) {
+      // Decodifica l'HTML dal base64
+      html = Buffer.from(invoice.htmlContent, 'base64').toString('utf-8');
+    } else {
+      // Genera al volo
+      try {
+        html = await generateInvoiceHTML(invoice);
+        
+        // Salva per future richieste
+        invoice.htmlContent = Buffer.from(html).toString('base64');
+        invoice.htmlGeneratedAt = new Date();
+        await invoice.save();
+      } catch (error) {
+        console.error('Error generating HTML on the fly:', error);
+        return NextResponse.json(
+          { error: 'Errore nella generazione del documento' },
+          { status: 500 }
+        );
+      }
     }
     
-    // Altrimenti genera il PDF al volo
-    try {
-      const pdfBuffer = await generateInvoicePDF(invoice);
-      
-      // Log dell'accesso
-      console.log(`Public PDF generated on-the-fly for invoice ${invoice.invoiceNumber} via code ${accessCode}`);
-      
-      // Restituisci il PDF come stream
-      return new NextResponse(pdfBuffer, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${invoice.invoiceNumber.replace(/\//g, '-')}.pdf"`,
-          'Cache-Control': 'private, max-age=3600', // Cache per 1 ora
-        },
-      });
-    } catch (pdfError) {
-      console.error('Error generating PDF on the fly:', pdfError);
-      return NextResponse.json(
-        { error: 'Errore nella generazione del PDF' },
-        { status: 500 }
-      );
-    }
+    // Log dell'accesso per statistiche
+    console.log(`Public access for invoice ${invoice.invoiceNumber} via code ${accessCode}`);
+    
+    // Restituisci l'HTML
+    return new NextResponse(html, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Disposition': `inline; filename="${invoice.invoiceNumber.replace(/\//g, '-')}.html"`,
+        'Cache-Control': 'private, max-age=3600', // Cache per 1 ora
+      },
+    });
     
   } catch (error) {
-    console.error('Error in public PDF download:', error);
+    console.error('Error in public invoice download:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }
