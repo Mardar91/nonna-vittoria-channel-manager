@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
           }
         );
         
-        results.push(...result);
+        results.push(...result.filter(r => typeof r.bookingId === 'string'));
       }
     }
     
