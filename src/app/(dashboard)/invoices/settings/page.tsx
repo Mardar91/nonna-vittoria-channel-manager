@@ -99,7 +99,7 @@ export default function InvoiceSettingsPage() {
     vatIncluded: true,
     withholdingTaxInfo: {
       showInfo: true,
-      defaultText: 'Cedolare secca (21%) assolta dalla piattaforma in qualità di sostituto d\'imposta ai sensi dell\'art. 4, comma 1, lett. c) del DL 50/2017.',
+      defaultText: 'Cedolare secca (21%) assolta dalla piattaforma in qualità di sostituto d&apos;imposta ai sensi dell&apos;art. 4, comma 1, lett. c) del DL 50/2017.',
     },
     numberingFormat: '{{year}}/{{number}}',
     resetNumberingYearly: true,
@@ -222,7 +222,7 @@ export default function InvoiceSettingsPage() {
       vatIncluded: true,
       withholdingTaxInfo: {
         showInfo: true,
-        defaultText: 'Cedolare secca (21%) assolta dalla piattaforma in qualità di sostituto d\'imposta ai sensi dell\'art. 4, comma 1, lett. c) del DL 50/2017.',
+        defaultText: 'Cedolare secca (21%) assolta dalla piattaforma in qualità di sostituto d&apos;imposta ai sensi dell&apos;art. 4, comma 1, lett. c) del DL 50/2017.',
       },
       numberingFormat: '{{year}}/{{number}}',
       resetNumberingYearly: true,

@@ -41,12 +41,12 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
     }
     
     if (!url) {
-      setError('Inserisci l\'URL del feed iCal');
+      setError('Inserisci l&apos;URL del feed iCal');
       return;
     }
     
     if (!validateUrl(url)) {
-      setError('L\'URL inserito non sembra essere un feed iCal valido');
+      setError('L&apos;URL inserito non sembra essere un feed iCal valido');
       return;
     }
     
@@ -201,7 +201,7 @@ export default function ICalSyncForm({ apartmentId }: ICalSyncFormProps) {
           className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
         />
         <p className="mt-1 text-xs text-gray-500">
-          L'URL deve terminare con .ics o essere un feed iCal riconosciuto
+          L&apos;URL deve terminare con .ics o essere un feed iCal riconosciuto
         </p>
       </div>
       

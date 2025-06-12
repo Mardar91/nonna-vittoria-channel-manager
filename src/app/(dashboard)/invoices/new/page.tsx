@@ -519,7 +519,7 @@ export default function NewInvoicePage() {
                     <div className="ml-3 flex-1">
                       <p className="text-sm text-yellow-700">
                         Questa prenotazione non ha un prezzo confermato. 
-                        Devi specificare il prezzo per procedere con l\'emissione della ricevuta.
+                        Devi specificare il prezzo per procedere con l&apos;emissione della ricevuta.
                       </p>
                       <div className="mt-3">
                         <label className="inline-flex items-center">

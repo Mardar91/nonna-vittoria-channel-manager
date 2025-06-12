@@ -7,6 +7,7 @@ import { ChevronUpIcon, CreditCardIcon, ClipboardDocumentCheckIcon } from '@hero
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import Image from 'next/image'; // Added Import
+import Image from 'next/image'; // Added Import
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { IPublicProfile } from '@/models/PublicProfile';

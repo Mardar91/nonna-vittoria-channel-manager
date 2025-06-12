@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image'; // Added import
+import Image from 'next/image'; // Added import
 import { ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { IPublicProfile } from '@/models/PublicProfile';
