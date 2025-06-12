@@ -87,17 +87,7 @@ export default function PublicInvoiceDownloadPage() {
   
   const accessCode = searchParams.get('code');
 
-  useEffect(() => {
-    if (accessCode) {
-      validateAccess();
-    } else {
-      setError('Codice di accesso mancante');
-      setLoading(false);
-      setValidating(false);
-    }
-  }, [accessCode]);
-
-  const validateAccess = async () => {
+  const validateAccess = useCallback(async () => {
     try {
       const response = await fetch('/api/public/invoices/validate', {
         method: 'POST',
@@ -124,7 +114,17 @@ export default function PublicInvoiceDownloadPage() {
       setValidating(false);
       setLoading(false);
     }
-  };
+  }, [accessCode, setError, setInvoice, setExpiresAt, setLoading, setValidating]);
+
+  useEffect(() => {
+    if (accessCode) {
+      validateAccess();
+    } else {
+      setError('Codice di accesso mancante');
+      setLoading(false);
+      setValidating(false);
+    }
+  }, [accessCode, validateAccess, setError, setLoading, setValidating]); // Added setError, setLoading, setValidating from the else block
 
   const handleDownload = async () => {
     if (!invoice || !accessCode) return;

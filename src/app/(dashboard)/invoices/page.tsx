@@ -65,13 +65,7 @@ export default function InvoicesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
-  useEffect(() => {
-    fetchInvoices();
-    fetchStatistics();
-    checkPendingBookings();
-  }, [filters, page]);
-
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
       setLoading(true);
       const queryParams = new URLSearchParams();
@@ -109,9 +103,9 @@ export default function InvoicesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, page, searchTerm, setLoading, setInvoices, setTotalPages, setTotalItems]);
 
-  const fetchStatistics = async () => {
+  const fetchStatistics = useCallback(async () => {
     try {
       const response = await fetch('/api/invoices/statistics');
       if (!response.ok) throw new Error('Errore nel caricamento delle statistiche');
@@ -121,9 +115,9 @@ export default function InvoicesPage() {
     } catch (error) {
       console.error('Errore statistiche:', error);
     }
-  };
+  }, [setStatistics]);
 
-  const checkPendingBookings = async () => {
+  const checkPendingBookings = useCallback(async () => {
     try {
       const response = await fetch('/api/bookings?hasPrice=false&status=completed');
       if (!response.ok) throw new Error('Errore nel controllo prenotazioni');
@@ -133,7 +127,13 @@ export default function InvoicesPage() {
     } catch (error) {
       console.error('Errore controllo prenotazioni:', error);
     }
-  };
+  }, [setPendingCount]);
+
+  useEffect(() => {
+    fetchInvoices();
+    fetchStatistics();
+    checkPendingBookings();
+  }, [fetchInvoices, fetchStatistics, checkPendingBookings]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa ricevuta?')) return;

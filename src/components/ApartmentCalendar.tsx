@@ -113,36 +113,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     return compareDate < today;
   };
 
-  useEffect(() => {
-    generateCalendarDays(currentYear, currentMonth);
-    loadDailyRates();
-    processSeasonalPrices();
-  }, [currentYear, currentMonth]);
-
-  const processSeasonalPrices = () => {
-    if (!apartmentData.seasonalPrices || !apartmentData.seasonalPrices.length) {
-      setSeasonalInfo({});
-      return;
-    }
-    const seasonMap: Record<string, SeasonalPrice> = {};
-    apartmentData.seasonalPrices.forEach((season: SeasonalPrice) => {
-      const startDate = new Date(season.startDate);
-      const endDate = new Date(season.endDate);
-      let currentDate = new Date(startDate);
-      while (currentDate <= endDate) {
-        const dateStr = dateToString(currentDate);
-        seasonMap[dateStr] = {
-          ...season,
-          startDate: new Date(season.startDate),
-          endDate: new Date(season.endDate)
-        };
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-    });
-    setSeasonalInfo(seasonMap);
-  };
-
-  const generateCalendarDays = (year: number, month: number) => {
+  const generateCalendarDays = useCallback((year: number, month: number) => {
     const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
     const daysInMonth = lastDayOfMonth.getDate();
@@ -162,9 +133,9 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     }
     setCalendarDays(days);
     cellRefs.current = Array(days.length).fill(null);
-  };
+  }, [setCalendarDays]);
 
-  const loadDailyRates = async () => {
+  const loadDailyRates = useCallback(async () => {
     setLoading(true);
     try {
       const firstDayShown = new Date(currentYear, currentMonth, 1);
@@ -188,7 +159,36 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     } finally {
       setLoading(false);
     }
-  };
+  }, [apartmentId, currentMonth, currentYear, setLoading, setDailyRates]);
+
+  const processSeasonalPrices = useCallback(() => {
+    if (!apartmentData.seasonalPrices || !apartmentData.seasonalPrices.length) {
+      setSeasonalInfo({});
+      return;
+    }
+    const seasonMap: Record<string, SeasonalPrice> = {};
+    apartmentData.seasonalPrices.forEach((season: SeasonalPrice) => {
+      const startDate = new Date(season.startDate);
+      const endDate = new Date(season.endDate);
+      let currentDateLoop = new Date(startDate); // Renamed to avoid conflict
+      while (currentDateLoop <= endDate) {
+        const dateStr = dateToString(currentDateLoop);
+        seasonMap[dateStr] = {
+          ...season,
+          startDate: new Date(season.startDate),
+          endDate: new Date(season.endDate)
+        };
+        currentDateLoop.setDate(currentDateLoop.getDate() + 1);
+      }
+    });
+    setSeasonalInfo(seasonMap);
+  }, [apartmentData, setSeasonalInfo]);
+
+  useEffect(() => {
+    generateCalendarDays(currentYear, currentMonth);
+    loadDailyRates();
+    processSeasonalPrices();
+  }, [currentYear, currentMonth, generateCalendarDays, loadDailyRates, processSeasonalPrices]);
 
   const goToPreviousMonth = () => {
     if (currentMonth === 0) {

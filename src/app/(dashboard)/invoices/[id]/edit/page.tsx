@@ -124,11 +124,7 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
   const [notes, setNotes] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
 
-  useEffect(() => {
-    fetchInvoice();
-  }, [params.id]);
-
-  const fetchInvoice = async () => {
+  const fetchInvoice = useCallback(async () => {
     try {
       const response = await fetch(`/api/invoices/${params.id}`);
       if (!response.ok) throw new Error('Errore nel caricamento della ricevuta');
@@ -177,7 +173,11 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router, setCustomerData, setItems, setInvoice, setInternalNotes, setLoading, setNotes, setPaymentInfo, setSettings]);
+
+  useEffect(() => {
+    fetchInvoice();
+  }, [fetchInvoice]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

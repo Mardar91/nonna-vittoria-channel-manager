@@ -9,6 +9,14 @@ import { IBooking } from '@/models/Booking';
 import { IApartment } from '@/models/Apartment';
 // import { calculateDynamicPriceForStay } from '@/lib/pricing'; // Rimosso
 
+// Source options - base
+const baseSourceOptions = [
+  { label: 'Diretta', value: 'direct' },
+  { label: 'Airbnb', value: 'airbnb' },
+  { label: 'Booking.com', value: 'booking' },
+  { label: 'Altro', value: 'other' },
+];
+
 interface BookingFormProps {
   booking?: IBooking;
   isEdit?: boolean;
@@ -44,14 +52,6 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
   const preselectedApartmentId = searchParams.get('apartmentId');
   const preselectedCheckInDateString = searchParams.get('checkIn'); // AGGIUNGERE QUESTA RIGA
 
-  // Source options - base
-  const baseSourceOptions = [
-    { label: 'Diretta', value: 'direct' },
-    { label: 'Airbnb', value: 'airbnb' },
-    { label: 'Booking.com', value: 'booking' },
-    { label: 'Altro', value: 'other' },
-  ];
-  
   const [loading, setLoading] = useState(false);
   const [priceLoading, setPriceLoading] = useState(false); // STATO AGGIUNTO
   const [isIcalBookingEditMode, setIsIcalBookingEditMode] = useState(false);

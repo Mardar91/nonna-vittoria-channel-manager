@@ -115,11 +115,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
   const [showShareModal, setShowShareModal] = useState(false);
   const [publicUrl, setPublicUrl] = useState('');
 
-  useEffect(() => {
-    fetchInvoice();
-  }, [params.id]);
-
-  const fetchInvoice = async () => {
+  const fetchInvoice = useCallback(async () => {
     try {
       const response = await fetch(`/api/invoices/${params.id}`);
       if (!response.ok) throw new Error('Errore nel caricamento della ricevuta');
@@ -138,7 +134,11 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, setInvoice, setPublicUrl, setLoading]); // setLoading is stable, but good to list if ESLint complains
+
+  useEffect(() => {
+    fetchInvoice();
+  }, [fetchInvoice]);
 
   const handleLock = async () => {
     if (!confirm('Sei sicuro di voler bloccare questa ricevuta? Non sarà più possibile modificarla.')) return;

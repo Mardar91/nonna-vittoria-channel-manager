@@ -48,13 +48,7 @@ export default function AssignCheckInModal({
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  useEffect(() => {
-    if (isOpen && checkIn.requestedCheckIn && checkIn.requestedCheckOut) {
-      fetchAvailableBookings();
-    }
-  }, [isOpen, checkIn]);
-  
-  const fetchAvailableBookings = async () => {
+  const fetchAvailableBookings = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -86,7 +80,13 @@ export default function AssignCheckInModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [checkIn.requestedCheckIn, checkIn.requestedCheckOut, setLoading, setError, setBookings]); // Specific properties of checkIn
+
+  useEffect(() => {
+    if (isOpen && checkIn.requestedCheckIn && checkIn.requestedCheckOut) {
+      fetchAvailableBookings();
+    }
+  }, [isOpen, checkIn.requestedCheckIn, checkIn.requestedCheckOut, fetchAvailableBookings]); // Also use specific props here
   
   const handleAssign = async () => {
     if (!selectedBookingId) {

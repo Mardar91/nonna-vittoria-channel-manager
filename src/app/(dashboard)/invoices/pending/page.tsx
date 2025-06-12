@@ -59,11 +59,7 @@ export default function PendingInvoicesPage() {
     price: 0,
   });
 
-  useEffect(() => {
-    fetchPendingBookings();
-  }, [filter, sortBy]);
-
-  const fetchPendingBookings = async () => {
+  const fetchPendingBookings = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -109,7 +105,11 @@ export default function PendingInvoicesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, sortBy, setLoading, setBookings]);
+
+  useEffect(() => {
+    fetchPendingBookings();
+  }, [fetchPendingBookings]);
 
   const handleConfirmPrice = async () => {
     if (!priceModal.booking) return;

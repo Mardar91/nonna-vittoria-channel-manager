@@ -32,11 +32,7 @@ export default function CheckInDetails({ bookingId }: CheckInDetailsProps) {
   const [checkIn, setCheckIn] = useState<CheckInData | null>(null);
   const [error, setError] = useState('');
   
-  useEffect(() => {
-    loadCheckInDetails();
-  }, [bookingId]);
-  
-  const loadCheckInDetails = async () => {
+  const loadCheckInDetails = useCallback(async () => {
     try {
       const response = await fetch(`/api/checkin/${bookingId}`);
       
@@ -57,7 +53,11 @@ export default function CheckInDetails({ bookingId }: CheckInDetailsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [bookingId, setError, setCheckIn, setLoading]);
+
+  useEffect(() => {
+    loadCheckInDetails();
+  }, [loadCheckInDetails]); // bookingId is a dependency of loadCheckInDetails
   
   if (loading) {
     return (

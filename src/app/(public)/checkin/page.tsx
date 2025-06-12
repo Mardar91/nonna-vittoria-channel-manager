@@ -26,11 +26,7 @@ export default function CheckInPage() {
   const [showDateFields, setShowDateFields] = useState(false);
   const [isSecondAttempt, setIsSecondAttempt] = useState(false);
   
-  useEffect(() => {
-    loadProfile();
-  }, []);
-  
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       const response = await fetch('/api/public-profile');
       
@@ -48,7 +44,11 @@ export default function CheckInPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router, setProfile, setLoading]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
