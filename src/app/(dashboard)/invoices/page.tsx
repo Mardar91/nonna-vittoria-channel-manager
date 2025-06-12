@@ -24,6 +24,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { InvoiceFilters, InvoiceStatistics } from '@/types/invoice';
+import { InvoiceStatus } from '../../../../types/invoice';
 
 interface Invoice {
   _id: string;
