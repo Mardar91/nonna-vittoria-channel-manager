@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image'; // Added import
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 import { IPublicProfile } from '@/models/PublicProfile';
 
@@ -40,7 +41,7 @@ export default function CheckInSuccessPage() {
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center">
             {profile?.logo && (
-              <img src={profile.logo} alt="Logo" className="h-10 w-10 rounded-full mr-3" />
+              <Image src={profile.logo} alt="Logo" width={40} height={40} className="h-10 w-10 rounded-full mr-3" />
             )}
             <h1 className="text-xl font-bold">{profile?.name || 'Check-in Online'}</h1>
           </div>

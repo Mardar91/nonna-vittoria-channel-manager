@@ -6,6 +6,7 @@ import { Dialog, Transition, Disclosure } from '@headlessui/react';
 import { ChevronUpIcon, CreditCardIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import Image from 'next/image'; // Added Import
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { IPublicProfile } from '@/models/PublicProfile';
@@ -572,7 +573,7 @@ export default function BookingPage() {
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center">
             {profile.logo && (
-              <img src={profile.logo} alt="Logo" className="h-10 w-10 rounded-full mr-3" />
+              <Image src={profile.logo} alt="Logo" width={40} height={40} className="h-10 w-10 rounded-full mr-3" />
             )}
             <h1 className="text-xl font-bold">{profile.name}</h1>
           </div>

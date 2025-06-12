@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import CheckInForm from '@/components/CheckInForm';
 import { CheckInFormData, CheckInSubmitRequest } from '@/types/checkin';
 import { IPublicProfile } from '@/models/PublicProfile';
+import Image from 'next/image'; // Added import
 
 interface BookingData {
   id: string;
@@ -200,7 +201,7 @@ export default function CheckInFormPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center">
             {profile?.logo && (
-              <img src={profile.logo} alt="Logo" className="h-10 w-10 rounded-full mr-3" />
+              <Image src={profile.logo} alt="Logo" width={40} height={40} className="h-10 w-10 rounded-full mr-3" />
             )}
             <h1 className="text-xl font-bold">{profile?.name || 'Check-in Online'}</h1>
           </div>

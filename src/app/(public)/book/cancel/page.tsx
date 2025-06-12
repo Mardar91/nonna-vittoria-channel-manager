@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image'; // Added import
 import { XCircleIcon } from '@heroicons/react/24/outline';
 
 // Componente che utilizza useSearchParams
@@ -46,7 +47,7 @@ function CancelContent() {
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center">
             {publicProfile?.logo && (
-              <img src={publicProfile.logo} alt="Logo" className="h-10 w-10 rounded-full mr-3" />
+              <Image src={publicProfile.logo} alt="Logo" width={40} height={40} className="h-10 w-10 rounded-full mr-3" />
             )}
             <h1 className="text-xl font-bold">{publicProfile?.name || 'Nonna Vittoria Apartments'}</h1>
           </div>
