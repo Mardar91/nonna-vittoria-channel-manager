@@ -57,7 +57,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       if (booking.notes) {
         booking.notes = booking.notes
           .split('\n')
-          .filter(line => !line.includes('[Esclusa da fatturazione]'))
+          .filter((line: string) => !line.includes('[Esclusa da fatturazione]'))
           .join('\n')
           .trim();
       }
