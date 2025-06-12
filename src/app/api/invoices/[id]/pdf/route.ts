@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import InvoiceModel from '@/models/Invoice';
-import { generateInvoicePDF } from '@/lib/invoice-pdf';
-import { uploadToStorage } from '@/lib/storage';
+import { generateInvoiceHTML, generateInvoiceBase64 } from '@/lib/invoice-pdf';
 
 interface RouteParams {
   params: {
@@ -11,7 +10,7 @@ interface RouteParams {
   };
 }
 
-// POST: Genera PDF per una ricevuta
+// POST: Genera HTML per una ricevuta e salvalo nel database
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession();
@@ -42,46 +41,39 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
     
-    // Se il PDF esiste già e non è richiesta la rigenerazione, restituiscilo
+    // Se l'HTML esiste già e non è richiesta la rigenerazione, restituiscilo
     const forceRegenerate = req.nextUrl.searchParams.get('force') === 'true';
-    if (invoice.pdfUrl && !forceRegenerate) {
+    if (invoice.htmlContent && !forceRegenerate) {
       return NextResponse.json({
         success: true,
-        pdfUrl: invoice.pdfUrl,
-        pdfGeneratedAt: invoice.pdfGeneratedAt,
-        message: 'PDF già generato',
+        hasHtml: true,
+        htmlGeneratedAt: invoice.htmlGeneratedAt,
+        message: 'HTML già generato',
       });
     }
     
     try {
-      // Genera il PDF
-      const pdfBuffer = await generateInvoicePDF(invoice);
+      // Genera l'HTML
+      const htmlBase64 = await generateInvoiceBase64(invoice);
       
-      // Genera il nome del file
-      const fileName = `invoices/${invoice.invoiceNumber.replace(/\//g, '-')}_${invoice._id}.pdf`;
-      
-      // Carica su storage (simulato per ora - in produzione useresti S3, Cloudinary, etc.)
-      // Per ora salviamo in una cartella pubblica locale
-      const pdfUrl = await uploadToStorage(pdfBuffer, fileName, 'application/pdf');
-      
-      // Aggiorna la ricevuta con l'URL del PDF
-      invoice.pdfUrl = pdfUrl;
-      invoice.pdfGeneratedAt = new Date();
+      // Salva nel database
+      invoice.htmlContent = htmlBase64;
+      invoice.htmlGeneratedAt = new Date();
       await invoice.save();
       
       return NextResponse.json({
         success: true,
-        pdfUrl,
-        pdfGeneratedAt: invoice.pdfGeneratedAt,
-        message: 'PDF generato con successo',
+        hasHtml: true,
+        htmlGeneratedAt: invoice.htmlGeneratedAt,
+        message: 'HTML generato con successo',
       });
       
-    } catch (pdfError) {
-      console.error('Error generating PDF:', pdfError);
+    } catch (error) {
+      console.error('Error generating HTML:', error);
       return NextResponse.json(
         { 
-          error: 'Errore nella generazione del PDF',
-          details: pdfError instanceof Error ? pdfError.message : 'Errore sconosciuto'
+          error: 'Errore nella generazione del documento',
+          details: error instanceof Error ? error.message : 'Errore sconosciuto'
         },
         { status: 500 }
       );
@@ -95,7 +87,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-// GET: Scarica il PDF di una ricevuta
+// GET: Visualizza o scarica l'HTML della ricevuta
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession();
@@ -117,8 +109,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       );
     }
     
-    // Se non ha un PDF, generalo al volo
-    if (!invoice.pdfUrl) {
+    // Se non ha HTML, generalo al volo
+    let html: string;
+    
+    if (!invoice.htmlContent) {
       if (invoice.status === 'draft') {
         return NextResponse.json(
           { error: 'Non è possibile generare il PDF per una ricevuta in bozza' },
@@ -127,28 +121,38 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       }
       
       try {
-        const pdfBuffer = await generateInvoicePDF(invoice);
+        html = await generateInvoiceHTML(invoice);
         
-        // Restituisci il PDF come stream
-        return new NextResponse(pdfBuffer, {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${invoice.invoiceNumber.replace(/\//g, '-')}.pdf"`,
-            'Cache-Control': 'private, max-age=3600',
-          },
-        });
-      } catch (pdfError) {
-        console.error('Error generating PDF on the fly:', pdfError);
+        // Salva per future richieste
+        invoice.htmlContent = Buffer.from(html).toString('base64');
+        invoice.htmlGeneratedAt = new Date();
+        await invoice.save();
+      } catch (error) {
+        console.error('Error generating HTML on the fly:', error);
         return NextResponse.json(
-          { error: 'Errore nella generazione del PDF' },
+          { error: 'Errore nella generazione del documento' },
           { status: 500 }
         );
       }
+    } else {
+      // Decodifica l'HTML dal base64
+      html = Buffer.from(invoice.htmlContent, 'base64').toString('utf-8');
     }
     
-    // Se ha un URL, reindirizza
-    return NextResponse.redirect(invoice.pdfUrl);
+    // Determina se è una richiesta di download o visualizzazione
+    const download = req.nextUrl.searchParams.get('download') === 'true';
+    
+    // Restituisci l'HTML
+    return new NextResponse(html, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Disposition': download 
+          ? `attachment; filename="${invoice.invoiceNumber.replace(/\//g, '-')}.html"`
+          : 'inline',
+        'Cache-Control': 'private, max-age=3600',
+      },
+    });
     
   } catch (error) {
     console.error('Error downloading PDF:', error);
