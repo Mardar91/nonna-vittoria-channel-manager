@@ -368,7 +368,7 @@ export default function InvoicesPage() {
                 <label className="block text-sm font-medium text-gray-700">Stato</label>
                 <select
                   value={filters.status || ''}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value || undefined })}
+                  onChange={(e) => setFilters({ ...filters, status: (e.target.value as InvoiceStatus) || undefined })}
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                 >
                   <option value="">Tutti</option>
