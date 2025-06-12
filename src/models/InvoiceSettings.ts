@@ -167,6 +167,5 @@ InvoiceSettingsSchema.methods.getNextInvoiceNumber = async function() {
 
 // Indici
 InvoiceSettingsSchema.index({ apartmentIds: 1 });
-InvoiceSettingsSchema.index({ groupId: 1 });
 
 export default mongoose.models.InvoiceSettings || mongoose.model<IInvoiceSettings>('InvoiceSettings', InvoiceSettingsSchema);

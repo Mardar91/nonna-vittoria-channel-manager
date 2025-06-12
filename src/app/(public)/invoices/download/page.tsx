@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react'; // Added Suspense
 import { useSearchParams } from 'next/navigation';
 import {
   DocumentTextIcon,
@@ -77,7 +77,8 @@ interface ValidationResponse {
   error?: string;
 }
 
-export default function PublicInvoiceDownloadPage() {
+// Renamed from PublicInvoiceDownloadPage
+function InvoiceDownloadContent() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState(true);
@@ -124,7 +125,7 @@ export default function PublicInvoiceDownloadPage() {
       setLoading(false);
       setValidating(false);
     }
-  }, [accessCode, validateAccess, setError, setLoading, setValidating]); // Added setError, setLoading, setValidating from the else block
+  }, [accessCode, validateAccess, setError, setLoading, setValidating]);
 
   const handleDownload = async () => {
     if (!invoice || !accessCode) return;
@@ -136,11 +137,9 @@ export default function PublicInvoiceDownloadPage() {
         throw new Error('Errore nel download del PDF');
       }
       
-      // Se la risposta è un redirect al PDF, segui il redirect
       if (response.redirected) {
         window.open(response.url, '_blank');
       } else {
-        // Altrimenti scarica il blob
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -400,5 +399,31 @@ export default function PublicInvoiceDownloadPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// New LoadingIndicator component
+function LoadingIndicator() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="text-center">
+          {/* Using DocumentTextIcon as suggested, or a simple text */}
+          <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400 animate-pulse" />
+          <p className="mt-6 text-3xl font-extrabold text-gray-900">
+            Caricamento pagina...
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// New default export PublicInvoiceDownloadPage using Suspense
+export default function PublicInvoiceDownloadPage() {
+  return (
+    <Suspense fallback={<LoadingIndicator />}>
+      <InvoiceDownloadContent />
+    </Suspense>
   );
 }

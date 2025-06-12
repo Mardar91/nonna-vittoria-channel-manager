@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth/next';
 import connectDB from '@/lib/db';
 import InvoiceModel from '@/models/Invoice';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Ottieni statistiche
 export async function GET(req: NextRequest) {
   try {

@@ -304,8 +304,6 @@ InvoiceSchema.index({ bookingId: 1 });
 InvoiceSchema.index({ apartmentId: 1 });
 InvoiceSchema.index({ status: 1, createdAt: -1 });
 InvoiceSchema.index({ 'customer.email': 1 });
-InvoiceSchema.index({ publicAccessCode: 1 }, { sparse: true });
-InvoiceSchema.index({ invoiceNumber: 1 });
 InvoiceSchema.index({ invoiceDate: -1 });
 InvoiceSchema.index({ 'paymentInfo.status': 1 });
 

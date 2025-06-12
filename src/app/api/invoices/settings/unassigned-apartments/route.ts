@@ -4,6 +4,8 @@ import connectDB from '@/lib/db';
 import InvoiceSettingsModel from '@/models/InvoiceSettings';
 import ApartmentModel from '@/models/Apartment';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Ottieni lista appartamenti non assegnati a gruppi di fatturazione
 export async function GET(req: NextRequest) {
   try {
