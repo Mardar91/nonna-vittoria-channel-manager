@@ -1,184 +1,68 @@
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+// Storage semplificato - tutto viene salvato nel database invece di file esterni
 
-// Simulazione storage locale
-// In produzione useresti S3, Cloudinary, Vercel Blob, etc.
+// Simula l'upload restituendo un URL fittizio (il contenuto reale è nel database)
 export async function uploadToStorage(
   buffer: Buffer,
   fileName: string,
   contentType: string
 ): Promise<string> {
   try {
-    // In produzione, useresti un servizio di storage cloud:
-    /*
-    // Esempio con AWS S3:
-    import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+    // In produzione con storage cloud (S3, Cloudinary, etc.), implementerai qui
+    // Per ora restituiamo un URL fittizio poiché salviamo tutto nel database
     
-    const s3Client = new S3Client({ region: process.env.AWS_REGION });
-    const command = new PutObjectCommand({
-      Bucket: process.env.S3_BUCKET,
-      Key: fileName,
-      Body: buffer,
-      ContentType: contentType,
-    });
+    // Genera un ID univoco per il "file"
+    const fileId = Math.random().toString(36).substring(2, 15);
+    const fakeUrl = `/api/storage/${fileId}/${fileName}`;
     
-    await s3Client.send(command);
-    return `https://${process.env.S3_BUCKET}.s3.amazonaws.com/${fileName}`;
-    */
+    console.log(`Storage simulato: ${fileName} -> ${fakeUrl}`);
     
-    // Per sviluppo locale, salva nella cartella public
-    const publicDir = join(process.cwd(), 'public');
-    const storageDir = join(publicDir, 'storage');
-    const fileDir = join(storageDir, fileName.substring(0, fileName.lastIndexOf('/')));
-    
-    // Crea le directory se non esistono
-    if (!existsSync(fileDir)) {
-      await mkdir(fileDir, { recursive: true });
-    }
-    
-    // Salva il file
-    const filePath = join(storageDir, fileName);
-    await writeFile(filePath, buffer);
-    
-    // Restituisci l'URL pubblico
-    const publicUrl = `/storage/${fileName}`;
-    
-    return publicUrl;
+    return fakeUrl;
   } catch (error) {
-    console.error('Error uploading to storage:', error);
+    console.error('Error in uploadToStorage:', error);
     throw new Error('Errore nel caricamento del file');
   }
 }
 
-// Elimina un file dallo storage
+// Elimina un file dallo storage (no-op per ora)
 export async function deleteFromStorage(fileUrl: string): Promise<void> {
   try {
-    // In produzione con S3:
-    /*
-    import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
-    
-    const fileName = fileUrl.split('/').pop();
-    const s3Client = new S3Client({ region: process.env.AWS_REGION });
-    const command = new DeleteObjectCommand({
-      Bucket: process.env.S3_BUCKET,
-      Key: fileName,
-    });
-    
-    await s3Client.send(command);
-    */
-    
-    // Per sviluppo locale
-    if (fileUrl.startsWith('/storage/')) {
-      const filePath = join(process.cwd(), 'public', fileUrl);
-      if (existsSync(filePath)) {
-        const { unlink } = await import('fs/promises');
-        await unlink(filePath);
-      }
-    }
+    console.log(`Delete simulato: ${fileUrl}`);
+    // No-op poiché non stiamo salvando file reali
   } catch (error) {
-    console.error('Error deleting from storage:', error);
-    // Non lanciare errore per eliminazioni fallite
+    console.error('Error in deleteFromStorage:', error);
   }
 }
 
-// Ottieni URL temporaneo con scadenza (per storage privati)
+// Ottieni URL temporaneo (restituisce l'URL normale per ora)
 export async function getSignedUrl(
   fileName: string,
-  expiresIn: number = 3600 // 1 ora default
+  expiresIn: number = 3600
 ): Promise<string> {
-  // In produzione con S3:
-  /*
-  import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-  import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-  
-  const s3Client = new S3Client({ region: process.env.AWS_REGION });
-  const command = new GetObjectCommand({
-    Bucket: process.env.S3_BUCKET,
-    Key: fileName,
-  });
-  
-  const signedUrl = await getSignedUrl(s3Client, command, { expiresIn });
-  return signedUrl;
-  */
-  
-  // Per sviluppo locale, restituisci URL normale
-  return `/storage/${fileName}`;
+  // Per ora restituiamo un URL normale
+  return `/api/storage/signed/${fileName}`;
 }
 
-// Verifica se un file esiste
+// Verifica se un file esiste (sempre false per ora)
 export async function fileExists(fileUrl: string): Promise<boolean> {
-  try {
-    // In produzione con S3:
-    /*
-    import { S3Client, HeadObjectCommand } from '@aws-sdk/client-s3';
-    
-    const fileName = fileUrl.split('/').pop();
-    const s3Client = new S3Client({ region: process.env.AWS_REGION });
-    const command = new HeadObjectCommand({
-      Bucket: process.env.S3_BUCKET,
-      Key: fileName,
-    });
-    
-    await s3Client.send(command);
-    return true;
-    */
-    
-    // Per sviluppo locale
-    if (fileUrl.startsWith('/storage/')) {
-      const filePath = join(process.cwd(), 'public', fileUrl);
-      return existsSync(filePath);
-    }
-    
-    return false;
-  } catch (error) {
-    return false;
-  }
+  // Poiché non salviamo file reali, restituiamo sempre false
+  return false;
 }
 
-// Copia un file
+// Copia un file (genera un nuovo URL fittizio)
 export async function copyFile(
   sourceUrl: string,
   destinationFileName: string
 ): Promise<string> {
   try {
-    // In produzione con S3:
-    /*
-    import { S3Client, CopyObjectCommand } from '@aws-sdk/client-s3';
+    // Genera un nuovo URL fittizio
+    const fileId = Math.random().toString(36).substring(2, 15);
+    const newUrl = `/api/storage/${fileId}/${destinationFileName}`;
     
-    const sourceKey = sourceUrl.split('/').pop();
-    const s3Client = new S3Client({ region: process.env.AWS_REGION });
-    const command = new CopyObjectCommand({
-      Bucket: process.env.S3_BUCKET,
-      CopySource: `${process.env.S3_BUCKET}/${sourceKey}`,
-      Key: destinationFileName,
-    });
+    console.log(`Copy simulato: ${sourceUrl} -> ${newUrl}`);
     
-    await s3Client.send(command);
-    return `https://${process.env.S3_BUCKET}.s3.amazonaws.com/${destinationFileName}`;
-    */
-    
-    // Per sviluppo locale
-    if (sourceUrl.startsWith('/storage/')) {
-      const sourcePath = join(process.cwd(), 'public', sourceUrl);
-      const destPath = join(process.cwd(), 'public', 'storage', destinationFileName);
-      
-      if (existsSync(sourcePath)) {
-        const { copyFile: fsCopyFile } = await import('fs/promises');
-        const destDir = destPath.substring(0, destPath.lastIndexOf('/'));
-        
-        if (!existsSync(destDir)) {
-          await mkdir(destDir, { recursive: true });
-        }
-        
-        await fsCopyFile(sourcePath, destPath);
-        return `/storage/${destinationFileName}`;
-      }
-    }
-    
-    throw new Error('File sorgente non trovato');
+    return newUrl;
   } catch (error) {
-    console.error('Error copying file:', error);
+    console.error('Error in copyFile:', error);
     throw new Error('Errore nella copia del file');
   }
 }
