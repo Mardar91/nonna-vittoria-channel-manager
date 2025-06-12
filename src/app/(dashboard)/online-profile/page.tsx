@@ -194,7 +194,7 @@ export default function OnlineProfilePage() {
               Check-in Online
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              Permetti ai tuoi ospiti di effettuare il check-in online prima dell'arrivo.
+              Permetti ai tuoi ospiti di effettuare il check-in online prima dell&apos;arrivo.
             </p>
           </div>
           
@@ -462,7 +462,7 @@ export default function OnlineProfilePage() {
               Personalizzazione
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              Personalizza l'aspetto della tua pagina di prenotazione.
+              Personalizza l&apos;aspetto della tua pagina di prenotazione.
             </p>
           </div>
           

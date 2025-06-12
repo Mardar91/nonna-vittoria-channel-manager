@@ -159,7 +159,7 @@ export default function RateModal({
                       <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                         <h4 className="font-medium text-yellow-800">Soggiorno Minimo</h4>
                         <p className="text-sm text-yellow-700">
-                          L'appartamento richiede un soggiorno minimo di {effectiveMinStay} notti.
+                          L&apos;appartamento richiede un soggiorno minimo di {effectiveMinStay} notti.
                         </p>
                       </div>
                     )}
@@ -248,7 +248,7 @@ export default function RateModal({
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                         />
                         <p className="mt-1 text-xs text-gray-500">
-                          Soggiorno minimo dell'appartamento: {apartmentData.minStay || 1} notti
+                          Soggiorno minimo dell&apos;appartamento: {apartmentData.minStay || 1} notti
                         </p>
                       </div>
                       

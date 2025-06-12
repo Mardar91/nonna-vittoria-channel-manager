@@ -147,12 +147,12 @@ export default function PendingInvoicesPage() {
         method: 'POST',
       });
       
-      if (!response.ok) throw new Error('Errore nell\'operazione');
+      if (!response.ok) throw new Error('Errore nell&apos;operazione');
       
       toast.success('Prenotazione marcata come da ignorare');
       fetchPendingBookings();
     } catch (error) {
-      toast.error('Errore nell\'operazione');
+      toast.error('Errore nell&apos;operazione');
       console.error(error);
     }
   };
@@ -192,7 +192,7 @@ export default function PendingInvoicesPage() {
               Prenotazioni in Attesa
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Prenotazioni completate che richiedono conferma prezzo prima dell'emissione ricevuta
+              Prenotazioni completate che richiedono conferma prezzo prima dell&apos;emissione ricevuta
             </p>
           </div>
         </div>

@@ -75,10 +75,10 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
     notes: '',
   });
 
-  // Ottieni l'appartamento selezionato
+  // Ottieni l&apos;appartamento selezionato
   const selectedApartment = apartments.find(a => a._id === formData.apartmentId);
 
-  // Calcola il prezzo totale quando cambia l'appartamento, le date o il numero di ospiti
+  // Calcola il prezzo totale quando cambia l&apos;appartamento, le date o il numero di ospiti
   useEffect(() => {
     if (isIcalBookingEditMode) return;
 
@@ -94,7 +94,7 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
            ) {
           // console.warn("Dati non validi per il calcolo del prezzo, impostazione a 0.");
           setFormData(prev => ({ ...prev, totalPrice: 0 }));
-          // Non mostrare toast per validazione fallita, l'utente sta ancora compilando
+          // Non mostrare toast per validazione fallita, l&apos;utente sta ancora compilando
           return;
         }
 
@@ -129,12 +129,12 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
       }
     };
 
-    // Debounce o throttle potrebbero essere utili qui se l'utente cambia rapidamente i campi
+    // Debounce o throttle potrebbero essere utili qui se l&apos;utente cambia rapidamente i campi
     // Per ora, chiamiamo direttamente. Considerare di aggiungere un piccolo delay se necessario.
     if (formData.apartmentId && formData.checkIn && formData.checkOut && formData.numberOfGuests !== undefined) {
       fetchPrice();
     } else {
-      // Se i campi fondamentali non sono settati, resetta il prezzo a 0 senza chiamare l'API
+      // Se i campi fondamentali non sono settati, resetta il prezzo a 0 senza chiamare l&apos;API
       setFormData(prev => ({ ...prev, totalPrice: 0 }));
     }
   }, [formData.apartmentId, formData.checkIn, formData.checkOut, formData.numberOfGuests, isIcalBookingEditMode]);
@@ -253,7 +253,7 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
         source: 'direct',
         notes: '',
         manualTotalPrice: undefined,
-        totalPrice: 0, // Sarà ricalcolato dall'altro useEffect
+        totalPrice: 0, // Sarà ricalcolato dall&apos;altro useEffect
         apartmentId: preselectedApartmentId || prev.apartmentId || '',
       }));
       setDisplaySourceOptions(baseSourceOptions);
@@ -643,7 +643,7 @@ export default function BookingForm({ booking, isEdit = false, apartments = [] }
           <div className="md:col-span-1">
             <h3 className="text-lg font-medium leading-6 text-gray-900">Informazioni Ospite</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Dettagli dell'ospite.
+              Dettagli dell&apos;ospite.
             </p>
           </div>
           <div className="mt-5 md:mt-0 md:col-span-2">

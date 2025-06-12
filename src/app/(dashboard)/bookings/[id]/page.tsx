@@ -36,7 +36,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
     );
   }
   
-  // Ottieni le informazioni dell'appartamento
+  // Ottieni le informazioni dell&apos;appartamento
   const apartment = await ApartmentModel.findById(booking.apartmentId);
   
   // Verifica se esiste un check-in per questa prenotazione
@@ -301,7 +301,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      {/* Link all'appartamento */}
+      {/* Link all&apos;appartamento */}
       <div className="bg-white shadow rounded-lg p-6">
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-medium">Informazioni Appartamento</h2>
@@ -332,7 +332,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
               </div>
             </div>
           ) : (
-            <p className="text-gray-500">Informazioni sull'appartamento non disponibili.</p>
+            <p className="text-gray-500">Informazioni sull&apos;appartamento non disponibili.</p>
           )}
         </div>
       </div>

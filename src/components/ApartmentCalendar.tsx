@@ -532,14 +532,14 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
     setLoading(true);
     try {
       const response = await fetch(`/api/bookings/${selectedBooking.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Errore nell\'eliminazione della prenotazione');
+      if (!response.ok) throw new Error('Errore nell&apos;eliminazione della prenotazione');
       toast.success('Prenotazione eliminata con successo');
       setDeleteConfirmOpen(false);
       setIsBookingModalOpen(false);
       router.refresh(); // Aggiorna dati
     } catch (error) {
       console.error('Error deleting booking:', error);
-      toast.error('Errore nell\'eliminazione della prenotazione');
+      toast.error('Errore nell&apos;eliminazione della prenotazione');
     } finally {
       setLoading(false);
     }
@@ -1034,7 +1034,7 @@ export default function ApartmentCalendar({ apartmentId, apartmentData, bookings
                         </Dialog.Title>
                         <div className="mt-2">
                           <p className="text-sm text-gray-500">
-                            Sei sicuro di voler eliminare questa prenotazione? L'azione è irreversibile.
+                            Sei sicuro di voler eliminare questa prenotazione? L&apos;azione è irreversibile.
                           </p>
                         </div>
                       </div>

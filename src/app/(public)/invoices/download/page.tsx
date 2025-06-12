@@ -395,7 +395,7 @@ export default function PublicInvoiceDownloadPage() {
             Questo documento è fornito a titolo di ricevuta per il tuo soggiorno.
           </p>
           <p className="mt-2">
-            Per qualsiasi domanda, contatta la struttura all'indirizzo email indicato nel documento.
+            Per qualsiasi domanda, contatta la struttura all&apos;indirizzo email indicato nel documento.
           </p>
         </div>
       </div>

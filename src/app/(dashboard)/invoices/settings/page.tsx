@@ -195,12 +195,12 @@ export default function InvoiceSettingsPage() {
         method: 'DELETE',
       });
       
-      if (!response.ok) throw new Error('Errore nell\'eliminazione');
+      if (!response.ok) throw new Error('Errore nell&apos;eliminazione');
       
       toast.success('Gruppo eliminato con successo');
       fetchSettings();
     } catch (error) {
-      toast.error('Errore nell\'eliminazione del gruppo');
+      toast.error('Errore nell&apos;eliminazione del gruppo');
       console.error(error);
     }
   };
@@ -516,7 +516,7 @@ export default function InvoiceSettingsPage() {
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                           />
                           <span className="ml-2 text-sm text-gray-700">
-                            I prezzi includono già l'IVA
+                            I prezzi includono già l&apos;IVA
                           </span>
                         </label>
                       </div>
@@ -702,7 +702,7 @@ export default function InvoiceSettingsPage() {
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <span className="ml-2 text-sm text-gray-700">
-                      Invia ricevuta via email all'ospite automaticamente
+                      Invia ricevuta via email all&apos;ospite automaticamente
                     </span>
                   </label>
                 </div>

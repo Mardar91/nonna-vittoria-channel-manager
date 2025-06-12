@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { useState } from 'react'; // Importa useState per gestire lo stato di caricamento/errore
-import toast from 'react-hot-toast'; // Assumendo l'uso di react-hot-toast per le notifiche
+import toast from 'react-hot-toast'; // Assumendo l&apos;uso di react-hot-toast per le notifiche
 
 export default function ProfilePage() {
   const { data: session } = useSession();
@@ -14,7 +14,7 @@ export default function ProfilePage() {
     );
     if (confirmation) {
       setIsLoading(true);
-      toast.loading('Ripristino dell_account in corso...', { id: 'reset-toast' }); // Mostra notifica di caricamento
+      toast.loading('Ripristino dell&apos;account in corso...', { id: 'reset-toast' }); // Mostra notifica di caricamento
 
       try {
         const response = await fetch('/api/account/reset', {
@@ -25,7 +25,7 @@ export default function ProfilePage() {
 
         if (response.ok) {
           toast.success('Account ripristinato con successo! Tutti i dati sono stati cancellati.', { id: 'reset-toast' });
-          // Reindirizza l'utente o esegui il logout
+          // Reindirizza l&apos;utente o esegui il logout
           // È consigliabile fare il logout e reindirizzare alla pagina di login
           await signOut({ callbackUrl: '/login' });
         } else {
@@ -33,17 +33,17 @@ export default function ProfilePage() {
         }
       } catch (error) {
         console.error('Errore nella chiamata API di ripristino:', error);
-        toast.error('Errore di connessione durante il ripristino dell_account.', { id: 'reset-toast' });
+        toast.error('Errore di connessione durante il ripristino dell&apos;account.', { id: 'reset-toast' });
       } finally {
         setIsLoading(false);
       }
     } else {
       console.log('Azione di ripristino annullata.');
-      toast.dismiss('reset-toast'); // Rimuovi la notifica se l'utente annulla mentre era in caricamento (improbabile qui ma buona pratica)
+      toast.dismiss('reset-toast'); // Rimuovi la notifica se l&apos;utente annulla mentre era in caricamento (improbabile qui ma buona pratica)
     }
   };
 
-  if (!session && !isLoading) { // Se non c'è sessione e non sta caricando il reset
+  if (!session && !isLoading) { // Se non c&apos;è sessione e non sta caricando il reset
     return <p>Caricamento sessione...</p>;
   }
 
@@ -67,7 +67,7 @@ export default function ProfilePage() {
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-xl font-semibold mb-4">Gestione Account</h2>
         <p className="mb-4 text-sm text-gray-600">
-          Attenzione: Il ripristino dell'account cancellerà permanentemente tutti i dati associati,
+          Attenzione: Il ripristino dell&apos;account cancellerà permanentemente tutti i dati associati,
           inclusi appartamenti, prenotazioni, check-in e impostazioni.
           Questa azione non può essere annullata.
         </p>

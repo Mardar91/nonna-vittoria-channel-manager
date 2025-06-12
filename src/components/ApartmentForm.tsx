@@ -43,7 +43,7 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
     seasonalPrices: [],
   });
 
-  // Stato per gestire l'input del nuovo servizio personalizzato
+  // Stato per gestire l&apos;input del nuovo servizio personalizzato
   const [newAmenity, setNewAmenity] = useState('');
   
   // Stato per gestire i prezzi stagionali
@@ -106,13 +106,13 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
     const { value, checked } = e.target;
     
     if (checked) {
-      // Aggiungi l'amenity se selezionata
+      // Aggiungi l&apos;amenity se selezionata
       setFormData({
         ...formData,
         amenities: [...(formData.amenities || []), value],
       });
     } else {
-      // Rimuovi l'amenity se deselezionata
+      // Rimuovi l&apos;amenity se deselezionata
       setFormData({
         ...formData,
         amenities: (formData.amenities || []).filter(amenity => amenity !== value),
@@ -120,7 +120,7 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
     }
   };
 
-  // Funzione per gestire l'aggiunta di un servizio personalizzato
+  // Funzione per gestire l&apos;aggiunta di un servizio personalizzato
   const handleAddCustomAmenity = () => {
     if (newAmenity.trim()) {
       setFormData({
@@ -293,7 +293,7 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
           <div className="md:col-span-1">
             <h3 className="text-lg font-medium leading-6 text-gray-900">Informazioni Base</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Informazioni generali sull'appartamento.
+              Informazioni generali sull&apos;appartamento.
             </p>
           </div>
           <div className="mt-5 md:mt-0 md:col-span-2">
@@ -525,7 +525,7 @@ export default function ApartmentForm({ apartment, isEdit = false }: ApartmentFo
           <div className="md:col-span-1">
             <h3 className="text-lg font-medium leading-6 text-gray-900">Servizi</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Seleziona i servizi disponibili nell'appartamento.
+              Seleziona i servizi disponibili nell&apos;appartamento.
             </p>
           </div>
           <div className="mt-5 md:mt-0 md:col-span-2">

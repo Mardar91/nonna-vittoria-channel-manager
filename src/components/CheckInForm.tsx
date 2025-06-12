@@ -310,7 +310,7 @@ export default function CheckInForm({
           )}
         </div>
         <div className="mt-4">
-          <label htmlFor="expectedArrivalTime" className="block text-sm font-medium text-gray-700">Orario Previsto d'Arrivo *</label>
+          <label htmlFor="expectedArrivalTime" className="block text-sm font-medium text-gray-700">Orario Previsto d&apos;Arrivo *</label>
           <Select
             id="expectedArrivalTime"
             options={timeOptions}
@@ -669,7 +669,7 @@ export default function CheckInForm({
               className="text-blue-600 hover:text-blue-800 cursor-pointer text-sm mb-2 inline-block sm:col-span-2"
               onClick={() => {
                 const currentVisibility = additionalGuestDocumentVisible[index];
-                if (currentVisibility) { // If true, it means it's currently visible and will be hidden
+                if (currentVisibility) { // If true, it means it&apos;s currently visible and will be hidden
                   setFormData(prevFormData => {
                     const updatedAdditionalGuests = prevFormData.additionalGuests.map((guest, i) => {
                       if (i === index) {
@@ -771,7 +771,7 @@ export default function CheckInForm({
                 )}
                 {errors[`additionalGuests.${index}.documentIssuePlace`] && <p className="mt-1 text-sm text-red-600">{errors[`additionalGuests.${index}.documentIssuePlace`]}</p>}
               </div>
-              {(guest.documentIssueCountry === ITALIA_COUNTRY_CODE || !guest.documentIssueCountry) && ( // Ho mantenuto la logica originale qui, anche se potrebbe essere !guest.documentIssueCountry if it's always set
+              {(guest.documentIssueCountry === ITALIA_COUNTRY_CODE || !guest.documentIssueCountry) && ( // Ho mantenuto la logica originale qui, anche se potrebbe essere !guest.documentIssueCountry if it&apos;s always set
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Provincia di rilascio</label>
                   <input

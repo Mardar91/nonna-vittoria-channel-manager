@@ -70,7 +70,7 @@ export default function CheckInSuccessPage() {
               <ul className="text-sm text-blue-800 space-y-1 text-left">
                 <li>• Orario check-in: dalle 14:00 alle 19:00</li>
                 <li>• Per arrivi fuori orario, contattaci in anticipo</li>
-                <li>• Riceverai le istruzioni per l'accesso via email</li>
+                <li>• Riceverai le istruzioni per l&apos;accesso via email</li>
                 <li>• In caso di necessità, contatta la reception</li>
               </ul>
             </div>
