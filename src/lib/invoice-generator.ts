@@ -28,6 +28,7 @@ interface GenerateInvoiceResult {
   success: boolean;
   invoice?: IInvoice;
   error?: string;
+  bookingId?: string;
 }
 
 // Funzione principale per generare una ricevuta
@@ -374,6 +375,7 @@ export async function generateInvoiceBatch(
           results.push({
             success: false,
             error: `Ricevuta già emessa per la prenotazione ${bookingId}`,
+            bookingId: bookingId,
           });
           continue;
         }
@@ -387,11 +389,22 @@ export async function generateInvoiceBatch(
         userId: options.userId,
       });
 
-      results.push(result);
+      // Aggiungi bookingId al risultato se non è già presente o se è un fallimento
+      // Se la generazione fallisce PRIMA di creare la fattura (es. booking non trovato),
+      // result.invoice sarà undefined.
+      // Se la generazione ha successo, result.invoice.bookingId conterrà l'ID.
+      // Per i fallimenti, vogliamo esplicitamente allegare il bookingId che stavamo processando.
+      if (!result.success) {
+        results.push({ ...result, bookingId: bookingId });
+      } else {
+        // Anche per i successi, per uniformità con la route che potrebbe aspettarselo al primo livello
+        results.push({ ...result, bookingId: result.invoice?.bookingId?.toString() || bookingId });
+      }
     } catch (error) {
       results.push({
         success: false,
         error: `Errore per prenotazione ${bookingId}: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`,
+        bookingId: bookingId,
       });
     }
   }
