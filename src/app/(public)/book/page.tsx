@@ -6,8 +6,7 @@ import { Dialog, Transition, Disclosure } from '@headlessui/react';
 import { ChevronUpIcon, CreditCardIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-import Image from 'next/image'; // Added Import
-import Image from 'next/image'; // Added Import
+import Image from 'next/image'; // Added Import  // <--- UNA SOLA IMPORTAZIONE QUI
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { IPublicProfile } from '@/models/PublicProfile';
