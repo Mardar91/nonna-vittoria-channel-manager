@@ -101,7 +101,11 @@ export interface IInvoice {
   emailSentAt?: Date;
   emailSentTo?: string;
   
-  // File generato
+  // Documento generato - ora salviamo direttamente nel database
+  htmlContent?: string; // HTML della ricevuta salvato come base64
+  htmlGeneratedAt?: Date;
+  
+  // File PDF esterno (opzionale, per future implementazioni)
   pdfUrl?: string;
   pdfGeneratedAt?: Date;
   
@@ -247,7 +251,11 @@ const InvoiceSchema = new Schema<IInvoice>(
     emailSentAt: { type: Date },
     emailSentTo: { type: String },
     
-    // PDF
+    // Documento HTML salvato nel database
+    htmlContent: { type: String }, // HTML salvato come base64
+    htmlGeneratedAt: { type: Date },
+    
+    // PDF esterno (opzionale)
     pdfUrl: { type: String },
     pdfGeneratedAt: { type: Date },
     
