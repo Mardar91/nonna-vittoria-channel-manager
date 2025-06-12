@@ -18,6 +18,26 @@ export interface IInvoiceCounter {
   updatedAt?: Date;
 }
 
+export interface IInvoiceCounterModel extends mongoose.Model<IInvoiceCounter> {
+  getNextNumber(
+    settingsGroupId: string,
+    year: number,
+    invoiceId: string,
+    prefix?: string
+  ): Promise<{ number: number; formatted: string }>;
+
+  isNumberUsed(
+    settingsGroupId: string,
+    year: number,
+    number: number
+  ): Promise<boolean>;
+
+  resetCounter(
+    settingsGroupId: string,
+    year: number
+  ): Promise<boolean>;
+}
+
 const InvoiceCounterSchema = new Schema<IInvoiceCounter>(
   {
     settingsGroupId: { type: String, required: true },
@@ -118,4 +138,5 @@ InvoiceCounterSchema.statics.resetCounter = async function(
   return result.deletedCount > 0;
 };
 
-export default mongoose.models.InvoiceCounter || mongoose.model<IInvoiceCounter>('InvoiceCounter', InvoiceCounterSchema);
+export default mongoose.models.InvoiceCounter as IInvoiceCounterModel ||
+           mongoose.model<IInvoiceCounter, IInvoiceCounterModel>('InvoiceCounter', InvoiceCounterSchema);
