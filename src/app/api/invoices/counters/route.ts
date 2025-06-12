@@ -45,9 +45,9 @@ export async function GET(req: NextRequest) {
         });
         
         // Calcola statistiche per il contatore
-        const statistics = counter.getStatistics ? 
-          counter.getStatistics() : 
-          {
+        // Dato che usiamo .lean(), counter.getStatistics non sarà disponibile.
+        // Applichiamo direttamente la logica di fallback.
+        const statistics = {
             totalIssued: counter.lastNumber,
             year: counter.year,
             settingsGroupId: counter.settingsGroupId,
