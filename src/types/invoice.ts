@@ -68,6 +68,8 @@ export interface UpdateInvoiceDTO {
     unitPrice: number;
     vatRate?: number;
   }[];
+
+  invoiceDate?: string | Date; // <-- AGGIUNGI QUESTA RIGA
   
   // Pagamento
   paymentInfo?: {
