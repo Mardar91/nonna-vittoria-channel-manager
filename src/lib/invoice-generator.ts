@@ -413,6 +413,67 @@ export async function generateInvoice(options: GenerateInvoiceOptions): Promise<
   }
 }
 
+export async function cancelIssuedInvoice(
+  invoiceId: string,
+  reason: string,
+  userId: string
+): Promise<{ success: boolean; error?: string; invoice?: IInvoice }> {
+  try {
+    const invoice = await InvoiceModel.findById(invoiceId);
+
+    if (!invoice) {
+      return { success: false, error: 'Fattura non trovata' };
+    }
+
+    if (invoice.status === 'cancelled') {
+      return { success: false, error: 'Questa fattura è già stata annullata' };
+    }
+
+    if (invoice.status === 'draft') {
+      return {
+        success: false,
+        error: 'Questa funzione è per annullare fatture emesse. Per le bozze, usare cancelDraftInvoice.'
+      };
+    }
+
+    // Per fatture emesse (issued, sent, paid, partial, ecc.) procedi con la cancellazione logica
+    invoice.status = 'cancelled';
+    invoice.cancelledAt = new Date();
+    invoice.cancelReason = reason;
+    invoice.updatedBy = userId;
+    // isLocked potrebbe rimanere true, indicando che è stata finalizzata e poi annullata.
+
+    await invoice.save();
+
+    // Aggiungi una nota alla prenotazione collegata che la sua fattura è stata annullata.
+    if (invoice.bookingId) {
+      const booking = await BookingModel.findById(invoice.bookingId);
+      if (booking) {
+        let newNotes = `Fattura ${invoice.invoiceNumber} annullata il ${format(new Date(), 'dd/MM/yyyy')}. Motivo: ${reason}.`;
+        if (booking.notes) {
+          booking.notes += `
+${newNotes}`;
+        } else {
+          booking.notes = newNotes;
+        }
+        // Non resettiamo invoiceSettings.invoiceEmitted o invoiceId sulla prenotazione
+        // per mantenere traccia che una fattura è stata emessa e poi annullata.
+        // Potrebbe essere necessario rivedere questa logica se si vuole permettere
+        // la ri-emissione di una fattura per la stessa prenotazione.
+        await booking.save();
+      }
+    }
+
+    return { success: true, invoice: invoice.toObject() };
+  } catch (error) {
+    console.error('Errore nell'annullamento della fattura emessa:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Errore sconosciuto durante l'annullamento'
+    };
+  }
+}
+
 // Funzione per generare ricevute in batch
 export async function generateInvoiceBatch(
   bookingIds: string[],
