@@ -629,11 +629,15 @@ export async function duplicateInvoice(
   invoiceId: string, userId: string
 ): Promise<GenerateInvoiceResult> {
   try {
-    const originalInvoice = await InvoiceModel.findById(invoiceId).lean();
-    if (!originalInvoice) return { success: false, error: 'Ricevuta originale non trovata' };
+    const originalInvoice: IInvoice | null = await InvoiceModel.findById(invoiceId).lean<IInvoice>();
 
+    if (!originalInvoice) {
+      return { success: false, error: 'Ricevuta originale non trovata' };
+    }
+
+    // Ora TypeScript sa che originalInvoice è di tipo IInvoice
     const duplicateOptions: GenerateInvoiceOptions = {
-      booking: originalInvoice.bookingId.toString(),
+      booking: originalInvoice.bookingId, // .toString() non è strettamente necessario se bookingId è già string in IInvoice
       settingsGroupId: originalInvoice.settingsGroupId,
       customerOverride: { ...originalInvoice.customer },
       itemsOverride: originalInvoice.items.map(item => ({ ...item, _id: undefined })), // Rimuovi _id dagli items
