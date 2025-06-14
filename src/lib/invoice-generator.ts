@@ -548,14 +548,20 @@ export async function checkBookingsNeedingInvoice(): Promise<IBooking[]> {
 
   const bookingsWithSettings = [];
   for (const booking of bookings) {
-    if (booking.apartmentId && typeof booking.apartmentId !== 'string') { // Controlla che apartmentId sia popolato
+    if (booking.apartmentId && typeof booking.apartmentId === 'object' && '_id' in booking.apartmentId && booking.apartmentId._id) {
+        // Ora è più sicuro accedere a booking.apartmentId._id
         const settings = await InvoiceSettingsModel.findOne({
-          apartmentIds: (booking.apartmentId as IApartment)._id.toString(),
+          // Non è più necessario il cast 'as IApartment' se il tipo è già abbastanza stretto,
+          // ma lo manteniamo per chiarezza o lo rimuoviamo se TypeScript non si lamenta.
+          // Per sicurezza, e dato che '_id' in booking.apartmentId è stato verificato,
+          // possiamo usare direttamente booking.apartmentId._id
+          apartmentIds: booking.apartmentId._id.toString(),
         });
         if (settings) {
           bookingsWithSettings.push(booking);
         }
-    } else if (booking.apartmentId) { // Caso in cui apartmentId è solo una stringa
+    } else if (booking.apartmentId && typeof booking.apartmentId === 'string') {
+        // Questo blocco rimane invariato
         const settings = await InvoiceSettingsModel.findOne({
           apartmentIds: booking.apartmentId,
         });
