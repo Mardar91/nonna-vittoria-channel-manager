@@ -466,7 +466,7 @@ ${newNotes}`;
 
     return { success: true, invoice: invoice.toObject() };
   } catch (error) {
-    console.error('Errore nell'annullamento della fattura emessa:', error);
+    console.error("Errore nell'annullamento della fattura emessa:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Errore sconosciuto durante l'annullamento"
