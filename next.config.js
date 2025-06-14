@@ -24,14 +24,7 @@ const nextConfig = {
     // Aggiungi anche 'mongodb-client-encryption' per sicurezza, dato l'import trace
     config.resolve.fallback['mongodb-client-encryption'] = false;
 
-    // Aggiungi questa nuova parte per noParse
-    // per evitare che Webpack tenti di processare i sourcemap di chrome-aws-lambda
-    // come se fossero moduli eseguibili.
-    // Usiamo una regex per puntare specificamente ai file .map dentro la problematica libreria.
-    config.module.noParse = [
-      ...(config.module.noParse || []), // Mantieni eventuali noParse esistenti
-      /chrome-aws-lambda\/build\/puppeteer\/lib\/.*\.js\.map$/,
-    ];
+    // Il blocco config.module.noParse è stato rimosso da qui
 
     return config;
   }

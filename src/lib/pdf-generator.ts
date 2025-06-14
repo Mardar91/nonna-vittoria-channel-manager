@@ -1,9 +1,9 @@
 import { put } from '@vercel/blob';
 import puppeteer from 'puppeteer-core';
-import chrome from 'chrome-aws-lambda';
-import { IInvoice, IInvoiceItem } from '@/models/Invoice'; // Assicurati che il percorso sia corretto
-import { format } from 'date-fns'; // Per formattare le date
-import { it } from 'date-fns/locale'; // Per la formattazione italiana delle date
+import chromium from '@sparticuz/chromium'; // Sostituito chrome-aws-lambda
+import { IInvoice, IInvoiceItem } from '@/models/Invoice';
+import { format } from 'date-fns';
+import { it } from 'date-fns/locale';
 
 // Funzione per generare l'HTML della fattura
 async function getInvoiceHtml(invoiceData: IInvoice): Promise<string> {
@@ -139,16 +139,23 @@ export async function generateAndUploadPdfToBlob(
   invoiceData: IInvoice,
   invoiceId: string // L'ID della fattura, per il nome del file
 ): Promise<{ blobUrl: string | null; error?: string }> {
-  let browser = null; // Inizializza a null
+  let browser = null;
   try {
     const htmlContent = await getInvoiceHtml(invoiceData);
 
-    const executablePath = await chrome.executablePath || process.env.CHROME_EXECUTABLE_PATH;
+    // Non è più necessario specificare CHROME_EXECUTABLE_PATH per lo sviluppo locale con @sparticuz/chromium se si installano i font,
+    // ma per Vercel è meglio essere espliciti.
+    // @sparticuz/chromium si occupa di trovare il path corretto nell'ambiente Lambda/Vercel.
+    // Per lo sviluppo locale, potresti aver bisogno di:
+    // await chromium.font('https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf');
+    // se usi caratteri speciali o emoji, ma per ora proviamo senza.
 
     browser = await puppeteer.launch({
-      args: chrome.args,
-      executablePath: executablePath,
-      headless: chrome.headless,
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(), // Nota: è una funzione asincrona
+      headless: chromium.headless, // 'new' o true per il nuovo headless mode, chromium.headless per quello classico
+      ignoreHTTPSErrors: true, // Aggiunto per robustezza, sebbene non strettamente necessario per HTML locale
     });
 
     const page = await browser.newPage();
