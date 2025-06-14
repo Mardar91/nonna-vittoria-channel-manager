@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import InvoiceModel from '@/models/Invoice';
+import InvoiceModel, { IInvoice } from '@/models/Invoice';
 
 interface RouteParams {
   params: {
@@ -21,9 +21,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     
     await connectDB();
     
-    const invoice = await InvoiceModel.findOne({
+    const invoice: IInvoice | null = await InvoiceModel.findOne({
       publicAccessCode: accessCode,
-    }).lean(); // Usiamo .lean() per un oggetto JS semplice, non serve salvare modifiche qui
+    }).lean<IInvoice>();
     
     if (!invoice) {
       return NextResponse.json(
