@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   experimental: {
-    serverComponentsExternalPackages: ['mongoose'] // Questa rimane qui
+    serverComponentsExternalPackages: ['mongoose', '@sparticuz/chromium']
   },
   transpilePackages: ['puppeteer-core'], // Questa è la nuova posizione
   webpack: (config, { isServer }) => { // è buona pratica includere { isServer } sebbene non usato subito
