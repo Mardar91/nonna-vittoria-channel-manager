@@ -155,13 +155,21 @@ export async function generateInvoice(options: GenerateInvoiceOptions): Promise<
     await tempInvoice.save();
     preliminaryInvoiceId = tempInvoice._id.toString(); // Assegna per rollback
 
-    // 5.b Genera il numero progressivo usando l'ID della bozza
+    if (!preliminaryInvoiceId) {
+      // Questo blocco non dovrebbe mai essere raggiunto se tempInvoice.save() ha successo.
+      // Serve principalmente per la sicurezza del tipo e per gestire errori imprevisti.
+      console.error("[Invoice Generation] Critical Error: preliminaryInvoiceId is null before calling getNextNumber. This indicates tempInvoice.save() might have failed silently or _id was not generated.");
+      return { success: false, error: "Impossibile generare l'ID preliminare della fattura. Operazione interrotta." };
+    }
+    // Dopo questo controllo, TypeScript sa che preliminaryInvoiceId è di tipo 'string'.
+
+    // 5.b Genera il numero progressivo usando l'ID della bozza (ora preliminaryInvoiceId è sicuramente una stringa)
     const currentYear = new Date().getFullYear();
     currentYearForRollback = currentYear; // Per rollback
     const { number, formatted } = await InvoiceCounterModel.getNextNumber(
       settings.groupId,
       currentYear,
-      preliminaryInvoiceId,
+      preliminaryInvoiceId, // Ora è una stringa sicura
       settings.numberingPrefix
     );
 
