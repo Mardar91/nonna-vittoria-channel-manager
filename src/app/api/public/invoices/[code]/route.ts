@@ -64,7 +64,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       // Se pdfUrl non esiste, significa che il PDF non è (ancora) disponibile.
       console.warn(`PDF non trovato per la fattura ${invoice.invoiceNumber} con codice ${accessCode}.`);
       return NextResponse.json(
-        { error: 'PDF non disponibile per questa fattura. Potrebbe essere in fase di generazione o la generazione è fallita. Riprova più tardi o contatta l'assistenza.' },
+        { error: "PDF non disponibile per questa fattura. Potrebbe essere in fase di generazione o la generazione è fallita. Riprova più tardi o contatta l'assistenza." },
         { status: 404 } // O 503 Service Unavailable se è temporaneo
       );
     }
