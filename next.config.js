@@ -3,9 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   experimental: {
-    serverComponentsExternalPackages: ['mongoose'], // Mantieni questa se esiste
-    transpilePackages: ['puppeteer-core']
+    serverComponentsExternalPackages: ['mongoose'] // Questa rimane qui
   },
+  transpilePackages: ['puppeteer-core'], // Questa è la nuova posizione
   webpack: (config, { isServer }) => { // è buona pratica includere { isServer } sebbene non usato subito
     // Assicurati che config.resolve.fallback esista
     if (!config.resolve.fallback) {
